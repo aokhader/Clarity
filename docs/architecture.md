@@ -112,14 +112,16 @@ treatment_visit   medical_bill       lien              records_received
 record_request    coverage           policy_limit      case_value
 liability         demand             offer             settlement
 expense           deadline           task              client_contact
-party             other
+party             incident           medical_specials  other
 ```
+
+`incident` (the date of incident) and `medical_specials` (the specials total) come from mapped custom fields. They feed the header and the KPI strip.
 
 `title` is the short display string, generated at extraction time. `value_json` holds the kind-specific payload below. These payloads are the contract between the pipeline and the two views, so define them as Pydantic models in `schemas.py` during M0. Money is integer cents.
 
 | Kind | `value_json` keys |
 |---|---|
-| `case_stage` | `stage`, `inferred` |
+| `case_stage` | `stage` (canonical: intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed), `inferred` |
 | `status_change` | `from_stage`, `to_stage`, `label` |
 | `injury`, `diagnosis` | `body_part`, `description`, `severity` |
 | `treatment_visit` | `visit_type` |
@@ -136,8 +138,11 @@ party             other
 | `task` | `status`, `due_at`, `assignee`, `waiting_on` (firm, client, provider, insurer, court, other) |
 | `client_contact` | `channel`, `direction` |
 | `party` | `role` |
+| `incident` | `description` |
+| `medical_specials` | `amount_cents` |
+| `other` | `detail` |
 
-Any payload may also carry `alt_values` (when two reads or two sources disagree) and `corroborating_source_ids`.
+Any payload may also carry `alt_values` (when two reads or two sources disagree) and `corroborating_source_ids`. `PAYLOAD_BY_KIND` in `schemas.py` is the authority; `validate_payload` rejects unknown keys, so the pipeline calls it before storing a fact.
 
 ## Visibility
 
@@ -164,6 +169,7 @@ Source access follows the same rule: a provider may open the source of a fact on
 Firm routes take the stub user from an `X-User-Id` header.
 
 ```
+GET   /api/users                                 stub accounts for the user switcher
 GET   /api/matters                               list matters from sources
 GET   /api/matters/{id}                          header: client, stage, KPIs, last client contact
 GET   /api/matters/{id}/brief                    narrative with fact ids per sentence
@@ -184,6 +190,7 @@ GET   /api/shares/{id}/preview                   exactly what the provider would
 PATCH /api/shares/{id}                           settings, hidden facts, note, expiry
 POST  /api/shares/{id}/revoke
 
+GET   /api/ops/health                            API and database up; whether .env is filled
 POST  /api/ops/sync            GET /api/ops/sync/status
 POST  /api/ops/digest          GET /api/ops/digest/status
 GET   /api/ops/cost                              tokens and dollars for this matter
@@ -194,9 +201,12 @@ Provider routes take no header. The token is the credential.
 ```
 GET   /api/p/{token}                             provider payload, records an opened event
 GET   /api/p/{token}/facts/{id}/source           only for visible own-bill and own-record facts
+GET   /api/p/{token}/pages/{id}/image            only the cited page of such a fact
 ```
 
 `/api/shares/{id}/preview` and `/api/p/{token}` must call the same function so the preview cannot drift from what the provider gets.
+
+Request and response models for every route are in `backend/app/schemas.py`, mirrored in `frontend/src/api/types.ts`. Routers are split by owner: `api/matters.py` and `api/facts.py` (Track B), `api/shares.py` (Track C, including `/api/matters/{id}/providers`), `api/provider.py` (Track C), `api/ops.py` (Track A).
 
 ## Change detection and caching
 

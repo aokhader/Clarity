@@ -1,6 +1,6 @@
 # Track B: Firm view
 
-**Owner:** [name]
+**Owner:** Abdulaziz Khader
 **Read first:** `docs/ui.md`, the API routes and data model in `docs/architecture.md`
 **Needs:** nothing but the repository. Start on `cli seed-dev`, switch to A's snapshot at S1.
 

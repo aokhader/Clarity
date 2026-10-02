@@ -98,6 +98,10 @@ class FactKind(StrEnum):
     TASK = "task"
     CLIENT_CONTACT = "client_contact"
     PARTY = "party"
+    # The two below come from mapped custom fields: the header's date of incident and
+    # the KPI strip's medical specials total. No other kind can carry them.
+    INCIDENT = "incident"
+    MEDICAL_SPECIALS = "medical_specials"
     OTHER = "other"
 
 

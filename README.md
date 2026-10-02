@@ -6,7 +6,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, 2026).
 
 ## Status
 
-Setup is done (milestone M0). The backend and frontend skeletons run end to end, and the database schema is in place. Clio sync, the digest pipeline, and both views are next. `docs/progress.md` tracks each milestone.
+Foundation is done (M0): the schema, the API contracts, and an invented development matter are in place. Clio sync, the digest pipeline, and both views are being built in three parallel tracks; `docs/progress.md` tracks them.
 
 ## Run it
 
@@ -27,7 +27,7 @@ npm run dev                          # http://localhost:5173, proxies /api to po
 npm run typecheck
 ```
 
-`python -m app.cli reset` deletes the database and downloaded files. The `auth`, `sync`, and `digest` commands arrive in the next milestones.
+`python -m app.cli seed-dev` loads an invented matter for development (the demo runs on a live Clio sync), and `python -m app.cli reset` deletes the database and downloaded files. The `auth`, `sync`, and `digest` commands are being built.
 
 ## Architecture
 

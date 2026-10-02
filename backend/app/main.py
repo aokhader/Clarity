@@ -1,11 +1,15 @@
-"""FastAPI application: creates the tables on startup and mounts the API routers."""
+"""FastAPI application: creates the tables on startup and mounts every router.
+
+Each router file belongs to one track (see docs/parallel.md), so tracks add routes
+without touching this file.
+"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import ops
+from app.api import facts, matters, ops, provider, shares
 from app.db import init_db
 
 
@@ -16,4 +20,5 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Clarity", lifespan=lifespan)
-app.include_router(ops.router)
+for module in (ops, matters, facts, shares, provider):
+    app.include_router(module.router)

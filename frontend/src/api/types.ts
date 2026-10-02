@@ -1,7 +1,469 @@
-// Mirrors backend/app/schemas.py. Change both files in one commit.
+// Mirrors backend/app/schemas.py and the enums it uses from backend/app/models.py.
+// Frozen after M0: change both sides in one commit (docs/parallel.md).
+// Stored-only shapes (BriefContent, FieldMappingContent) never cross the API and are not mirrored.
+
+/** ISO 8601 date, e.g. 2026-10-02. */
+export type IsoDate = string
+/** ISO 8601 datetime with offset. */
+export type IsoDateTime = string
+
+// --- Enums -------------------------------------------------------------------------
+
+export type SourceType =
+  | 'matter'
+  | 'custom_field'
+  | 'contact'
+  | 'relationship'
+  | 'note'
+  | 'communication'
+  | 'task'
+  | 'calendar_entry'
+  | 'activity'
+  | 'document'
+
+export type FactKind =
+  | 'case_stage'
+  | 'status_change'
+  | 'injury'
+  | 'diagnosis'
+  | 'treatment_visit'
+  | 'medical_bill'
+  | 'lien'
+  | 'records_received'
+  | 'record_request'
+  | 'coverage'
+  | 'policy_limit'
+  | 'case_value'
+  | 'liability'
+  | 'demand'
+  | 'offer'
+  | 'settlement'
+  | 'expense'
+  | 'deadline'
+  | 'task'
+  | 'client_contact'
+  | 'party'
+  | 'incident'
+  | 'medical_specials'
+  | 'other'
+
+export type Visibility = 'internal' | 'shareable'
+export type Confidence = 'high' | 'medium' | 'low'
+export type Origin = 'code' | 'model'
+
+/** Canonical stages, in the order the provider tracker shows them. */
+export const CASE_STAGES = [
+  'intake',
+  'treating',
+  'treatment_complete',
+  'demand',
+  'negotiation',
+  'litigation',
+  'settled',
+  'closed',
+] as const
+export type CaseStage = (typeof CASE_STAGES)[number]
+
+export type WaitingOn = 'firm' | 'client' | 'provider' | 'insurer' | 'court' | 'other'
+
+// --- Fact payloads (FactOut.value) --------------------------------------------------
+
+export type AltValue = {
+  amount_cents: number | null
+  on: IsoDate | null
+  source_id: number | null
+  page_no: number | null
+}
+
+type PayloadBase = {
+  alt_values: AltValue[]
+  corroborating_source_ids: number[]
+}
+
+export type CaseStagePayload = PayloadBase & { stage: CaseStage | null; inferred: boolean }
+export type StatusChangePayload = PayloadBase & {
+  from_stage: CaseStage | null
+  to_stage: CaseStage | null
+  label: string
+}
+export type InjuryPayload = PayloadBase & {
+  body_part: string | null
+  description: string | null
+  severity: string | null
+}
+export type TreatmentVisitPayload = PayloadBase & { visit_type: string | null }
+export type BillPayload = PayloadBase & { amount_cents: number | null; balance_cents: number | null }
+export type RecordsReceivedPayload = PayloadBase & { description: string | null; page_count: number | null }
+export type RecordRequestPayload = PayloadBase & { description: string | null; status: 'open' | 'fulfilled' }
+export type CoveragePayload = PayloadBase & {
+  carrier: string | null
+  coverage_type: string | null
+  confirmed: boolean | null
+}
+export type PolicyLimitPayload = PayloadBase & {
+  amount_cents: number | null
+  per: 'person' | 'occurrence' | null
+}
+export type CaseValuePayload = PayloadBase & {
+  low_cents: number | null
+  high_cents: number | null
+  basis: string | null
+}
+export type LiabilityPayload = PayloadBase & { assessment: string | null }
+export type NegotiationPayload = PayloadBase & { amount_cents: number | null; party: string | null }
+export type ExpensePayload = PayloadBase & {
+  amount_cents: number | null
+  category: string | null
+  vendor: string | null
+}
+export type DeadlinePayload = PayloadBase & { deadline_type: string | null; due_at: IsoDateTime | null }
+export type TaskPayload = PayloadBase & {
+  status: 'open' | 'complete'
+  due_at: IsoDateTime | null
+  assignee: string | null
+  waiting_on: WaitingOn | null
+}
+export type ClientContactPayload = PayloadBase & {
+  channel: 'email' | 'phone' | 'text' | 'meeting' | 'letter' | 'other' | null
+  direction: 'inbound' | 'outbound' | null
+}
+export type PartyPayload = PayloadBase & { role: string | null }
+export type IncidentPayload = PayloadBase & { description: string | null }
+export type MedicalSpecialsPayload = PayloadBase & { amount_cents: number | null }
+export type OtherPayload = PayloadBase & { detail: string | null }
+
+/** PAYLOAD_BY_KIND in schemas.py. */
+export type FactPayloads = {
+  case_stage: CaseStagePayload
+  status_change: StatusChangePayload
+  injury: InjuryPayload
+  diagnosis: InjuryPayload
+  treatment_visit: TreatmentVisitPayload
+  medical_bill: BillPayload
+  lien: BillPayload
+  records_received: RecordsReceivedPayload
+  record_request: RecordRequestPayload
+  coverage: CoveragePayload
+  policy_limit: PolicyLimitPayload
+  case_value: CaseValuePayload
+  liability: LiabilityPayload
+  demand: NegotiationPayload
+  offer: NegotiationPayload
+  settlement: NegotiationPayload
+  expense: ExpensePayload
+  deadline: DeadlinePayload
+  task: TaskPayload
+  client_contact: ClientContactPayload
+  party: PartyPayload
+  incident: IncidentPayload
+  medical_specials: MedicalSpecialsPayload
+  other: OtherPayload
+}
+
+// --- Facts and sources -------------------------------------------------------------
+
+/** What a source chip needs to render and to open the drawer. */
+export type FactRef = {
+  id: number
+  source_type: SourceType
+  page_no: number | null
+  confidence: Confidence
+}
+
+type FactBase = {
+  id: number
+  title: string
+  event_date: IsoDate | null
+  source_id: number
+  source_type: SourceType
+  page_no: number | null
+  quote: string | null
+  provider_contact_id: number | null
+  visibility: Visibility
+  significance: number
+  confidence: Confidence
+  verified: boolean
+  origin: Origin
+  created_at: IsoDateTime
+}
+
+/** A fact as the firm sees it. Narrowing on `kind` types `value`. */
+export type FactOut = { [K in FactKind]: FactBase & { kind: K; value: FactPayloads[K] } }[FactKind]
+export type FactOf<K extends FactKind> = Extract<FactOut, { kind: K }>
+
+export type PageRef = {
+  page_id: number
+  page_no: number
+  image_url: string
+}
+
+export type SourceOut = {
+  source_id: number
+  source_type: SourceType
+  title: string | null
+  occurred_on: IsoDate | null
+  author: string | null
+  text: string | null
+  pages: PageRef[]
+}
+
+export type FactSourceOut = {
+  fact: FactOut
+  source: SourceOut
+  corroborating: SourceOut[]
+}
+
+// --- Firm view ---------------------------------------------------------------------
+
+export type UserOut = {
+  id: number
+  name: string
+  role: string
+}
+
+export type MatterSummaryOut = {
+  matter_id: number
+  display_number: string | null
+  description: string | null
+  client_name: string | null
+  synced_at: IsoDateTime
+}
+
+export type ClientOut = {
+  contact_id: number | null
+  name: string
+  avatar_url: string | null
+}
+
+export type StageOut = {
+  stage: CaseStage | null
+  label: string | null
+  inferred: boolean
+  facts: FactRef[]
+}
+
+export type DatedFactOut = {
+  on: IsoDate
+  fact: FactRef
+}
+
+export type KpiValueOut = {
+  amount_cents: number | null
+  low_cents: number | null
+  high_cents: number | null
+  facts: FactRef[]
+}
+
+/** One KPI tile. No values means "Not found in file"; two or more means sources disagree. */
+export type KpiOut = {
+  name: 'case_value' | 'coverage' | 'medical_specials' | 'firm_spend'
+  values: KpiValueOut[]
+  basis: string | null
+}
+
+export type RunOut = {
+  id: number
+  started_at: IsoDateTime
+  finished_at: IsoDateTime | null
+  error: string | null
+  stats: Record<string, unknown> | null
+}
+
+export type MatterHeaderOut = {
+  matter_id: number
+  display_number: string | null
+  description: string | null
+  client: ClientOut | null
+  responsible_attorney: string | null
+  opened_on: IsoDate | null
+  stage: StageOut
+  incident: DatedFactOut | null
+  last_client_contact: DatedFactOut | null
+  kpis: KpiOut[]
+  digested: boolean
+  last_sync: RunOut | null
+  last_digest: RunOut | null
+}
+
+export type BriefSentenceOut = {
+  text: string
+  facts: FactRef[]
+}
+
+export type BriefOut = {
+  headline: string
+  stage: CaseStage
+  stage_facts: FactRef[]
+  sentences: BriefSentenceOut[]
+  open_questions: string[]
+  generated_at: IsoDateTime
+}
+
+export type ChangesOut = {
+  last_opened_at: IsoDateTime | null
+  facts: FactOut[]
+}
+
+export type OpenedOut = {
+  last_opened_at: IsoDateTime
+}
+
+export type ActionsOut = {
+  overdue: FactOut[]
+  upcoming: FactOut[]
+  waiting_on_others: FactOut[]
+}
+
+// --- Shares and the provider view ---------------------------------------------------
+
+export type ShareSetting =
+  | 'case_stage'
+  | 'coverage_exists'
+  | 'coverage_limits'
+  | 'own_bills'
+  | 'own_records'
+  | 'requests'
+  | 'treatment_activity'
+
+export type ShareSettings = Record<ShareSetting, boolean>
+
+export type ShareStatusOut = {
+  share_id: number
+  created_at: IsoDateTime
+  expires_at: IsoDateTime | null
+  revoked: boolean
+  opened_count: number
+  last_opened_at: IsoDateTime | null
+}
+
+export type ProviderOut = {
+  contact_id: number
+  name: string
+  role_label: string | null
+  billed_cents: number
+  records_received: number
+  open_requests: number
+  share: ShareStatusOut | null
+}
+
+export type ShareCreate = {
+  provider_contact_id: number
+  settings?: ShareSettings
+  hidden_fact_ids?: number[]
+  note?: string | null
+  expires_in_days?: number | null
+}
+
+/** PATCH body. Only the fields present are changed. */
+export type ShareUpdate = {
+  settings?: ShareSettings
+  hidden_fact_ids?: number[]
+  note?: string | null
+  expires_at?: IsoDateTime | null
+}
+
+export type ShareOut = {
+  id: number
+  matter_id: number
+  provider_contact_id: number
+  provider_name: string
+  url: string
+  settings: ShareSettings
+  hidden_fact_ids: number[]
+  note: string | null
+  created_by: number
+  created_at: IsoDateTime
+  expires_at: IsoDateTime | null
+  revoked_at: IsoDateTime | null
+  opened_count: number
+  last_opened_at: IsoDateTime | null
+}
+
+export type ProviderItemOut = {
+  fact_id: number
+  on: IsoDate | null
+  label: string
+  amount_cents: number | null
+  has_source: boolean
+}
+
+export type ProviderStatusOut = {
+  stages: CaseStage[]
+  current: CaseStage | null
+  active: boolean
+  last_movement_on: IsoDate | null
+}
+
+export type ProviderUpdateOut = {
+  on: IsoDate | null
+  label: string
+}
+
+export type ProviderCoverageOut = {
+  confirmed: boolean | null
+  limits: ProviderItemOut[] | null
+}
+
+export type ProviderTreatmentOut = {
+  last_visit_month: string
+}
+
+/** Everything a provider receives. A section is null when its setting is off. */
+export type ProviderPayload = {
+  provider_name: string
+  patient_name: string | null
+  firm_name: string | null
+  shared_on: IsoDate
+  expires_on: IsoDate | null
+  note: string | null
+  status: ProviderStatusOut | null
+  updates: ProviderUpdateOut[] | null
+  coverage: ProviderCoverageOut | null
+  requests: ProviderItemOut[] | null
+  bills: ProviderItemOut[] | null
+  records: ProviderItemOut[] | null
+  treatment_activity: ProviderTreatmentOut | null
+}
+
+export type ShareItemOut = {
+  fact_id: number
+  setting: ShareSetting
+  title: string
+  event_date: IsoDate | null
+  hidden: boolean
+}
+
+export type SharePreviewOut = {
+  payload: ProviderPayload
+  items: ShareItemOut[]
+}
+
+export type ProviderSourceOut = {
+  fact_id: number
+  title: string
+  quote: string | null
+  page: PageRef | null
+}
+
+// --- Ops -------------------------------------------------------------------------------
 
 export type HealthOut = {
   status: 'ok'
   clio_configured: boolean
   models_configured: boolean
+}
+
+export type RunStatusOut = {
+  running: boolean
+  last_run: RunOut | null
+}
+
+export type CostOut = {
+  matter_id: number
+  pages: number
+  model_calls: number
+  cache_hits: number
+  input_tokens: number
+  output_tokens: number
+  cost_micro_usd: number
 }
