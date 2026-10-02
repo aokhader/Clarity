@@ -11,6 +11,7 @@ import base64
 import hashlib
 import json
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -36,6 +37,10 @@ TOOL_INSTRUCTION = (
     "with input that matches its schema."
 )
 REQUEST_TIMEOUT_SECONDS = 180
+# Rate limits, overload, and dropped connections are retried with backoff; anything
+# else fails the one call and is recorded, and the next digest run tries it again.
+RETRY_STATUSES = {429, 500, 502, 503, 504, 529}
+MAX_ATTEMPTS = 5
 
 Role = Literal["extract", "merge"]
 
@@ -286,7 +291,7 @@ def _send_anthropic(
         ],
         "tool_choice": {"type": "auto"},
     }
-    response = httpx.post(
+    response = _post(
         f"{settings.llm_endpoint}/messages",
         json=body,
         headers={
@@ -340,7 +345,7 @@ def _send_openai(
             {"role": "user", "content": content},
         ],
     }
-    response = httpx.post(
+    response = _post(
         f"{settings.llm_endpoint}/chat/completions",
         json=body,
         headers={"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"},
@@ -356,6 +361,26 @@ def _send_openai(
         int(usage.get("prompt_tokens", 0)),
         int(usage.get("completion_tokens", 0)),
     )
+
+
+def _post(url: str, **kwargs: Any) -> httpx.Response:
+    """POST, retrying rate limits, overload, and dropped connections with backoff."""
+    for attempt in range(MAX_ATTEMPTS):
+        last = attempt + 1 == MAX_ATTEMPTS
+        try:
+            response = httpx.post(url, **kwargs)
+        except httpx.TransportError:
+            if last:
+                raise
+            time.sleep(min(2**attempt, 30))
+            continue
+        if response.status_code not in RETRY_STATUSES or last:
+            return response
+        retry_after = response.headers.get("retry-after", "")
+        wait = float(retry_after) if retry_after.isdigit() else min(2**attempt, 30)
+        log.info("Model API %s; retrying in %.0fs", response.status_code, wait)
+        time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 def _cost_micro_usd(role: Role, outcome: ModelResult) -> int:

@@ -4,7 +4,7 @@ import httpx
 import pytest
 from pydantic import BaseModel
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.digest import llm
 
 
@@ -15,11 +15,13 @@ class _Out(BaseModel):
 def test_a_model_call_without_prices_is_refused(
     data_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("LLM_API_KEY", "test-key")
-    monkeypatch.setenv("EXTRACT_MODEL", "test-model")
-    for name in ("EXTRACT_PRICE_IN", "EXTRACT_PRICE_OUT"):
-        monkeypatch.setenv(name, "")
-    get_settings.cache_clear()
+    # Built without the .env file, so prices filled in there cannot leak in.
+    settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        llm_api_key="test-key",
+        extract_model="test-model",
+    )
+    monkeypatch.setattr(llm, "get_settings", lambda: settings)
     request = llm.ModelRequest(
         purpose="test",
         role="extract",
@@ -75,3 +77,26 @@ def test_a_missing_tool_call_is_asked_again_and_its_tokens_are_counted(
     assert result.data == {"value": 3}
     assert (result.input_tokens, result.output_tokens) == (200, 20)
     assert all(body["tool_choice"] == {"type": "auto"} for body in bodies)
+
+
+def test_rate_limits_and_dropped_connections_are_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcomes: list[object] = [
+        httpx.ConnectError("reset"),
+        httpx.Response(429, headers={"retry-after": "2"}),
+        httpx.Response(200, json={}),
+    ]
+    sleeps: list[float] = []
+
+    def fake_post(url: str, **_kwargs: object) -> httpx.Response:
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        assert isinstance(outcome, httpx.Response)
+        return outcome
+
+    monkeypatch.setattr(llm.httpx, "post", fake_post)
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    assert llm._post("https://example.invalid/messages").status_code == 200
+    assert sleeps == [1, 2.0]
