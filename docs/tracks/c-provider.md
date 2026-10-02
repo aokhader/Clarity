@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** C6 (C3's real-snapshot check waits for S1)
+- **Now:** C6, rehearsing the clip on the integrated build (C3's real-data check waits for the merge of `Track-A`)
 - **Schedule:** at 2:22 PM the owner chose to build C5 and move this track's freeze to 3:45 PM
 - **Blocked:** nothing
 
@@ -36,9 +36,14 @@
 - [x] If behind: replace with a one-click share using default settings (not needed; the composer shipped)
 
 ### C6 Submission material (30 min, start by 2:30 PM at the latest)
-- [ ] README from the outline in `docs/submission.md`
-- [ ] Draft form answers; collect every track's stubs and known issues
+- [x] README from the outline in `docs/submission.md` (final check at freeze, below)
+- [x] Draft form answers; collect every track's stubs and known issues (`docs/form-answers.md`)
 - [ ] Rehearse the clip script on the integrated build
+
+### Before submitting
+- [ ] Fill the brackets in `docs/form-answers.md`: models, pages, calls, and cost from `/api/ops/cost`; team size; clip link
+- [ ] Add one screenshot of each view to the README (outline item 1), taken on the real matter
+- [ ] Confirm the README's stub-user line still holds: it assumes B5 seeded users and the switcher
 
 ## Contract obligations
 
