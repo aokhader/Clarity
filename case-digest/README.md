@@ -12,7 +12,15 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-### Connect Clio (pick one)
+### Connect Clio (one command)
+
+```bash
+python -m backend.connect --ingest
+```
+
+It asks for credentials if none exist (an access token, or an OAuth app ID/secret), saves them to the git-ignored `.env`, verifies the connection, picks the matter, and pulls it.
+
+Manual alternatives:
 
 - **Access token:** paste it into `CLIO_ACCESS_TOKEN` in `.env`.
 - **OAuth app:** create a developer application in Clio (redirect URI `http://127.0.0.1:8765/callback`), put its ID and secret in `.env`, then run:

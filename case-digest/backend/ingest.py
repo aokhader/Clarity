@@ -109,6 +109,8 @@ def list_matters(client, query: str | None = None) -> list[dict]:
 def resolve_matter_id(client, args) -> str:
     if args.matter_id:
         return str(args.matter_id)
+    if config.CLIO_MATTER_ID and not args.query:
+        return config.CLIO_MATTER_ID
     matters = list_matters(client, args.query)
     if not matters:
         raise SystemExit("No matters found" + (f" for query '{args.query}'" if args.query else ""))

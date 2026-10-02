@@ -13,6 +13,7 @@ CLIO_CLIENT_ID = os.getenv("CLIO_CLIENT_ID", "")
 CLIO_CLIENT_SECRET = os.getenv("CLIO_CLIENT_SECRET", "")
 CLIO_REDIRECT_URI = os.getenv("CLIO_REDIRECT_URI", "http://127.0.0.1:8765/callback")
 CLIO_ACCESS_TOKEN = os.getenv("CLIO_ACCESS_TOKEN", "")
+CLIO_MATTER_ID = os.getenv("CLIO_MATTER_ID", "")  # set by `python -m backend.connect`
 
 TOKEN_FILE = Path(os.getenv("CLIO_TOKEN_FILE", ROOT / ".clio_token.json"))
 DATA_DIR = Path(os.getenv("DATA_DIR", ROOT / "data"))
