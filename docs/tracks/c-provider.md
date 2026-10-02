@@ -65,10 +65,12 @@ Track C also owns `services/provider_view.py`, `services/providers.py` (the prov
 - The stage tracker marks only the current stage. Earlier stages are not ticked, since a case can skip one.
 - The composer previews before any link exists: `POST /api/matters/{id}/shares/preview` takes the same `ShareCreate` body and runs `share_preview` over an unsaved share. Create saves exactly that share, and a test checks the link's payload equals the preview. No schema changed.
 - The composer only creates links. A live link is copied or withdrawn (two clicks) from the providers panel; to change one, withdraw it and share again.
+- Send update drafts an email or text in the firm's own app, or copies the text. The message is written from the live share's preview, the same payload the link serves, so it can't say more than the link. Clarity sends nothing itself: no new dependency, no credentials, and the attorney still presses Send.
 
 ## Stubs and shortcuts
 
 - Provider access is by unguessable link only; there is no provider login.
+- Send update leaves the recipient blank: no synced field holds the provider's email or phone, so the firm fills it in. (`frontend/src/components/share/SendUpdateMenu.tsx`)
 
 ## Known issues
 

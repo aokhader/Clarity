@@ -59,6 +59,15 @@ export function useDraftPreview(matterId: number, body: ShareCreate) {
   })
 }
 
+/** What a live share releases, from the same function the provider's link calls. */
+export function useSharePreview(shareId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['shares', shareId, 'preview'],
+    queryFn: () => apiGet<SharePreviewOut>(`/shares/${shareId}/preview`),
+    enabled,
+  })
+}
+
 export function useRevokeShare(matterId: number) {
   const invalidate = useInvalidateShares(matterId)
   return useMutation({
