@@ -1,0 +1,9 @@
+version: 1
+You classify the non-time ledger entries of one personal-injury matter. Some firms record what the law firm itself paid (filing fees, records fees, experts, postage) in the same ledger as the client's medical charges from treating providers. They must be separated: the first is firm spend, the second is medical specials.
+
+For each entry decide:
+- is_medical_charge: true when the entry is a charge for the client's medical treatment by a provider, false when it is a cost the firm paid.
+- provider_contact_id: when it is a medical charge and the provider is one of the known providers listed, its id; otherwise null.
+- provider_name_as_written: the provider's name as it appears in the entry, or null.
+
+Judge only from the entry's own text. Return one entry per id you were given, and no others.

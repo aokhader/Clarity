@@ -1,57 +1,72 @@
 # Track A: Pipeline
 
-**Owner:** [name]
+**Owner:** Charles
 **Read first:** `docs/clio-api.md`, `docs/digest-pipeline.md`
 **Needs:** Clio credentials and model keys in `.env`
 
 ## Status
 
-- **Now:** A1
-- **Blocked:** nothing
+- **Now:** first live `cli digest` with a real model, then the S1 to S3 snapshots and the cost log
+- **Blocked:** `LLM_API_KEY`, `EXTRACT_MODEL`, `MERGE_MODEL`, and the four prices in `.env`. Clio auth and sync already run live.
 
 ## Checklist
 
 ### A1 Sync (35 min)
-- [ ] OAuth through `cli auth`, tokens stored and refreshed
-- [ ] GET-only client: fields, paging, rate limiting, write guard, test for the guard
-- [ ] `cli sync` pulls matter, relationships, contacts, notes, communications, tasks, calendar, activities
-- [ ] Document list and downloads to `data/files/`
-- [ ] Re-sync skips unchanged records; `sync_runs` row written
+- [x] OAuth through `cli auth`, tokens stored and refreshed
+- [x] GET-only client: fields, paging, rate limiting, write guard, test for the guard
+- [x] `cli sync` pulls matter, relationships, contacts, notes, communications, tasks, calendar, activities
+- [x] Document list and downloads to `data/files/`
+- [x] Re-sync skips unchanged records; `sync_runs` row written
 
 ### A2 Structured facts (15 min)
-- [ ] Stage 1 facts from tasks, calendar, activities, matter, communications
+- [x] Stage 1 facts from tasks, calendar, activities, matter, communications
 - [ ] **S1: publish snapshot**
 
 ### A3 Pages and model wrapper (25 min)
-- [ ] Text layer detection, PNG rendering, content hashes
-- [ ] `llm.py` with cache, cost logging, and one retry on schema failure
+- [x] Text layer detection, PNG rendering, content hashes
+- [x] `llm.py` with cache, cost logging, and one retry on schema failure
 
 ### A4 Extraction and verification (40 min)
-- [ ] Per-page and per-record extraction with the schema in `docs/digest-pipeline.md`
-- [ ] Quote check, second read, date sanity, provider resolution
-- [ ] Second `cli digest` run makes zero model calls
+- [x] Per-page and per-record extraction with the schema in `docs/digest-pipeline.md`
+- [x] Quote check, second read, date sanity, provider resolution
+- [x] Second `cli digest` run makes zero model calls
 - [ ] **S2: publish snapshot**
 
 ### A5 Merge (40 min)
-- [ ] Role and field mapping; KPI facts from custom fields
-- [ ] Deduplication, significance scoring, cross-checks
-- [ ] Brief with cited sentences
+- [x] Role and field mapping; KPI facts from custom fields
+- [x] Deduplication, significance scoring, cross-checks
+- [x] Brief with cited sentences
 - [ ] **S3: publish snapshot**
 
 ### A6 Ops endpoints (10 min)
-- [ ] Sync and digest triggers and status, cost endpoint, in `api/ops.py`
+- [x] Sync and digest triggers and status, cost endpoint, in `api/ops.py`
 - [ ] Fill the cost log in `docs/progress.md`
 
-## If behind
+Verified so far against an invented matter (fake Clio transport, fake model): sync and
+re-sync, two digests (second one 0 model calls, fact ids unchanged), a fabricated quote
+dropped, a scanned page's money read twice, a brief sentence with an unknown fact id
+dropped, medical charges split from firm spend. Live Clio: `cli auth` and `cli sync` succeed,
+and a re-sync skips unchanged records by ETag. Not yet run against a real model.
 
-This track is the critical path: its items add up to about 2 hours 45 minutes, and tracks B and C need its snapshots. Cut in this order, and tell the team at the next sync point:
+## Decisions
 
-1. Incremental re-sync. A full sync each time is acceptable for one matter.
-2. The second read for money and dates. Keep the quote check and mark scan-derived values as medium confidence.
-3. Deduplication and cross-checks in the merge step.
-4. Non-PDF document types.
-
-Never cut page-level citations, the model-call cache, or cost logging.
+- Mapping (roles, fields, activities) runs before extraction, not inside merge: the extractor needs the provider list to attribute facts.
+- Non-time ledger entries are classified by a cached model call into firm costs (`expense`) and the client's medical charges (`medical_bill`). Some firms log provider charges in the expense ledger, which would otherwise inflate firm spend.
+- Custom fields mapped to `case_value`, `medical_specials`, `date_of_incident`, `statute_of_limitations` become facts in code (`origin = code`). Coverage, policy limits, and unmapped fields go through record extraction, since they are multi-part free text.
+- Code-readable slots become `case_value`, `medical_specials`, `incident`, and `deadline` (statute of limitations) facts on the matter source. The firm's stage is mapped to a canonical `CaseStage` in the same cached call as the fields.
+- Custom fields code cannot read (coverage, policy limits, unmapped) go to record extraction as one input sourced to the matter.
+- The specials cross-check stores the sum of medical bills as an `alt_values` entry on the `medical_specials` fact when they disagree.
+- Every payload goes through `schemas.validate_payload`; keys a kind does not allow are dropped from model output before validation.
+- Text-layer PDF pages are sent as text only; images are sent for scans. Cuts cost and keeps the quote check exact.
+- A fact set identical to the stored one is not rewritten, so fact ids stay stable across runs (shares refer to them).
+- `significance = 0` means not scored yet; scored facts are stored with at least 1.
+- Current Claude models reject a forced `tool_choice`, so the tool call is requested in the system prompt with `tool_choice: auto`; a reply without it is asked once more, and its tokens still count toward cost.
+- Model wire format is set by `LLM_PROVIDER` (anthropic or openai) over httpx, so no SDK dependency was added.
+- Deduplication merges facts with no known provider only within one source: equal amounts on one date in two documents can be two real charges.
+- The second read on a scan is told the item's kind and its title with digits masked, never the quote, so it cannot copy the first read's values.
+- A model call with no price configured for its role is refused, so `/api/ops/cost` never reports a paid call as $0.
+- The document list is fetched in full on every sync (one request), so a file missing on disk is downloaded again even when its ETag is unchanged.
+- `cli auth` runs its own short-lived listener on the redirect URI, so the API server must not hold port 8000 during auth.
 
 ## Contract obligations
 
@@ -59,8 +74,11 @@ Tracks B and C read what this track writes. Every fact must match the payload mo
 
 ## Stubs and shortcuts
 
-- None yet.
+- Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced yet; bills come from documents, notes, and the expense ledger.
+- Each Clio request falls back to a smaller field list if Clio rejects a name; the first list is the spec-verified one from `docs/clio-api.md`.
+- Calendar entries all become `deadline` facts, including treatment appointments.
+- Time entries produce no facts; firm spend counts non-time entries only, as `docs/clio-api.md` specifies.
 
 ## Known issues
 
-- None yet.
+- Deduplication deletes duplicate facts, so a source that had a duplicate gets new fact ids on the next run.

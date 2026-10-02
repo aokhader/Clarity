@@ -1,0 +1,78 @@
+"""Build `facts.value_json` payloads that pass the frozen contract in `schemas.py`.
+
+`validate_payload` rejects unknown keys, so model output is narrowed to the keys the
+kind allows before validation, and a key with an invalid value is dropped rather than
+losing the whole fact.
+"""
+
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+from pydantic import ValidationError
+
+from app.models import FactKind
+from app.schemas import PAYLOAD_BY_KIND, validate_payload
+
+CLIENT_CONTACT_CHANNELS = {"email", "phone", "text", "meeting", "letter", "other"}
+
+
+def build_payload(
+    kind: FactKind,
+    amount: Any,
+    detail: dict[str, Any],
+    fallback_label: str | None = None,
+) -> dict[str, Any]:
+    fields = PAYLOAD_BY_KIND[kind].model_fields
+    values = {k: v for k, v in detail.items() if k in fields and v is not None}
+    cents = to_cents(amount)
+    if cents is not None:
+        if kind is FactKind.CASE_VALUE:
+            values.setdefault("low_cents", cents)
+        elif "amount_cents" in fields:
+            values.setdefault("amount_cents", cents)
+    if kind is FactKind.OTHER and "detail" not in values:
+        text = detail.get("description") or fallback_label
+        if text:
+            values["detail"] = str(text)
+    if kind is FactKind.STATUS_CHANGE and not values.get("label"):
+        values["label"] = fallback_label or "Stage changed"
+    if kind is FactKind.TASK:
+        values["status"] = task_status(values.get("status"))
+    if kind is FactKind.CLIENT_CONTACT and "channel" in values:
+        values["channel"] = contact_channel(str(values["channel"]))
+    for _attempt in range(len(values) + 1):
+        try:
+            return validate_payload(kind, values)
+        except ValidationError as error:
+            bad = {str(e["loc"][0]) for e in error.errors() if e.get("loc")}
+            required = {name for name, f in fields.items() if f.is_required()}
+            if not bad or bad <= required:
+                raise
+            for key in bad - required:
+                values.pop(key, None)
+    return validate_payload(kind, values)
+
+
+def task_status(value: Any) -> str:
+    text = str(value or "").lower()
+    return "complete" if text in {"complete", "completed", "done"} else "open"
+
+
+def contact_channel(value: str) -> str:
+    text = value.lower()
+    for channel in ("email", "phone", "text", "meeting", "letter"):
+        if channel in text:
+            return channel
+    if "call" in text:
+        return "phone"
+    return "other"
+
+
+def to_cents(amount: Any) -> int | None:
+    if amount is None or amount == "":
+        return None
+    try:
+        value = Decimal(str(amount).replace("$", "").replace(",", "").strip())
+    except InvalidOperation:
+        return None
+    return int((value * 100).to_integral_value())

@@ -1,0 +1,15 @@
+version: 2
+You map one personal-injury matter's custom fields to canonical slots, and its stage to a canonical stage. Firms name their fields and stages differently, so judge by the name and the value together.
+
+Slots:
+- case_value: the firm's estimated value of the whole case (a dollar figure or range), not a component of it.
+- medical_specials: the total medical expenses incurred to date.
+- coverage: which insurance applies, the carrier, or whether coverage is confirmed.
+- policy_limit: the dollar limits of the applicable insurance policies.
+- date_of_incident: the date of the accident or injury.
+- statute_of_limitations: the limitations deadline for filing suit.
+- none: anything else, including rationales, summaries, wage loss, liens, and assessments.
+
+Assign each slot to at most one field. A field that fits no slot is none. Return one entry per field id you were given, and no others.
+
+Stage: given the matter's stage name and status as the firm records them, choose one of intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed. Return null when neither the stage name nor the status says which.
