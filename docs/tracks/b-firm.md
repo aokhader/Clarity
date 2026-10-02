@@ -48,7 +48,7 @@ The shared components in `frontend/src/components/shared/` are used by Track C. 
 - `SourceChip({ fact: FactRef, className? })`: opens the source drawer by setting `?fact=ID`; dashed amber outline for low confidence
 - `SourceChipList({ facts: FactRef[], max = 3 })`: chips, with "+N more" past `max`
 - `KindBadge({ kind: FactKind })`
-- `Panel({ title, aside?, actions?, className?, children })`: titled section with small-caps heading
+- `Panel({ title, icon?, aside?, actions?, className?, children })`: a white card with an optional lucide icon before a bold heading
 - `LoadError({ what, error, onRetry })`: the error state with a retry button
 - `lib/format.ts` (`formatMoney`, `formatMoneyRange`, `formatDate`, `formatDateTime`, `daysFromToday`, `formatDaysAgo`, `formatElapsed`), `lib/labels.ts` (kind, source, stage, and waiting-on labels), `lib/useSourceDrawer.ts`
 
@@ -76,7 +76,9 @@ Track B also owns these service modules, added in B1:
 - Stub users are seeded in `init_db` (`backend/app/db.py`), so Track C's share endpoints find them on a fresh database. `api/client.ts` gained an optional `userId` and `apiPost`; both additive.
 - Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
-- The firm page takes the Clarity Dashboard v2 look (dark section rail, icon-headed cards, tinted KPI tiles) after the freeze, at the owner's call, restyle only. Source chips stay, though the mockup drops them (rule 3). This changed the theme tokens in `frontend/src/index.css`, a contract file; the shared `Panel` restyle also reaches the provider page.
+- The firm page follows the Clarity Dashboard v2 design, built after the submission close at the owner's call. A dark sidebar switches four views through `?view=` (`lib/matterViews.ts`): Case Overview (client card, case metadata, brief, roadmap), For Attorney (action board with counts and a task table, What Matters, injuries, providers, figures), For Service Provider, and Documents. Source chips stay on every fact, revealed on hover, though the mockup drops them (rule 3). The theme tokens in `frontend/src/index.css`, a contract file, changed to the design's slate and blue; the shared `Panel` restyle also reaches the provider page.
+- For Service Provider shows what a chosen provider's link would release with the default settings, from Track C's draft-preview endpoint and `ProviderView`. The server filter decides the content, so the firm's preview cannot show more than the provider would see. The mockup's tickable action requests are not built: they would need a write path the API does not have.
+- Case metadata picks the most significant liability fact, the most significant injury, and the statute of limitations among deadlines whose type names it (`statuteDeadline` in `lib/facts.ts`): the next one ahead, or the latest passed. The action table and injuries list show 8 and 6 rows before "Show all", since the real matter has 75 open items and 321 injuries.
 - Chips in the header, stage pill, Financial overview, and brief appear only on hover or keyboard focus of their fact, at the owner's request for a cleaner page (`components/firm/RevealOnHover.tsx`). They stay in the layout and tab order, so every fact is still one click from its source.
 - A Documents page (`?view=documents`, linked from the sidebar) lists every cited source once, grouped by source type with filter pills; each fact opens the source drawer. It is built from the timeline endpoint, so it needed no new route or schema; a source shows its facts, since `FactOut` carries no source title.
 

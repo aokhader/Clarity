@@ -1,65 +1,24 @@
 import type { MatterHeaderOut } from '@/api/types'
 import { ClientAvatar } from '@/components/firm/ClientAvatar'
-import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { StagePill } from '@/components/firm/StagePill'
-import { UserSwitcher } from '@/components/firm/UserSwitcher'
-import { SourceChip } from '@/components/shared/SourceChip'
-import { STALE_CONTACT_DAYS } from '@/lib/facts'
-import { daysFromToday, formatDate, formatDaysAgo, formatElapsed } from '@/lib/format'
-import { cn } from '@/lib/utils'
 
+/** The client card that opens the overview: photo or initials, name, stage, and matter. */
 export function MatterHeader({ header }: { header: MatterHeaderOut }) {
-  const { client, incident, last_client_contact: contact } = header
-  const name = client?.name ?? header.description ?? `Matter ${header.matter_id}`
+  const name = header.client?.name ?? header.description ?? `Matter ${header.matter_id}`
   const subtitle = [header.description, header.display_number].filter(Boolean).join(' · ')
-  const staleContact = contact !== null && -daysFromToday(contact.on) > STALE_CONTACT_DAYS
-
   return (
-    <header className="flex items-start justify-between gap-6 pb-5">
-      <div className="flex items-start gap-4">
-        <ClientAvatar name={name} avatarUrl={client?.avatar_url ?? null} />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-          <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <div className="flex items-center gap-1.5">
-              <dt className="text-muted-foreground">Incident</dt>
-              <dd className="group/src flex items-center gap-1.5 tabular-nums">
-                {incident ? (
-                  <>
-                    {formatDate(incident.on)}
-                    <span className="text-muted-foreground">({formatElapsed(incident.on)} ago)</span>
-                    <RevealOnHover>
-                      <SourceChip fact={incident.fact} />
-                    </RevealOnHover>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">Not found in file</span>
-                )}
-              </dd>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <dt className="text-muted-foreground">Last client contact</dt>
-              <dd className={cn('group/src flex items-center gap-1.5', staleContact && 'font-medium text-warning')}>
-                {contact ? (
-                  <>
-                    {formatDaysAgo(contact.on)}
-                    <RevealOnHover>
-                      <SourceChip fact={contact.fact} />
-                    </RevealOnHover>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">None found in file</span>
-                )}
-              </dd>
-            </div>
-          </dl>
+    <section
+      aria-label="Client"
+      className="flex items-center gap-6 rounded-2xl border bg-linear-to-r from-blue-50 via-blue-50/40 to-card p-6"
+    >
+      <ClientAvatar name={name} avatarUrl={header.client?.avatar_url ?? null} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-3xl font-bold tracking-tight">{name}</h2>
+          <StagePill stage={header.stage} />
         </div>
+        {subtitle && <p className="text-sm text-slate-600">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-4">
-        <StagePill stage={header.stage} />
-        <UserSwitcher />
-      </div>
-    </header>
+    </section>
   )
 }

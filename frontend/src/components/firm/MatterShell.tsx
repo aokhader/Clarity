@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 type MatterShellProps = {
   matterId: number
-  /** The matter's panels, rendered once the header has loaded and the matter is digested. */
+  /** The current view, rendered once the header has loaded and the matter is digested. */
   children: (header: MatterHeaderOut) => ReactNode
 }
 
@@ -38,10 +38,13 @@ export function MatterShell({ matterId, children }: MatterShellProps) {
     return <LoadError what="the matter" error={header.error} onRetry={() => void header.refetch()} />
   }
 
-  return (
-    <>
-      <MatterHeader header={header.data} />
-      {header.data.digested ? children(header.data) : <DigestPrompt />}
-    </>
-  )
+  if (!header.data.digested) {
+    return (
+      <div className="space-y-6">
+        <MatterHeader header={header.data} />
+        <DigestPrompt />
+      </div>
+    )
+  }
+  return children(header.data)
 }

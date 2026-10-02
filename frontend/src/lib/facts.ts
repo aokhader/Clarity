@@ -1,5 +1,5 @@
-import type { FactOut, IsoDate } from '@/api/types'
-import { formatMonth } from '@/lib/format'
+import type { FactOf, FactOut, IsoDate } from '@/api/types'
+import { daysFromToday, formatMonth } from '@/lib/format'
 
 /** Items due within this many days are marked as due soon. */
 export const DUE_SOON_DAYS = 7
@@ -32,4 +32,21 @@ export function groupByMonth(facts: FactOut[]): MonthGroup[] {
     label: key === 'undated' ? 'Undated' : formatMonth(key),
     facts: grouped,
   }))
+}
+
+function isStatuteDeadline(fact: FactOut): fact is FactOf<'deadline'> {
+  return fact.kind === 'deadline' && /statute.of.limitation/i.test(fact.value.deadline_type ?? fact.title)
+}
+
+/**
+ * The statute of limitations among a matter's deadlines: the next one still ahead, or
+ * the latest one already passed when none is ahead.
+ */
+export function statuteDeadline(facts: FactOut[]): { fact: FactOf<'deadline'>; due: IsoDate } | null {
+  const dated = facts
+    .filter(isStatuteDeadline)
+    .map((fact) => ({ fact, due: dueDateOf(fact) }))
+    .filter((entry): entry is { fact: FactOf<'deadline'>; due: IsoDate } => entry.due !== null)
+    .sort((a, b) => a.due.localeCompare(b.due))
+  return dated.find((entry) => daysFromToday(entry.due) >= 0) ?? dated.at(-1) ?? null
 }

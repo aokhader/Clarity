@@ -1,4 +1,4 @@
-import { ScrollText } from 'lucide-react'
+import { CircleHelp, ScrollText } from 'lucide-react'
 
 import { ApiError } from '@/api/client'
 import { useMatterBrief } from '@/api/matters'
@@ -40,13 +40,14 @@ export function Brief({ matterId }: { matterId: number }) {
   const { headline, open_questions: openQuestions } = brief.data
   return (
     <Panel title="Brief" icon={<ScrollText />}>
-      <p className="font-serif text-2xl leading-snug font-semibold">{headline}</p>
+      <p className="text-xl leading-snug font-bold text-pretty">{headline}</p>
       {openQuestions.length > 0 && (
-        <div className="mt-4 border-t pt-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+          <h3 className="flex items-center gap-2 text-xs font-semibold tracking-[0.08em] text-amber-700 uppercase">
+            <CircleHelp aria-hidden className="size-4" />
             Not answered by the file
           </h3>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm">
+          <ul className="mt-2.5 list-disc space-y-1 pl-5 text-[15px]">
             {openQuestions.map((question) => (
               <li key={question}>{question}</li>
             ))}

@@ -1,62 +1,59 @@
-import { useParams, useSearchParams } from 'react-router'
+import { useEffect } from 'react'
+import { useParams } from 'react-router'
 
-import { ActionBoard } from '@/components/firm/ActionBoard'
-import { Brief } from '@/components/firm/Brief'
-import { ChangesSince } from '@/components/firm/ChangesSince'
+import type { MatterHeaderOut } from '@/api/types'
+import { AttorneyView } from '@/components/firm/AttorneyView'
 import { DocumentsView } from '@/components/firm/DocumentsView'
 import { FirmSidebar } from '@/components/firm/FirmSidebar'
-import { InjuriesList } from '@/components/firm/InjuriesList'
-import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterFooter } from '@/components/firm/MatterFooter'
 import { MatterShell } from '@/components/firm/MatterShell'
-import { ProvidersSection } from '@/components/firm/ProvidersSection'
-import { RankedFeed } from '@/components/firm/RankedFeed'
+import { OverviewView } from '@/components/firm/OverviewView'
+import { ProviderPreviewView } from '@/components/firm/ProviderPreviewView'
 import { SourceDrawer } from '@/components/firm/SourceDrawer'
+import { MATTER_VIEWS, useMatterView, type MatterViewId } from '@/lib/matterViews'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+
+function ViewContent({ view, matterId, header }: { view: MatterViewId; matterId: number; header: MatterHeaderOut }) {
+  switch (view) {
+    case 'overview':
+      return <OverviewView matterId={matterId} header={header} />
+    case 'attorney':
+      return <AttorneyView matterId={matterId} header={header} />
+    case 'provider':
+      return <ProviderPreviewView matterId={matterId} />
+    case 'documents':
+      return <DocumentsView matterId={matterId} />
+  }
+}
 
 export function MatterPage() {
   const matterId = Number(useParams().matterId)
-  const showDocuments = useSearchParams()[0].get('view') === 'documents'
+  const view = useMatterView()
+  // A new view starts at its top, not wherever the last one was scrolled to.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [view])
   if (!Number.isInteger(matterId) || matterId <= 0) return <NotFoundPage />
+  const title = MATTER_VIEWS.find((entry) => entry.id === view)?.label
 
   return (
-    <div className="grid min-h-screen grid-cols-[16rem_minmax(0,1fr)]">
-      <FirmSidebar showDocuments={showDocuments} />
-      <main className="min-w-0 px-10 py-8">
-        <div className="mx-auto max-w-[1280px]">
+    <div className="grid min-h-screen grid-cols-[17rem_minmax(0,1fr)]">
+      <FirmSidebar view={view} />
+      <main className="min-w-0 px-16 pt-12 pb-16">
+        <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
           <MatterShell matterId={matterId}>
-            {(header) =>
-              showDocuments ? (
-                <DocumentsView matterId={matterId} />
-              ) : (
+            {(header) => (
               <>
-                <div id="figures" className="scroll-mt-6">
-                  <KpiStrip kpis={header.kpis} />
+                <div className="mb-2 flex flex-col gap-1.5">
+                  <p className="text-sm font-medium tracking-[0.06em] text-primary uppercase">
+                    Matter {header.display_number ? `#${header.display_number}` : header.matter_id}
+                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-800">{title}</h1>
                 </div>
-                <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
-                  <div className="space-y-6">
-                    <div id="brief" className="scroll-mt-6">
-                      <Brief matterId={matterId} />
-                    </div>
-                    <ChangesSince matterId={matterId} />
-                    <div id="feed" className="scroll-mt-6">
-                      <RankedFeed matterId={matterId} />
-                    </div>
-                  </div>
-                  <aside className="space-y-6">
-                    <div id="actions" className="scroll-mt-6">
-                      <ActionBoard matterId={matterId} />
-                    </div>
-                    <InjuriesList matterId={matterId} />
-                    <div id="providers" className="scroll-mt-6">
-                      <ProvidersSection matterId={matterId} />
-                    </div>
-                  </aside>
-                </div>
+                <ViewContent view={view} matterId={matterId} header={header} />
                 <MatterFooter header={header} />
               </>
-              )
-            }
+            )}
           </MatterShell>
         </div>
       </main>
