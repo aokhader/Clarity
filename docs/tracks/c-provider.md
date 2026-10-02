@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** C2
+- **Now:** C3
 - **Blocked:** nothing
 
 ## Checklist
@@ -16,9 +16,9 @@
 - [x] Tests: internal kinds never appear, another provider's bills never appear, off settings remove facts, hidden facts are removed, expired and revoked shares return nothing
 
 ### C2 Shares API and provider route (25 min)
-- [ ] Create, list, preview, patch, revoke in `api/shares.py`
-- [ ] `/api/p/{token}` and the provider source route in `api/provider.py`, recording an opened event
-- [ ] Preview and the token route call the same function
+- [x] Create, list, preview, patch, revoke in `api/shares.py`
+- [x] `/api/p/{token}` and the provider source route in `api/provider.py`, recording an opened event
+- [x] Preview and the token route call the same function
 
 ### C3 Provider page (30 min)
 - [ ] Status tracker, coverage, requests, bills and records, updates, firm note
@@ -43,6 +43,16 @@
 
 The visibility function is the security boundary. No other code path may assemble a provider response. Changing a visibility rule needs the team's agreement.
 
+Track C also owns `services/provider_view.py`: the only module that builds a provider response, from `visible_facts_for_share`. `share_preview` and the provider link both call `provider_payload`.
+
+## Decisions
+
+- A provider opens a source only when their own bill or record cites a document page, and then sees only that page. Bills and records drawn from notes or emails show no source, since the source text may be internal.
+- Case-level sections use neutral wording: the `status_change` label, "Policy limit per person", a yes or no for coverage. A case-level fact's title is never sent, since it can paraphrase an internal note.
+- A task that raised a record request is the same ask; the provider sees it once.
+- Unknown token is 404; expired or revoked is 410 with no data; a fact or page the share does not release is 404. Provider responses carry `Cache-Control: no-store`.
+- Creating a share needs `X-User-Id` naming a stub user, and the contact must be a medical provider in the `field_mapping` digest.
+
 ## Stubs and shortcuts
 
 - Provider access is by unguessable link only; there is no provider login.
@@ -51,3 +61,5 @@ The visibility function is the security boundary. No other code path may assembl
 
 - For Track A: store each fact's `visibility` with `services.visibility.fact_visibility(kind, mentions_strategy)`. The filter also requires the stored tag to be `shareable`, so a pipeline that leaves the default `internal` shares nothing (fails closed).
 - The `requests` setting releases only open record requests and open tasks; fulfilled and completed ones stay internal.
+- The dev database has no `users` rows until Track B seeds stub users (B5), so `POST /api/matters/{id}/shares` returns 401 there. The `X-User-Id` dependency lives in `api/shares.py` for now; B5 can move it somewhere shared.
+- `firm_name` in the provider payload is always null: no synced record carries the firm's name.
