@@ -90,17 +90,13 @@ def compare_reads(
     dates_agree = first_date is None or first_date == second_date
     if amounts_agree and dates_agree:
         return SecondReadOutcome(Confidence.HIGH, True, None)
-    return SecondReadOutcome(
-        Confidence.LOW,
-        False,
-        [
-            {
-                "amount": second_amount,
-                "event_date": second_date.isoformat() if second_date else None,
-                "read": "second",
-            }
-        ],
-    )
+    second = {
+        "amount_cents": round(second_amount * 100)
+        if second_amount is not None
+        else None,
+        "on": second_date.isoformat() if second_date else None,
+    }
+    return SecondReadOutcome(Confidence.LOW, False, [second])
 
 
 def sane_date(

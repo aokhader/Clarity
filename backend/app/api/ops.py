@@ -7,42 +7,20 @@ request, so no page load waits on Clio or a model.
 import logging
 import threading
 from collections.abc import Callable
-from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionDep, check_database, get_sessionmaker
-from app.models import DigestRun, LlmCall, SyncRun
-from app.schemas import HealthOut
+from app.models import DigestRun, LlmCall, Page, Source, SyncRun
+from app.schemas import CostOut, HealthOut, RunOut, RunStatusOut
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ops", tags=["ops"])
 
 _job_lock = threading.Lock()
-
-
-class RunStatus(BaseModel):
-    running: bool
-    id: int | None = None
-    matter_id: int | None = None
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    stats: dict[str, Any] | None = None
-    error: str | None = None
-
-
-class CostOut(BaseModel):
-    matter_id: int | None
-    model_calls: int
-    cache_hits: int
-    input_tokens: int
-    output_tokens: int
-    cost_usd: float
 
 
 @router.get("/health")
@@ -57,24 +35,24 @@ def health(session: SessionDep) -> HealthOut:
 
 
 @router.post("/sync", status_code=202)
-def start_sync(session: SessionDep) -> RunStatus:
+def start_sync(session: SessionDep) -> RunStatusOut:
     _start(_run_sync)
     return sync_status(session)
 
 
 @router.get("/sync/status")
-def sync_status(session: SessionDep) -> RunStatus:
+def sync_status(session: SessionDep) -> RunStatusOut:
     return _status(session.scalars(select(SyncRun).order_by(SyncRun.id.desc())).first())
 
 
 @router.post("/digest", status_code=202)
-def start_digest(session: SessionDep) -> RunStatus:
+def start_digest(session: SessionDep) -> RunStatusOut:
     _start(_run_digest)
     return digest_status(session)
 
 
 @router.get("/digest/status")
-def digest_status(session: SessionDep) -> RunStatus:
+def digest_status(session: SessionDep) -> RunStatusOut:
     return _status(
         session.scalars(select(DigestRun).order_by(DigestRun.id.desc())).first()
     )
@@ -83,38 +61,44 @@ def digest_status(session: SessionDep) -> RunStatus:
 @router.get("/cost")
 def cost(session: SessionDep, matter_id: int | None = None) -> CostOut:
     """Tokens and dollars actually paid. Cache hits cost nothing and are counted apart."""
-    query = select(
-        func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(False)),
-        func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(True)),
-        func.coalesce(func.sum(LlmCall.input_tokens), 0),
-        func.coalesce(func.sum(LlmCall.output_tokens), 0),
-        func.coalesce(func.sum(LlmCall.cost_micro_usd), 0),
+    if matter_id is None:
+        matter_id = session.scalar(select(Source.matter_id).order_by(Source.id))
+    if matter_id is None:
+        raise HTTPException(status_code=404, detail="Nothing synced yet")
+    calls, hits, tokens_in, tokens_out, micro = session.execute(
+        select(
+            func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(False)),
+            func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(True)),
+            func.coalesce(func.sum(LlmCall.input_tokens), 0),
+            func.coalesce(func.sum(LlmCall.output_tokens), 0),
+            func.coalesce(func.sum(LlmCall.cost_micro_usd), 0),
+        ).where(LlmCall.matter_id == matter_id)
+    ).one()
+    pages = session.scalar(
+        select(func.count(Page.id)).join(Source).where(Source.matter_id == matter_id)
     )
-    if matter_id is not None:
-        query = query.where(LlmCall.matter_id == matter_id)
-    calls, hits, tokens_in, tokens_out, micro = session.execute(query).one()
     return CostOut(
         matter_id=matter_id,
+        pages=pages or 0,
         model_calls=calls,
         cache_hits=hits,
         input_tokens=tokens_in,
         output_tokens=tokens_out,
-        cost_usd=micro / 1_000_000,
+        cost_micro_usd=micro,
     )
 
 
-def _status(run: SyncRun | DigestRun | None) -> RunStatus:
-    if run is None:
-        return RunStatus(running=_job_lock.locked())
-    return RunStatus(
-        running=_job_lock.locked(),
-        id=run.id,
-        matter_id=run.matter_id,
-        started_at=run.started_at,
-        finished_at=run.finished_at,
-        stats=run.stats_json,
-        error=run.error,
-    )
+def _status(run: SyncRun | DigestRun | None) -> RunStatusOut:
+    last = None
+    if run is not None:
+        last = RunOut(
+            id=run.id,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            error=run.error,
+            stats=run.stats_json,
+        )
+    return RunStatusOut(running=_job_lock.locked(), last_run=last)
 
 
 def _start(job: Callable[[Session], None]) -> None:

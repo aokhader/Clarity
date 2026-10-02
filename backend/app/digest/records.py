@@ -31,7 +31,8 @@ SHAREABLE_KINDS = {
     FactKind.TREATMENT_VISIT,
 }
 
-MERGE_KEYS = {"corroborating_source_ids", "waiting_on"}
+# Keys the merge step adds or rewrites after extraction.
+MERGE_KEYS = {"corroborating_source_ids", "waiting_on", "alt_values"}
 
 _TAG = re.compile(r"<[^>]+>")
 _SPACE = re.compile(r"[ \t\r\f\v]+")

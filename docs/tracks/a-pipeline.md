@@ -52,7 +52,10 @@ dropped, medical charges split from firm spend. Not yet run against live Clio or
 - Mapping (roles, fields, activities) runs before extraction, not inside merge: the extractor needs the provider list to attribute facts.
 - Non-time ledger entries are classified by a cached model call into firm costs (`expense`) and the client's medical charges (`medical_bill`). Some firms log provider charges in the expense ledger, which would otherwise inflate firm spend.
 - Custom fields mapped to `case_value`, `medical_specials`, `date_of_incident`, `statute_of_limitations` become facts in code (`origin = code`). Coverage, policy limits, and unmapped fields go through record extraction, since they are multi-part free text.
-- Facts for KPI slots carry `value_json.slot`, so the firm view can find them. `medical_specials` and `date_of_incident` have no kind of their own and are stored as `other` with that slot.
+- Code-readable slots become `case_value`, `medical_specials`, `incident`, and `deadline` (statute of limitations) facts on the matter source. The firm's stage is mapped to a canonical `CaseStage` in the same cached call as the fields.
+- Custom fields code cannot read (coverage, policy limits, unmapped) go to record extraction as one input sourced to the matter.
+- The specials cross-check stores the sum of medical bills as an `alt_values` entry on the `medical_specials` fact when they disagree.
+- Every payload goes through `schemas.validate_payload`; keys a kind does not allow are dropped from model output before validation.
 - Text-layer PDF pages are sent as text only; images are sent for scans. Cuts cost and keeps the quote check exact.
 - A fact set identical to the stored one is not rewritten, so fact ids stay stable across runs (shares refer to them).
 - `significance = 0` means not scored yet; scored facts are stored with at least 1.
@@ -65,9 +68,8 @@ Tracks B and C read what this track writes. Every fact must match the payload mo
 
 ## Stubs and shortcuts
 
-- Fact payload models live in `app/digest/payloads.py` because `schemas.py` does not have them yet (M0 gap). Move them there when M0 adds them.
-- Ops response models (`RunStatus`, `CostOut`) are defined in `api/ops.py`, not `schemas.py`.
-- Clio field names are from the docs plus general API knowledge, not yet checked against the OpenAPI spec. Each request falls back to a smaller field list if Clio rejects a name.
+- Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced yet; bills come from documents, notes, and the expense ledger.
+- Each Clio request falls back to a smaller field list if Clio rejects a name; the first list is the spec-verified one from `docs/clio-api.md`.
 - Calendar entries all become `deadline` facts, including treatment appointments.
 - Time entries produce no facts; firm spend counts non-time entries only, as `docs/clio-api.md` specifies.
 

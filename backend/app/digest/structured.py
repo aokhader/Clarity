@@ -10,7 +10,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.digest.payloads import build_payload
+from app.digest.payloads import build_payload, contact_channel
 from app.digest.records import (
     is_processed,
     mark_processed,
@@ -30,7 +30,6 @@ def build_structured_facts(session: Session, matter_id: int) -> Counter[str]:
     counts: Counter[str] = Counter()
     client_id = client_contact_id(session, matter_id)
     builders = {
-        SourceType.MATTER: _matter_facts,
         SourceType.TASK: _task_facts,
         SourceType.CALENDAR_ENTRY: _calendar_facts,
         SourceType.COMMUNICATION: lambda s: _communication_facts(s, client_id),
@@ -76,42 +75,35 @@ def _code_fact(
     )
 
 
-def _matter_facts(source: Source) -> list[Fact]:
-    raw = source.raw_json
-    stage = name_of(raw.get("matter_stage"))
-    status = raw.get("status")
-    if not (stage or status):
-        return []
-    label = stage or str(status)
-    return [
-        _code_fact(
-            FactKind.CASE_STAGE,
-            f"Matter stage: {label}",
-            f"Matter stage: {stage}" if stage else f"Matter status: {status}",
-            raw.get("updated_at"),
-            # Clio's own stage is reported as is; the brief maps it to a canonical stage.
-            {"stage": label, "inferred": stage is None, "status": status},
-        )
-    ]
-
-
 def _task_facts(source: Source) -> list[Fact]:
     raw = source.raw_json
     name = str(raw.get("name") or "Task")
-    status = "complete" if raw.get("completed_at") else (raw.get("status") or "pending")
-    return [
+    done = bool(raw.get("completed_at")) or str(raw.get("status")).lower() == "complete"
+    quote = name if not raw.get("description") else f"{name}: {raw['description']}"
+    facts = [
         _code_fact(
             FactKind.TASK,
             name,
-            name if not raw.get("description") else f"{name}: {raw['description']}",
+            quote,
             raw.get("due_at") or raw.get("created_at"),
             {
-                "status": status,
+                "status": "complete" if done else "open",
                 "due_at": raw.get("due_at"),
                 "assignee": name_of(raw.get("assignee")),
             },
         )
     ]
+    if raw.get("statute_of_limitations") and raw.get("due_at"):
+        facts.append(
+            _code_fact(
+                FactKind.DEADLINE,
+                name,
+                quote,
+                raw.get("due_at"),
+                {"deadline_type": "statute_of_limitations", "due_at": raw["due_at"]},
+            )
+        )
+    return facts
 
 
 def _calendar_facts(source: Source) -> list[Fact]:
@@ -124,11 +116,7 @@ def _calendar_facts(source: Source) -> list[Fact]:
             summary,
             quote,
             raw.get("start_at"),
-            {
-                "deadline_type": "calendar_entry",
-                "due_at": raw.get("start_at"),
-                "location": raw.get("location"),
-            },
+            {"deadline_type": "calendar_entry", "due_at": raw.get("start_at")},
         )
     ]
 
@@ -142,8 +130,8 @@ def _communication_facts(source: Source, client_id: int | None) -> list[Fact]:
     if client_id not in senders | receivers:
         return []
     direction = "inbound" if client_id in senders else "outbound"
-    channel = str(raw.get("type") or "communication")
-    subject = str(raw.get("subject") or channel)
+    channel = contact_channel(str(raw.get("type") or ""))
+    subject = str(raw.get("subject") or raw.get("type") or "Communication")
     return [
         _code_fact(
             FactKind.CLIENT_CONTACT,
