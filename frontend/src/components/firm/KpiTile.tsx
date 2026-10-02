@@ -1,6 +1,7 @@
 import { PiggyBank, ShieldCheck, Stethoscope, TrendingDown, TriangleAlert, type LucideIcon } from 'lucide-react'
 
 import type { KpiOut, KpiValueOut } from '@/api/types'
+import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
 import { formatMoney, formatMoneyRange } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -30,7 +31,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
   const [only] = kpi.values
   const tone = KPI_TONES[kpi.name]
   return (
-    <div className={cn('relative min-w-0 overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
+    <div className={cn('group/src relative min-w-0 overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
       <tone.Icon aria-hidden className={cn('absolute -right-1.5 -bottom-3 size-18 opacity-10', tone.label)} />
       <h3 className={cn('text-xs font-semibold uppercase tracking-wider', tone.label)}>{KPI_LABELS[kpi.name]}</h3>
       {kpi.values.length === 0 && <p className="mt-2 text-lg text-muted-foreground">Not found in file</p>}
@@ -45,7 +46,9 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
           >
             {amountText(only)}
           </span>
-          <SourceChipList facts={only.facts} />
+          <RevealOnHover>
+            <SourceChipList facts={only.facts} />
+          </RevealOnHover>
         </div>
       )}
       {kpi.values.length > 1 && (
@@ -54,7 +57,9 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
             {kpi.values.map((value) => (
               <li key={value.facts[0]?.id ?? amountText(value)} className="flex flex-wrap items-center gap-2">
                 <span className="whitespace-nowrap text-xl font-semibold tabular-nums">{amountText(value)}</span>
-                <SourceChipList facts={value.facts} />
+                <RevealOnHover>
+                  <SourceChipList facts={value.facts} />
+                </RevealOnHover>
               </li>
             ))}
           </ul>

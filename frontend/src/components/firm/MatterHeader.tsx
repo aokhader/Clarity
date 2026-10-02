@@ -1,5 +1,6 @@
 import type { MatterHeaderOut } from '@/api/types'
 import { ClientAvatar } from '@/components/firm/ClientAvatar'
+import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { StagePill } from '@/components/firm/StagePill'
 import { UserSwitcher } from '@/components/firm/UserSwitcher'
 import { SourceChip } from '@/components/shared/SourceChip'
@@ -23,12 +24,14 @@ export function MatterHeader({ header }: { header: MatterHeaderOut }) {
           <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
             <div className="flex items-center gap-1.5">
               <dt className="text-muted-foreground">Incident</dt>
-              <dd className="flex items-center gap-1.5 tabular-nums">
+              <dd className="group/src flex items-center gap-1.5 tabular-nums">
                 {incident ? (
                   <>
                     {formatDate(incident.on)}
                     <span className="text-muted-foreground">({formatElapsed(incident.on)} ago)</span>
-                    <SourceChip fact={incident.fact} />
+                    <RevealOnHover>
+                      <SourceChip fact={incident.fact} />
+                    </RevealOnHover>
                   </>
                 ) : (
                   <span className="text-muted-foreground">Not found in file</span>
@@ -37,11 +40,13 @@ export function MatterHeader({ header }: { header: MatterHeaderOut }) {
             </div>
             <div className="flex items-center gap-1.5">
               <dt className="text-muted-foreground">Last client contact</dt>
-              <dd className={cn('flex items-center gap-1.5', staleContact && 'font-medium text-warning')}>
+              <dd className={cn('group/src flex items-center gap-1.5', staleContact && 'font-medium text-warning')}>
                 {contact ? (
                   <>
                     {formatDaysAgo(contact.on)}
-                    <SourceChip fact={contact.fact} />
+                    <RevealOnHover>
+                      <SourceChip fact={contact.fact} />
+                    </RevealOnHover>
                   </>
                 ) : (
                   <span className="text-muted-foreground">None found in file</span>
