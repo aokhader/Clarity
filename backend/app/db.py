@@ -16,6 +16,7 @@ from sqlalchemy.pool import ConnectionPoolEntry
 
 from app.config import get_settings
 from app.models import Base
+from app.services.users import seed_firm_users
 
 
 def _configure_sqlite(
@@ -50,6 +51,10 @@ def init_db() -> None:
     for directory in (settings.data_dir, settings.files_dir, settings.pages_dir):
         directory.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(get_engine())
+    # Stub firm users (no real authentication), so sharing and visits work from the start.
+    with get_sessionmaker()() as session:
+        seed_firm_users(session)
+        session.commit()
 
 
 def dispose_engine() -> None:

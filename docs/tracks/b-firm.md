@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B5
+- **Now:** B6
 - **Blocked:** nothing
 
 ## Checklist
@@ -33,7 +33,7 @@
 - [ ] **After S3: check all three on real data**
 
 ### B5 Since you last opened (20 min)
-- [ ] Changes endpoint, opened endpoint, seeded users, user switcher; pass the current user to `ProvidersPanel`
+- [x] Changes endpoint, opened endpoint, seeded users, user switcher; pass the current user to `ProvidersPanel`
 
 ### B6 Footer (10 min)
 - [ ] Last sync time, digest cost, re-sync button, using Track A's ops endpoints
@@ -59,6 +59,7 @@ Track B also owns these service modules, added in B1:
 - `services/source_views.py`: the source drawer and page-image lookup
 - `services/clio_records.py`: lenient Pydantic models over raw Clio JSON; Track A may reuse them
 - `services/brief_view.py`: the stored brief with its citations checked
+- `services/users.py` and `services/visits.py`: the stub users and the "since you last opened" queries
 
 ## Decisions
 
@@ -71,14 +72,18 @@ Track B also owns these service modules, added in B1:
 - A brief sentence is shown only if every fact it cites can be shown; otherwise part of it would be unsourced. Track A already drops sentences that cite unknown facts; this also covers facts that exist but cannot render.
 - With no stage fact from Clio, the header shows the brief's stage marked "inferred", with the brief's stage citations. With no citation either, it shows "Stage not found in file".
 - In the brief, each sentence's last word and its chips wrap as a unit, so a chip never starts a line as if it belonged to the next sentence.
+- A visit is recorded once the page has loaded this visit's changes, and the list stays as loaded until the next visit. `docs/project.md` says leaving the page records it, but a request on leave cannot carry the `X-User-Id` header (`sendBeacon`), and React's dev-mode double effects would record it the moment the page opens.
+- Stub users are seeded in `init_db` (`backend/app/db.py`), so Track C's share endpoints find them on a fresh database. `api/client.ts` gained an optional `userId` and `apiPost`; both additive.
 - Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
 ## Stubs and shortcuts
 
-- Seeded stub users and `last_opened_at` values for the changes block.
+- Seeded stub users (Demo Attorney, Demo Paralegal, Demo Case Manager) chosen by a header switcher; no real login. (`backend/app/services/users.py`, `frontend/src/components/firm/UserSwitcher.tsx`)
+- Seeded "last opened" dates, applied the first time a stub user opens a matter: 21 days ago, 7 days ago, and never. (`backend/app/services/users.py`, `backend/app/services/visits.py`)
 
 ## Known issues
 
+- Each visit uses up the changes block. To replay it for another clip take, run `cli seed-dev` (synthetic matter) or delete the `views` rows for the real matter.
 - Track A updates the brief digest in place, so `digests.created_at` (the API's `generated_at`) is the first generation time, not the latest. The UI does not show it.
 - Corroborating-source tabs in the drawer are untested on data: the seed has no corroborating sources. Check them at S2.
 - With the app window hidden, the browser pane stops painting, so the drawer's exit animation never ends and the closing overlay swallows the next click. Not seen in a visible window.

@@ -5,18 +5,21 @@ injuries, and the user list. Owned by Track B; queries live in
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from app.db import SessionDep
-from app.models import FactKind
+from app.models import FactKind, User
 from app.schemas import (
     ActionsOut,
     BriefOut,
+    ChangesOut,
     FactOut,
     MatterHeaderOut,
     MatterSummaryOut,
+    OpenedOut,
+    UserOut,
 )
-from app.services import brief_view, matter_queries
+from app.services import brief_view, matter_queries, users, visits
 
 router = APIRouter(prefix="/api", tags=["matters"])
 
@@ -27,7 +30,23 @@ def _existing_matter(matter_id: int, session: SessionDep) -> int:
     return matter_id
 
 
+def _current_user(
+    session: SessionDep, x_user_id: Annotated[int | None, Header()] = None
+) -> User:
+    # A stub account chosen by the header's user switcher; there is no real login.
+    user = users.find_user(session, x_user_id) if x_user_id is not None else None
+    if user is None:
+        raise HTTPException(status_code=401, detail="Choose a firm user (X-User-Id)")
+    return user
+
+
 MatterId = Annotated[int, Depends(_existing_matter)]
+CurrentUser = Annotated[User, Depends(_current_user)]
+
+
+@router.get("/users")
+def list_users(session: SessionDep) -> list[UserOut]:
+    return users.list_users(session)
 
 
 @router.get("/matters")
@@ -76,3 +95,17 @@ def matter_brief(matter_id: MatterId, session: SessionDep) -> BriefOut:
 @router.get("/matters/{matter_id}/injuries")
 def matter_injuries(matter_id: MatterId, session: SessionDep) -> list[FactOut]:
     return matter_queries.matter_injuries(session, matter_id)
+
+
+@router.get("/matters/{matter_id}/changes")
+def matter_changes(
+    matter_id: MatterId, user: CurrentUser, session: SessionDep
+) -> ChangesOut:
+    return visits.matter_changes(session, matter_id, user, datetime.now(UTC))
+
+
+@router.post("/matters/{matter_id}/opened")
+def record_visit(
+    matter_id: MatterId, user: CurrentUser, session: SessionDep
+) -> OpenedOut:
+    return visits.record_visit(session, matter_id, user, datetime.now(UTC))

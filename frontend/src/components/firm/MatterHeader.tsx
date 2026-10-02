@@ -1,6 +1,7 @@
 import type { MatterHeaderOut } from '@/api/types'
 import { ClientAvatar } from '@/components/firm/ClientAvatar'
 import { StagePill } from '@/components/firm/StagePill'
+import { UserSwitcher } from '@/components/firm/UserSwitcher'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { STALE_CONTACT_DAYS } from '@/lib/facts'
 import { daysFromToday, formatDate, formatDaysAgo, formatElapsed } from '@/lib/format'
@@ -50,7 +51,10 @@ export function MatterHeader({ header }: { header: MatterHeaderOut }) {
           </dl>
         </div>
       </div>
-      <StagePill stage={header.stage} />
+      <div className="flex items-center gap-4">
+        <StagePill stage={header.stage} />
+        <UserSwitcher />
+      </div>
     </header>
   )
 }

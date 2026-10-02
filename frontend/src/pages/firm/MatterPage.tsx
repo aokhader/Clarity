@@ -2,12 +2,13 @@ import { useParams } from 'react-router'
 
 import { ActionBoard } from '@/components/firm/ActionBoard'
 import { Brief } from '@/components/firm/Brief'
+import { ChangesSince } from '@/components/firm/ChangesSince'
 import { InjuriesList } from '@/components/firm/InjuriesList'
 import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterShell } from '@/components/firm/MatterShell'
+import { ProvidersSection } from '@/components/firm/ProvidersSection'
 import { RankedFeed } from '@/components/firm/RankedFeed'
 import { SourceDrawer } from '@/components/firm/SourceDrawer'
-import { ProvidersPanel } from '@/components/share/ProvidersPanel'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export function MatterPage() {
@@ -23,13 +24,13 @@ export function MatterPage() {
             <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
               <div className="space-y-6">
                 <Brief matterId={matterId} />
+                <ChangesSince matterId={matterId} />
                 <RankedFeed matterId={matterId} />
               </div>
               <aside className="space-y-6">
                 <ActionBoard matterId={matterId} />
                 <InjuriesList matterId={matterId} />
-                {/* No firm user until the B5 user switcher, so sharing stays disabled. */}
-                <ProvidersPanel matterId={matterId} userId={null} />
+                <ProvidersSection matterId={matterId} />
               </aside>
             </div>
           </>
