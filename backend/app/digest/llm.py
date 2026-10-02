@@ -221,6 +221,12 @@ def _send(request: ModelRequest, feedback: str | None) -> tuple[Any, int, int]:
     settings = get_settings()
     if settings.llm_api_key is None:
         raise ModelsNotConfigured("Set LLM_API_KEY in .env")
+    # The cost-per-case figure must be real: a call with no price would count as $0.
+    prefix = request.role.upper()
+    if None in _prices(request.role):
+        raise ModelsNotConfigured(
+            f"Set {prefix}_PRICE_IN and {prefix}_PRICE_OUT in .env"
+        )
     user_text = (
         request.user_text if feedback is None else f"{request.user_text}\n\n{feedback}"
     )
@@ -334,17 +340,19 @@ def _send_openai(
 
 def _cost_micro_usd(role: Role, outcome: ModelResult) -> int:
     """USD per million tokens times tokens is exactly micro-dollars."""
-    settings = get_settings()
-    price_in = (
-        settings.extract_price_in if role == "extract" else settings.merge_price_in
-    )
-    price_out = (
-        settings.extract_price_out if role == "extract" else settings.merge_price_out
-    )
+    price_in, price_out = _prices(role)
     total = Decimal(outcome.input_tokens) * (price_in or Decimal(0)) + Decimal(
         outcome.output_tokens
     ) * (price_out or Decimal(0))
     return int(total.to_integral_value())
+
+
+def _prices(role: Role) -> tuple[Decimal | None, Decimal | None]:
+    """USD per million input and output tokens for the model that plays this role."""
+    settings = get_settings()
+    if role == "extract":
+        return settings.extract_price_in, settings.extract_price_out
+    return settings.merge_price_in, settings.merge_price_out
 
 
 def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:

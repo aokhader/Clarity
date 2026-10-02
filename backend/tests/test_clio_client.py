@@ -3,7 +3,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.clio.client import ClioClient, ClioWriteForbidden
+from app.clio.client import ClioClient, ClioError, ClioWriteForbidden
 
 
 def _client(handler, sleeps: list[float] | None = None) -> ClioClient:
@@ -58,4 +58,33 @@ def test_rate_limit_waits_for_retry_after_and_retries(data_dir: Path) -> None:
     result = _client(handler, sleeps).get("matters/1.json", {"fields": "id"})
     assert result["data"]["id"] == 1
     assert sleeps == [7.0]
+    assert calls["count"] == 2
+
+
+def test_failed_signed_download_raises_clio_error_without_signature(
+    data_dir: Path,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "app.clio.com":
+            return httpx.Response(
+                303, headers={"Location": "https://files.example/doc?sig=secret"}
+            )
+        return httpx.Response(403, text="expired")
+
+    with pytest.raises(ClioError) as caught:
+        _client(handler).download("documents/1/download.json", data_dir / "1.pdf")
+    assert caught.value.status == 403
+    assert "secret" not in str(caught.value)
+
+
+def test_dropped_connection_is_retried(data_dir: Path) -> None:
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise httpx.ReadTimeout("timed out", request=request)
+        return httpx.Response(200, json={"data": {"id": 1}})
+
+    assert _client(handler).get("matters/1.json", {"fields": "id"})["data"]["id"] == 1
     assert calls["count"] == 2

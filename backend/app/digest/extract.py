@@ -7,6 +7,7 @@ repeat run free even when they are not.
 
 import json
 import logging
+import re
 from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -41,6 +42,7 @@ log = logging.getLogger(__name__)
 
 BATCH_SIZE = 40
 QUOTE_LIMIT = 300
+_DIGITS = re.compile(r"\d")
 # Structured records produce these kinds in code; the extractor never does.
 CODE_ONLY_KINDS = {FactKind.CASE_STAGE, FactKind.TASK}
 ExtractKind = Literal[tuple(k.value for k in FactKind if k not in CODE_ONLY_KINDS)]  # type: ignore[valid-type]
@@ -278,6 +280,18 @@ def _to_facts(
     return facts
 
 
+def _second_read_question(fact: Fact) -> str:
+    """Name the item without its values, so the second read cannot copy the first.
+
+    The quote and title of a scan fact usually carry the amount and date the first
+    read produced; digits are masked so the model has to read them off the page again.
+    """
+    label = _DIGITS.sub("#", fact.title)
+    return (
+        f"Item to check: a {fact.kind.value.replace('_', ' ')}, described as: {label}"
+    )
+
+
 def _second_reads(
     session: Session,
     matter_id: int,
@@ -292,7 +306,7 @@ def _second_reads(
             purpose="second_read",
             role="extract",
             prompt=llm.load_prompt("second_read"),
-            user_text=f"Item to check: {fact.title}\nIt was quoted as: {fact.quote}",
+            user_text=_second_read_question(fact),
             images=[unit.image] if unit.image else [],
             output=SecondRead,
             matter_id=matter_id,
