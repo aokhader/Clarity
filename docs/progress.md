@@ -48,7 +48,7 @@ Meanwhile, the other two people:
 
 | Track | Owner | Checklist | State |
 |---|---|---|---|
-| A: Pipeline | [name] | `docs/tracks/a-pipeline.md` (on the `Track-A` branch) | in progress on `origin/Track-A` |
+| A: Pipeline | Charles Cheng | `docs/tracks/a-pipeline.md` (on the `Track-A` branch) | merged into `main` at `f94db18`; review findings under Known issues |
 | B: Firm view | Abdulaziz Khader | `docs/tracks/b-firm.md` | starting B1 |
 | C: Provider side | [name] | `docs/tracks/c-provider.md` | not started |
 
@@ -108,6 +108,20 @@ Track-specific ones live in the track files. Everything is disclosed on the subm
 
 - Open decision for Track A: Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) hold structured bills and record-request status per provider, but are not in the sync order. Neither accepts `matter_id`, so the sync would page the whole account and filter. (`docs/clio-api.md`)
 - The paging envelope (`meta.paging.next`) and rate-limit headers come from Clio's docs, not the spec. Confirm on the first real response. (`docs/clio-api.md`)
+
+### Track A review against the architecture
+
+Reviewed at `Track-A` 7db8f0f, rechecked at 2931690, read-only. The branch fits the architecture: no contract file changed, it merges cleanly, and 85 tests pass merged. Clio access is GET-only, with the spec-verified fields, the pinned API version, and download without the auth header. Pages, payload validation, code-decided visibility, the cached and costed model wrapper, and the brief shape all conform, and there is no case data in code or prompts. No blockers. Fix these before integration at 2:45 PM:
+
+- **Bills can be double-counted (confirmed).** Ledger entries classified as medical charges become `medical_bill` facts with `origin=code` (`digest/mapping.py:478`), and dedup only looks at model-origin facts (`digest/merge.py:95`). A bill in both the ledger and a PDF is stored twice, and the firm view's medical specials tile and the cross-check add both.
+- **`balance_cents` and `high_cents` may be off by 100 times (confirmed).** The prompt asks for these keys by their cents names but says only `amount` is in dollars (`digest/prompts/extract_page.txt:10,16,28`), and `build_payload` stores them unconverted (`digest/payloads.py`). A $150,000 high end could be stored as $1,500.
+- **A partly failed sync counts as clean (confirmed).** Per-item failures (a 403 on one endpoint, a failed download) go to `stats.errors`, not `error`, and the next sync's `updated_since` comes from the last run with no `error` (`clio/sync.py:361-367`). Records missed once are never pulled after the cause is fixed. A failed download of an updated document also keeps the old file, because its new ETag is saved first (reported, `clio/sync.py:276`).
+- **A sync stopped by anything but `ClioError` stays unfinished (confirmed).** `sync_matter` catches only `ClioError` (`clio/sync.py:166`), so an auth failure leaves the run with no `finished_at` or `error`. Failures before the run row exists (no token, no matching matter) are only logged (`api/ops.py:114`). The digest side was fixed in 2931690.
+- **A failed mapping call wipes KPI, stage, and ledger facts (reported).** The run continues with empty roles and slots and replaces those facts, and pages extracted without providers never get provider attribution later (`digest/mapping.py:242-283`, `digest/extract.py:113`).
+- **The policy-limit cross-check is missing (reported).** `digest/merge.py:178-198` checks specials only.
+- **A second digest can still call the model (reported):** after an errored call, when a score batch drops fact ids, or when dedup removes a custom-field fact, which is re-extracted on every run (`digest/extract.py:149-152`). That undercuts "a second run makes zero model calls".
+- **Minor (reported):** `mapping.py` is 551 lines; retry counts, timeouts, and batch sizes are literals outside `config.py`; dead code in `digest/payloads.py:16` and `digest/records.py:102-120`; a warning log can carry case text from a Pydantic error (`digest/llm.py:186-192`); JPEGs are sent as `image/png`; no tests for sync, OAuth, or the model cache.
+- **Deliberate deviations Track A recorded:** the stage and ledger split come from a model mapping; text pages are sent text-only; the quote check also ignores case; mapped custom-field facts cite the matter, not the field.
 
 ## Cost log
 

@@ -36,7 +36,7 @@
 - [x] Changes endpoint, opened endpoint, seeded users, user switcher; pass the current user to `ProvidersPanel`
 
 ### B6 Footer (10 min)
-- [x] Last sync time, digest cost, re-sync button, using Track A's ops endpoints (checked against `origin/Track-A` in a trial merge; on `main` until Track A merges, cost reads "unavailable" and Re-sync reports the 404)
+- [x] Last sync time, digest cost, re-sync button, using Track A's ops endpoints (live since Track A merged at `f94db18`; the footer also shows per-item failures from `stats.errors`, which leave the run's own `error` empty)
 
 ### B7 Timeline toggle (15 min, cut first)
 - [x] Full timeline grouped by month with kind filters and search
