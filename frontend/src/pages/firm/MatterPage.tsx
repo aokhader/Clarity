@@ -4,6 +4,7 @@ import { ActionBoard } from '@/components/firm/ActionBoard'
 import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterShell } from '@/components/firm/MatterShell'
 import { RankedFeed } from '@/components/firm/RankedFeed'
+import { SourceDrawer } from '@/components/firm/SourceDrawer'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export function MatterPage() {
@@ -28,6 +29,7 @@ export function MatterPage() {
           </>
         )}
       </MatterShell>
+      <SourceDrawer />
     </main>
   )
 }

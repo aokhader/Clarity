@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B3
+- **Now:** B4
 - **Blocked:** nothing
 
 ## Checklist
@@ -21,9 +21,9 @@
 - [ ] Leave the providers slot in the layout: render `ProvidersPanel` from Track C (slot is in `MatterPage`; waiting on C4)
 
 ### B3 Source drawer (25 min)
-- [ ] Notes and emails with the quote highlighted
-- [ ] Document pages with image, page number, previous and next
-- [ ] `?fact=ID` in the URL
+- [x] Notes and emails with the quote highlighted
+- [x] Document pages with image, page number, previous and next
+- [x] `?fact=ID` in the URL
 - [ ] **After S1: switch to the real snapshot and fix what breaks**
 
 ### B4 Brief, KPIs, injuries (35 min)
@@ -66,6 +66,7 @@ Track B also owns these service modules, added in B1:
 - Timeline search matches at word starts, so "lien" finds liens and not every "client".
 - Date-only strings are read as calendar days (`lib/format.ts`), since `new Date('2026-03-06')` shows March 5 in Pacific time.
 - Case age is measured from the incident date, because the matter's open date is not a sourced fact and could not carry a chip.
+- The drawer matches quotes ignoring whitespace and case, like the pipeline's quote check, and says so when a quote cannot be found instead of failing silently. Rich-text notes are shown as plain text, never as markup.
 - Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
 ## Stubs and shortcuts
@@ -74,4 +75,6 @@ Track B also owns these service modules, added in B1:
 
 ## Known issues
 
+- Corroborating-source tabs in the drawer are untested on data: the seed has no corroborating sources. Check them at S2.
+- With the app window hidden, the browser pane stops painting, so the drawer's exit animation never ends and the closing overlay swallows the next click. Not seen in a visible window.
 - On Windows, `uvicorn --reload` sometimes keeps serving the old code after a reload. Restart the server if a new route returns 404.
