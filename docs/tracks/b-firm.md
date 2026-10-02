@@ -84,7 +84,7 @@ Track B also owns these service modules, added in B1:
 
 - Seeded stub users (Demo Attorney, Demo Paralegal, Demo Case Manager) chosen by a header switcher; no real login. (`backend/app/services/users.py`, `frontend/src/components/firm/UserSwitcher.tsx`)
 - Seeded "last opened" dates, applied the first time a stub user opens a matter: 21 days ago, 7 days ago, and never. (`backend/app/services/users.py`, `backend/app/services/visits.py`)
-- The brief shows no source chips, at the owner's request after the freeze (`frontend/src/components/firm/BriefSentence.tsx`). A sentence is still shown only when every fact it cites can render, but the reader cannot open those sources from the brief; the same facts are reachable from the timeline and the Documents page. This departs from rule 3.
+- The brief shows only its headline and open questions; the sentence body is not displayed, at the owner's request after the freeze (`frontend/src/components/firm/Brief.tsx`). The headline carries no source chip, which departs from rule 3; the facts behind it are reachable from the timeline and the Documents page.
 
 ## Known issues
 

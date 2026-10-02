@@ -2,12 +2,11 @@ import { ScrollText } from 'lucide-react'
 
 import { ApiError } from '@/api/client'
 import { useMatterBrief } from '@/api/matters'
-import { BriefSentence } from '@/components/firm/BriefSentence'
 import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 
-/** The story of the case in sentences, each ending in the sources that support it. */
+/** The brief's headline and what the file does not answer; the sentence body is not shown. */
 export function Brief({ matterId }: { matterId: number }) {
   const brief = useMatterBrief(matterId)
 
@@ -38,21 +37,10 @@ export function Brief({ matterId }: { matterId: number }) {
     )
   }
 
-  const { headline, sentences, open_questions: openQuestions } = brief.data
+  const { headline, open_questions: openQuestions } = brief.data
   return (
     <Panel title="Brief" icon={<ScrollText />}>
       <p className="font-serif text-2xl leading-snug font-semibold">{headline}</p>
-      {sentences.length > 0 ? (
-        <p className="mt-3 font-serif text-brief">
-          {sentences.map((sentence) => (
-            <BriefSentence key={sentence.text} sentence={sentence} />
-          ))}
-        </p>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">
-          The brief's sentences cite facts that cannot be shown, so they are hidden.
-        </p>
-      )}
       {openQuestions.length > 0 && (
         <div className="mt-4 border-t pt-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
