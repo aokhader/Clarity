@@ -31,6 +31,10 @@ log = logging.getLogger(__name__)
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 ANTHROPIC_VERSION = "2023-06-01"
 TOOL_NAME = "record_output"
+TOOL_INSTRUCTION = (
+    f"Give your answer only by calling the {TOOL_NAME} tool, exactly once, "
+    "with input that matches its schema."
+)
 REQUEST_TIMEOUT_SECONDS = 180
 
 Role = Literal["extract", "merge"]
@@ -42,6 +46,15 @@ class ModelsNotConfigured(Exception):
 
 class ExtractionFailed(Exception):
     pass
+
+
+class NoStructuredOutput(ExtractionFailed):
+    """The model answered without a usable tool call; the tokens were still billed."""
+
+    def __init__(self, message: str, tokens_in: int, tokens_out: int) -> None:
+        super().__init__(message)
+        self.tokens_in = tokens_in
+        self.tokens_out = tokens_out
 
 
 @dataclass(frozen=True)
@@ -194,12 +207,17 @@ def _record(
 
 
 def _execute(request: ModelRequest) -> ModelResult:
-    """Call the model; on a schema failure, ask once more with the validation error."""
+    """Call the model; on a schema failure or a missing tool call, ask once more."""
     total_in = total_out = 0
     feedback: str | None = None
     for _attempt in range(2):
         try:
             data, tokens_in, tokens_out = _send(request, feedback)
+        except NoStructuredOutput as error:
+            total_in += error.tokens_in
+            total_out += error.tokens_out
+            feedback = f"Your previous answer had {error}. {TOOL_INSTRUCTION}"
+            continue
         except (httpx.HTTPError, ExtractionFailed, ValueError) as error:
             return ModelResult(
                 None, total_in, total_out, f"{type(error).__name__}: {error}"
@@ -212,9 +230,7 @@ def _execute(request: ModelRequest) -> ModelResult:
             feedback = f"Your previous output did not match the schema: {error}"[:2000]
             continue
         return ModelResult(validated.model_dump(mode="json"), total_in, total_out)
-    return ModelResult(
-        None, total_in, total_out, f"schema validation failed: {feedback}"
-    )
+    return ModelResult(None, total_in, total_out, f"no valid output: {feedback}")
 
 
 def _send(request: ModelRequest, feedback: str | None) -> tuple[Any, int, int]:
@@ -253,11 +269,13 @@ def _send_anthropic(
         for image in request.images
     ]
     content.append({"type": "text", "text": user_text})
-    # Forcing a single tool call is how this API returns output that follows a schema.
+    # The output comes back as the input of one tool call. Current Claude models reject
+    # a forced `tool_choice`, so the call is requested in the system prompt instead,
+    # and `_execute` asks again when it is missing.
     body = {
         "model": request.model,
         "max_tokens": settings.llm_max_output_tokens,
-        "system": request.prompt.text,
+        "system": f"{request.prompt.text}\n\n{TOOL_INSTRUCTION}",
         "messages": [{"role": "user", "content": content}],
         "tools": [
             {
@@ -266,7 +284,7 @@ def _send_anthropic(
                 "input_schema": schema,
             }
         ],
-        "tool_choice": {"type": "tool", "name": TOOL_NAME},
+        "tool_choice": {"type": "auto"},
     }
     response = httpx.post(
         f"{settings.llm_endpoint}/messages",
@@ -281,14 +299,16 @@ def _send_anthropic(
         raise ExtractionFailed(f"HTTP {response.status_code}: {response.text[:300]}")
     payload = response.json()
     usage = payload.get("usage") or {}
+    tokens_in = int(usage.get("input_tokens", 0))
+    tokens_out = int(usage.get("output_tokens", 0))
+    stop_reason = payload.get("stop_reason")
     blocks = [b for b in payload.get("content", []) if b.get("type") == "tool_use"]
-    if not blocks:
-        raise ExtractionFailed("model returned no structured output")
-    return (
-        blocks[0].get("input"),
-        int(usage.get("input_tokens", 0)),
-        int(usage.get("output_tokens", 0)),
-    )
+    if stop_reason in ("max_tokens", "refusal") or not blocks:
+        # Paid for even though unusable, so the tokens still go into the cost figure.
+        raise NoStructuredOutput(
+            f"no {TOOL_NAME} call (stop_reason {stop_reason})", tokens_in, tokens_out
+        )
+    return blocks[0].get("input"), tokens_in, tokens_out
 
 
 def _send_openai(

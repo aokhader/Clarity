@@ -60,6 +60,7 @@ and a re-sync skips unchanged records by ETag. Not yet run against a real model.
 - Text-layer PDF pages are sent as text only; images are sent for scans. Cuts cost and keeps the quote check exact.
 - A fact set identical to the stored one is not rewritten, so fact ids stay stable across runs (shares refer to them).
 - `significance = 0` means not scored yet; scored facts are stored with at least 1.
+- Current Claude models reject a forced `tool_choice`, so the tool call is requested in the system prompt with `tool_choice: auto`; a reply without it is asked once more, and its tokens still count toward cost.
 - Model wire format is set by `LLM_PROVIDER` (anthropic or openai) over httpx, so no SDK dependency was added.
 - Deduplication merges facts with no known provider only within one source: equal amounts on one date in two documents can be two real charges.
 - The second read on a scan is told the item's kind and its title with digits masked, never the quote, so it cannot copy the first read's values.
