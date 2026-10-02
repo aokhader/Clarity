@@ -6,7 +6,8 @@
 
 ## Status
 
-- **Now:** C5 (C3's real-snapshot check waits for S1)
+- **Now:** C6 (C3's real-snapshot check waits for S1)
+- **Schedule:** at 2:22 PM the owner chose to build C5 and move this track's freeze to 3:45 PM
 - **Blocked:** nothing
 
 ## Checklist
@@ -30,9 +31,9 @@
 - [x] `ProvidersPanel` for the firm page: share and opened status, Share button
 
 ### C5 Share composer (35 min)
-- [ ] Section toggles, per-item hide, note, expiry
-- [ ] Live preview using the provider page components
-- [ ] If behind: replace with a one-click share using default settings
+- [x] Section toggles, per-item hide, note, expiry
+- [x] Live preview using the provider page components
+- [x] If behind: replace with a one-click share using default settings (not needed; the composer shipped)
 
 ### C6 Submission material (30 min, start by 2:30 PM at the latest)
 - [ ] README from the outline in `docs/submission.md`
@@ -57,6 +58,8 @@ Track C also owns `services/provider_view.py`, `services/providers.py` (the prov
 - The provider page fetches its payload once per visit (no refetch on focus), because every fetch records an opened event the firm sees.
 - `ProviderView` renders a payload and nothing else; the share composer's preview (C5) reuses it without the "View page" buttons.
 - The stage tracker marks only the current stage. Earlier stages are not ticked, since a case can skip one.
+- The composer previews before any link exists: `POST /api/matters/{id}/shares/preview` takes the same `ShareCreate` body and runs `share_preview` over an unsaved share. Create saves exactly that share, and a test checks the link's payload equals the preview. No schema changed.
+- The composer only creates links. A live link is copied or withdrawn (two clicks) from the providers panel; to change one, withdraw it and share again.
 
 ## Stubs and shortcuts
 

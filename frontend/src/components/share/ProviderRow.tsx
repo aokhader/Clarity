@@ -1,4 +1,6 @@
-import { useCreateShare } from '@/api/shares'
+import { useState } from 'react'
+
+import { useRevokeShare } from '@/api/shares'
 import type { ProviderOut } from '@/api/types'
 import { CopyLinkButton } from '@/components/share/CopyLinkButton'
 import { ShareStatus } from '@/components/share/ShareStatus'
@@ -10,8 +12,8 @@ type ProviderRowProps = {
   provider: ProviderOut
   /** The provider's live link, if one exists. */
   liveUrl: string | null
-  /** The firm user sharing. Null disables sharing, since a share records who made it. */
-  userId: number | null
+  /** Opens the share composer. Null while no firm user is chosen: a share records who made it. */
+  onShare: (() => void) | null
   now: Date
 }
 
@@ -19,8 +21,11 @@ function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
-export function ProviderRow({ matterId, provider, liveUrl, userId, now }: ProviderRowProps) {
-  const create = useCreateShare(matterId)
+export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: ProviderRowProps) {
+  const revoke = useRevokeShare(matterId)
+  const [confirming, setConfirming] = useState(false)
+  const shareId = provider.share?.share_id
+
   return (
     <li className="py-3">
       <div className="flex items-start justify-between gap-3">
@@ -35,24 +40,35 @@ export function ProviderRow({ matterId, provider, liveUrl, userId, now }: Provid
             <ShareStatus share={provider.share} now={now} />
           </p>
         </div>
-        {liveUrl !== null ? (
-          <CopyLinkButton url={liveUrl} />
+        {liveUrl !== null && shareId !== undefined ? (
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <CopyLinkButton url={liveUrl} />
+            <Button
+              variant={confirming ? 'destructive' : 'ghost'}
+              size="xs"
+              disabled={revoke.isPending}
+              onClick={() =>
+                confirming ? revoke.mutate(shareId, { onSuccess: () => setConfirming(false) }) : setConfirming(true)
+              }
+              onBlur={() => setConfirming(false)}
+            >
+              {confirming ? 'Confirm withdraw' : 'Withdraw link'}
+            </Button>
+          </div>
         ) : (
           <Button
             size="sm"
-            disabled={userId === null || create.isPending}
-            onClick={() =>
-              userId !== null && create.mutate({ userId, body: { provider_contact_id: provider.contact_id } })
-            }
-            title={userId === null ? 'Choose a firm user to share' : `Share case status with ${provider.name}`}
+            disabled={onShare === null}
+            onClick={onShare ?? undefined}
+            title={onShare === null ? 'Choose a firm user to share' : `Share case status with ${provider.name}`}
           >
-            {create.isPending ? 'Sharing…' : 'Share'}
+            Share
           </Button>
         )}
       </div>
-      {create.isError && (
+      {revoke.isError && (
         <p role="alert" className="mt-2 text-xs text-danger">
-          Could not create the link. {create.error.message}
+          Could not withdraw the link. {revoke.error.message}
         </p>
       )}
     </li>

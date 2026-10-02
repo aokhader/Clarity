@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { useMatterProviders, useMatterShares } from '@/api/shares'
 import type { ProviderOut, ShareOut } from '@/api/types'
 import { ProviderRow } from '@/components/share/ProviderRow'
+import { ShareComposer } from '@/components/share/ShareComposer'
 import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,6 +27,7 @@ export function ProvidersPanel({ matterId, userId }: ProvidersPanelProps) {
   const providers = useMatterProviders(matterId)
   const shares = useMatterShares(matterId)
   const [now] = useState(() => new Date())
+  const [composing, setComposing] = useState<ProviderOut | null>(null)
 
   let body: ReactNode
   if (providers.isPending) {
@@ -43,7 +45,7 @@ export function ProvidersPanel({ matterId, userId }: ProvidersPanelProps) {
             matterId={matterId}
             provider={provider}
             liveUrl={liveUrl(provider, shares.data ?? [], now)}
-            userId={userId}
+            onShare={userId === null ? null : () => setComposing(provider)}
             now={now}
           />
         ))}
@@ -53,6 +55,9 @@ export function ProvidersPanel({ matterId, userId }: ProvidersPanelProps) {
   return (
     <Panel title="Providers" aside={providers.data?.length}>
       {body}
+      {userId !== null && (
+        <ShareComposer matterId={matterId} userId={userId} provider={composing} onClose={() => setComposing(null)} />
+      )}
     </Panel>
   )
 }

@@ -95,25 +95,35 @@ def share_url(share: Share) -> str:
     return f"{get_settings().frontend_origin}/p/{share.token}"
 
 
-def create_share(
-    session: Session, matter_id: int, body: ShareCreate, user: User, now: datetime
+def draft_share(
+    session: Session, matter_id: int, body: ShareCreate, now: datetime
 ) -> Share:
+    """A share built from the request but not saved, so the composer can preview it.
+
+    `create_share` saves exactly this, so the preview matches the link it creates.
+    """
     if body.provider_contact_id not in medical_provider_ids(session, matter_id):
         raise NotAProvider(
             f"contact {body.provider_contact_id} is not a medical provider on matter {matter_id}"
         )
     days = body.expires_in_days or get_settings().share_default_expiry_days
-    share = Share(
+    return Share(
         token=secrets.token_urlsafe(TOKEN_BYTES),
         matter_id=matter_id,
         provider_contact_id=body.provider_contact_id,
         settings_json=body.settings.model_dump(),
         hidden_fact_ids_json=sorted(set(body.hidden_fact_ids)),
         note=body.note,
-        created_by=user.id,
         created_at=now,
         expires_at=now + timedelta(days=days),
     )
+
+
+def create_share(
+    session: Session, matter_id: int, body: ShareCreate, user: User, now: datetime
+) -> Share:
+    share = draft_share(session, matter_id, body, now)
+    share.created_by = user.id
     session.add(share)
     session.commit()
     return share

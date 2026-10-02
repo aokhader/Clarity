@@ -302,3 +302,33 @@ def test_providers_panel_totals_and_share_status(
     # A new live link takes precedence over the withdrawn one.
     newer = _create(client, user_id)
     assert _providers(client)[ORTHO_ID]["share"]["share_id"] == newer["id"]
+
+
+def test_draft_preview_matches_the_link_it_creates_and_saves_nothing(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    bill = _fact(seeded, FactKind.MEDICAL_BILL, ORTHO_ID)
+    body = {
+        "provider_contact_id": ORTHO_ID,
+        "settings": {"own_records": False, "treatment_activity": True},
+        "hidden_fact_ids": [bill.id],
+        "note": "Please send the updated records.",
+    }
+    draft = _ok(client.post(f"/api/matters/{MATTER_ID}/shares/preview", json=body))
+    assert _ok(client.get(f"/api/matters/{MATTER_ID}/shares")) == []
+
+    share = _ok(
+        client.post(
+            f"/api/matters/{MATTER_ID}/shares",
+            json=body,
+            headers={"X-User-Id": str(user_id)},
+        ),
+        201,
+    )
+    assert draft["payload"] == _ok(client.get(f"/api/p/{_token(share)}"))
+    assert draft["payload"]["records"] is None
+    assert {i["fact_id"] for i in draft["items"] if i["hidden"]} == {bill.id}
+
+    insurer = {"provider_contact_id": INSURER_ID}
+    response = client.post(f"/api/matters/{MATTER_ID}/shares/preview", json=insurer)
+    assert response.status_code == 422

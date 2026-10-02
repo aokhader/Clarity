@@ -71,6 +71,19 @@ def create_share(
     return _one(session, share)
 
 
+@router.post("/matters/{matter_id}/shares/preview")
+def preview_draft_share(
+    matter_id: MatterId, body: ShareCreate, session: SessionDep
+) -> SharePreviewOut:
+    """What a share with this body would release, before any link exists."""
+    now = datetime.now(UTC)
+    try:
+        draft = shares.draft_share(session, matter_id, body, now)
+    except shares.NotAProvider as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return provider_view.share_preview(session, draft, now)
+
+
 @router.get("/shares/{share_id}/preview")
 def preview_share(share: ExistingShare, session: SessionDep) -> SharePreviewOut:
     try:
