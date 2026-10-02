@@ -21,6 +21,7 @@ from app.schemas import (
     StageOut,
     TaskPayload,
 )
+from app.services import brief_view
 from app.services.clio_records import RawContact, RawMatter
 from app.services.fact_views import fact_out, fact_ref, renderable_facts
 from app.services.kpis import kpi_tiles
@@ -116,11 +117,22 @@ def _dated(fact: Fact | None) -> DatedFactOut | None:
     return DatedFactOut(on=fact.event_date, fact=fact_ref(fact))
 
 
-def _stage(facts: list[Fact]) -> StageOut:
+def _stage(session: Session, matter_id: int, facts: list[Fact]) -> StageOut:
+    """The stage from Clio's own stage fact, else the brief's, labelled as inferred.
+
+    Without a cited fact there is no stage on screen: a label without a source is a guess.
+    """
     fact = _best(facts)
     if fact is None:
-        # No stage fact means no stage on screen: a label without a source is a guess.
-        return StageOut(stage=None, label=None, inferred=False, facts=[])
+        try:
+            brief = brief_view.matter_brief(session, matter_id)
+        except brief_view.BriefNotFound:
+            brief = None
+        if brief is None or not brief.stage_facts:
+            return StageOut(stage=None, label=None, inferred=False, facts=[])
+        return StageOut(
+            stage=brief.stage, label=None, inferred=True, facts=brief.stage_facts
+        )
     payload = CaseStagePayload.model_validate(fact.value_json)
     return StageOut(
         stage=payload.stage,
@@ -148,7 +160,7 @@ def matter_header(session: Session, matter_id: int) -> MatterHeaderOut:
         if raw.responsible_attorney
         else None,
         opened_on=raw.open_date,
-        stage=_stage(by_kind[FactKind.CASE_STAGE]),
+        stage=_stage(session, matter_id, by_kind[FactKind.CASE_STAGE]),
         incident=_dated(_best(by_kind[FactKind.INCIDENT])),
         last_client_contact=_dated(_best(by_kind[FactKind.CLIENT_CONTACT])),
         kpis=kpi_tiles(by_kind),
@@ -247,4 +259,16 @@ def matter_timeline(
         # "lien" should find liens, not every mention of a client.
         word_start = re.compile(rf"\b{re.escape(text)}", re.IGNORECASE)
         facts = [f for f in facts if word_start.search(f"{f.title}\n{f.quote or ''}")]
+    return [fact_out(f) for f in facts]
+
+
+def matter_injuries(session: Session, matter_id: int) -> list[FactOut]:
+    """Injuries and diagnoses, most significant first."""
+    facts = session.scalars(
+        renderable_facts(matter_id)
+        .where(Fact.kind.in_((FactKind.INJURY, FactKind.DIAGNOSIS)))
+        .order_by(
+            Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
+        )
+    )
     return [fact_out(f) for f in facts]

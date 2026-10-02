@@ -9,8 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import SessionDep
 from app.models import FactKind
-from app.schemas import ActionsOut, FactOut, MatterHeaderOut, MatterSummaryOut
-from app.services import matter_queries
+from app.schemas import (
+    ActionsOut,
+    BriefOut,
+    FactOut,
+    MatterHeaderOut,
+    MatterSummaryOut,
+)
+from app.services import brief_view, matter_queries
 
 router = APIRouter(prefix="/api", tags=["matters"])
 
@@ -57,3 +63,16 @@ def matter_timeline(
     q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> list[FactOut]:
     return matter_queries.matter_timeline(session, matter_id, kind, q)
+
+
+@router.get("/matters/{matter_id}/brief")
+def matter_brief(matter_id: MatterId, session: SessionDep) -> BriefOut:
+    try:
+        return brief_view.matter_brief(session, matter_id)
+    except brief_view.BriefNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.get("/matters/{matter_id}/injuries")
+def matter_injuries(matter_id: MatterId, session: SessionDep) -> list[FactOut]:
+    return matter_queries.matter_injuries(session, matter_id)

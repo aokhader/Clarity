@@ -1,6 +1,8 @@
 import { useParams } from 'react-router'
 
 import { ActionBoard } from '@/components/firm/ActionBoard'
+import { Brief } from '@/components/firm/Brief'
+import { InjuriesList } from '@/components/firm/InjuriesList'
 import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterShell } from '@/components/firm/MatterShell'
 import { RankedFeed } from '@/components/firm/RankedFeed'
@@ -20,10 +22,12 @@ export function MatterPage() {
             <KpiStrip kpis={header.kpis} />
             <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
               <div className="space-y-6">
+                <Brief matterId={matterId} />
                 <RankedFeed matterId={matterId} />
               </div>
               <aside className="space-y-6">
                 <ActionBoard matterId={matterId} />
+                <InjuriesList matterId={matterId} />
                 {/* No firm user until the B5 user switcher, so sharing stays disabled. */}
                 <ProvidersPanel matterId={matterId} userId={null} />
               </aside>

@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B4
+- **Now:** B5
 - **Blocked:** nothing
 
 ## Checklist
@@ -27,9 +27,9 @@
 - [ ] **After S1: switch to the real snapshot and fix what breaks**
 
 ### B4 Brief, KPIs, injuries (35 min)
-- [ ] Brief with chips per sentence and the open-questions list
-- [ ] KPI strip, including the disagreement and not-found states
-- [ ] Injuries list with page citations
+- [x] Brief with chips per sentence and the open-questions list
+- [x] KPI strip, including the disagreement and not-found states
+- [x] Injuries list with page citations
 - [ ] **After S3: check all three on real data**
 
 ### B5 Since you last opened (20 min)
@@ -58,6 +58,7 @@ Track B also owns these service modules, added in B1:
 - `services/kpis.py`: the four KPI tiles
 - `services/source_views.py`: the source drawer and page-image lookup
 - `services/clio_records.py`: lenient Pydantic models over raw Clio JSON; Track A may reuse them
+- `services/brief_view.py`: the stored brief with its citations checked
 
 ## Decisions
 
@@ -67,6 +68,9 @@ Track B also owns these service modules, added in B1:
 - Date-only strings are read as calendar days (`lib/format.ts`), since `new Date('2026-03-06')` shows March 5 in Pacific time.
 - Case age is measured from the incident date, because the matter's open date is not a sourced fact and could not carry a chip.
 - The drawer matches quotes ignoring whitespace and case, like the pipeline's quote check, and says so when a quote cannot be found instead of failing silently. Rich-text notes are shown as plain text, never as markup.
+- A brief sentence is shown only if every fact it cites can be shown; otherwise part of it would be unsourced. Track A already drops sentences that cite unknown facts; this also covers facts that exist but cannot render.
+- With no stage fact from Clio, the header shows the brief's stage marked "inferred", with the brief's stage citations. With no citation either, it shows "Stage not found in file".
+- In the brief, each sentence's last word and its chips wrap as a unit, so a chip never starts a line as if it belonged to the next sentence.
 - Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
 ## Stubs and shortcuts
@@ -75,6 +79,7 @@ Track B also owns these service modules, added in B1:
 
 ## Known issues
 
+- Track A updates the brief digest in place, so `digests.created_at` (the API's `generated_at`) is the first generation time, not the latest. The UI does not show it.
 - Corroborating-source tabs in the drawer are untested on data: the seed has no corroborating sources. Check them at S2.
 - With the app window hidden, the browser pane stops painting, so the drawer's exit animation never ends and the closing overlay swallows the next click. Not seen in a visible window.
 - On Windows, `uvicorn --reload` sometimes keeps serving the old code after a reload. Restart the server if a new route returns 404.
