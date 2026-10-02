@@ -1,19 +1,19 @@
 # Track C: Provider side
 
-**Owner:** [name]
+**Owner:** Abdulaziz Khader
 **Read first:** the visibility section of `docs/architecture.md`, the share composer and provider view in `docs/ui.md`, `docs/submission.md`
 **Needs:** nothing but the repository. Start on `cli seed-dev`, switch to A's snapshot at S1.
 
 ## Status
 
-- **Now:** C1
+- **Now:** C2
 - **Blocked:** nothing
 
 ## Checklist
 
 ### C1 Visibility filter (25 min)
-- [ ] `visible_facts_for_share` in `services/visibility.py`, default-deny
-- [ ] Tests: internal kinds never appear, another provider's bills never appear, off settings remove facts, hidden facts are removed, expired and revoked shares return nothing
+- [x] `visible_facts_for_share` in `services/visibility.py`, default-deny
+- [x] Tests: internal kinds never appear, another provider's bills never appear, off settings remove facts, hidden facts are removed, expired and revoked shares return nothing
 
 ### C2 Shares API and provider route (25 min)
 - [ ] Create, list, preview, patch, revoke in `api/shares.py`
@@ -49,4 +49,5 @@ The visibility function is the security boundary. No other code path may assembl
 
 ## Known issues
 
-- None yet.
+- For Track A: store each fact's `visibility` with `services.visibility.fact_visibility(kind, mentions_strategy)`. The filter also requires the stored tag to be `shareable`, so a pipeline that leaves the default `internal` shares nothing (fails closed).
+- The `requests` setting releases only open record requests and open tasks; fulfilled and completed ones stay internal.
