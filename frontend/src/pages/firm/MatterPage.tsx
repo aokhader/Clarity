@@ -1,11 +1,33 @@
 import { useParams } from 'react-router'
 
+import { ActionBoard } from '@/components/firm/ActionBoard'
+import { KpiStrip } from '@/components/firm/KpiStrip'
+import { MatterShell } from '@/components/firm/MatterShell'
+import { RankedFeed } from '@/components/firm/RankedFeed'
+import { NotFoundPage } from '@/pages/NotFoundPage'
+
 export function MatterPage() {
-  const { matterId } = useParams()
+  const matterId = Number(useParams().matterId)
+  if (!Number.isInteger(matterId) || matterId <= 0) return <NotFoundPage />
+
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="font-serif text-3xl">Matter {matterId}</h1>
-      <p className="mt-2 text-muted-foreground">The firm view is not built yet (Track B).</p>
+    <main className="mx-auto max-w-[1360px] px-8 py-6">
+      <MatterShell matterId={matterId}>
+        {(header) => (
+          <>
+            <KpiStrip kpis={header.kpis} />
+            <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
+              <div className="space-y-6">
+                <RankedFeed matterId={matterId} />
+              </div>
+              <aside className="space-y-6">
+                <ActionBoard matterId={matterId} />
+                {/* Track C's ProvidersPanel renders here once it lands. */}
+              </aside>
+            </div>
+          </>
+        )}
+      </MatterShell>
     </main>
   )
 }

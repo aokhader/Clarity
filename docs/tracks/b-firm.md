@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B2
+- **Now:** B3
 - **Blocked:** nothing
 
 ## Checklist
@@ -16,9 +16,9 @@
 - [x] Fact source and page image in `api/facts.py`
 
 ### B2 Firm page (30 min)
-- [ ] Shared pieces first, since Track C uses them: `SourceChip`, kind badge, money and date formatting
-- [ ] Header, action board, ranked feed on seed data
-- [ ] Leave the providers slot in the layout: render `ProvidersPanel` from Track C
+- [x] Shared pieces first, since Track C uses them: `SourceChip`, kind badge, money and date formatting
+- [x] Header, action board, ranked feed on seed data
+- [ ] Leave the providers slot in the layout: render `ProvidersPanel` from Track C (slot is in `MatterPage`; waiting on C4)
 
 ### B3 Source drawer (25 min)
 - [ ] Notes and emails with the quote highlighted
@@ -43,7 +43,14 @@
 
 ## Contract obligations
 
-The shared components in `frontend/src/components/shared/` are used by Track C. Land them early in B2 and keep their props stable.
+The shared components in `frontend/src/components/shared/` are used by Track C. Land them early in B2 and keep their props stable. Current props:
+
+- `SourceChip({ fact: FactRef, className? })`: opens the source drawer by setting `?fact=ID`; dashed amber outline for low confidence
+- `SourceChipList({ facts: FactRef[], max = 3 })`: chips, with "+N more" past `max`
+- `KindBadge({ kind: FactKind })`
+- `Panel({ title, aside?, actions?, className?, children })`: titled section with small-caps heading
+- `LoadError({ what, error, onRetry })`: the error state with a retry button
+- `lib/format.ts` (`formatMoney`, `formatMoneyRange`, `formatDate`, `formatDateTime`, `daysFromToday`, `formatDaysAgo`, `formatElapsed`), `lib/labels.ts` (kind, source, stage, and waiting-on labels), `lib/useSourceDrawer.ts`
 
 Track B also owns these service modules, added in B1:
 
@@ -57,6 +64,9 @@ Track B also owns these service modules, added in B1:
 - Action board groups do not overlap: overdue, then waiting on others, then upcoming. A record request raised by a task already on the board is not listed twice. Past calendar entries are not overdue.
 - Medical specials are cross-checked at read time against the sum of the bills; agreement merges the sources into one value, disagreement shows both.
 - Timeline search matches at word starts, so "lien" finds liens and not every "client".
+- Date-only strings are read as calendar days (`lib/format.ts`), since `new Date('2026-03-06')` shows March 5 in Pacific time.
+- Case age is measured from the incident date, because the matter's open date is not a sourced fact and could not carry a chip.
+- Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
 ## Stubs and shortcuts
 

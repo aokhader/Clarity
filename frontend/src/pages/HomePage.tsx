@@ -1,16 +1,19 @@
 import { BackendStatus } from '@/components/BackendStatus'
+import { MatterList } from '@/components/firm/MatterList'
 
 export function HomePage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="font-serif text-3xl">Clarity</h1>
       <p className="mt-2 text-muted-foreground">
-        Setup status. Once Clio credentials are set, run <code>python -m app.cli sync</code> from{' '}
-        <code>backend/</code>.
+        Every matter synced from Clio, digested into sourced facts.
       </p>
-      <section className="mt-8" aria-label="Setup status">
-        <BackendStatus />
-      </section>
+      <div className="mt-8 space-y-6">
+        <MatterList />
+        <section aria-label="Setup status">
+          <BackendStatus />
+        </section>
+      </div>
     </main>
   )
 }
