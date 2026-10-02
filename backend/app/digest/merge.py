@@ -96,10 +96,18 @@ def deduplicate(session: Session, matter_id: int) -> int:
         ):
             continue
         value = fact.value_json or {}
+        # Without a known provider, equal amounts on one date in two documents may be
+        # two real charges (same-day copays at two clinics), so only facts from the
+        # same source are merged.
+        who = (
+            ("provider", fact.provider_contact_id)
+            if fact.provider_contact_id is not None
+            else ("source", fact.source_id)
+        )
         key = (
             fact.kind,
             fact.event_date,
-            fact.provider_contact_id,
+            who,
             value.get("amount_cents"),
             str(value.get("body_part") or "").lower(),
         )

@@ -39,3 +39,17 @@ def test_provider_resolution_needs_one_clear_match() -> None:
     assert resolve_provider("EXAMPLE PHYSICAL THERAPY", providers) == 1
     assert resolve_provider("Example", providers) is None
     assert resolve_provider(None, providers) is None
+
+
+def test_second_read_question_hides_the_first_reads_numbers() -> None:
+    from app.digest.extract import _second_read_question
+    from app.models import Fact
+
+    fact = Fact(
+        kind=FactKind.MEDICAL_BILL,
+        title="Bill of $1,250.00 on 3/1/2024",
+        quote="Total due $1,250.00",
+    )
+    question = _second_read_question(fact)
+    assert "medical bill" in question
+    assert not any(ch.isdigit() for ch in question)

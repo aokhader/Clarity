@@ -6,8 +6,8 @@
 
 ## Status
 
-- **Now:** first live run on Sapini (`cli auth`, `cli sync`, `cli digest`), then S1 snapshot
-- **Blocked:** Clio developer app credentials and the model key in `.env`
+- **Now:** first live `cli digest` with a real model, then the S1 to S3 snapshots and the cost log
+- **Blocked:** `LLM_API_KEY`, `EXTRACT_MODEL`, `MERGE_MODEL`, and the four prices in `.env`. Clio auth and sync already run live.
 
 ## Checklist
 
@@ -45,7 +45,8 @@
 Verified so far against an invented matter (fake Clio transport, fake model): sync and
 re-sync, two digests (second one 0 model calls, fact ids unchanged), a fabricated quote
 dropped, a scanned page's money read twice, a brief sentence with an unknown fact id
-dropped, medical charges split from firm spend. Not yet run against live Clio or a real model.
+dropped, medical charges split from firm spend. Live Clio: `cli auth` and `cli sync` succeed,
+and a re-sync skips unchanged records by ETag. Not yet run against a real model.
 
 ## Decisions
 
@@ -60,6 +61,10 @@ dropped, medical charges split from firm spend. Not yet run against live Clio or
 - A fact set identical to the stored one is not rewritten, so fact ids stay stable across runs (shares refer to them).
 - `significance = 0` means not scored yet; scored facts are stored with at least 1.
 - Model wire format is set by `LLM_PROVIDER` (anthropic or openai) over httpx, so no SDK dependency was added.
+- Deduplication merges facts with no known provider only within one source: equal amounts on one date in two documents can be two real charges.
+- The second read on a scan is told the item's kind and its title with digits masked, never the quote, so it cannot copy the first read's values.
+- A model call with no price configured for its role is refused, so `/api/ops/cost` never reports a paid call as $0.
+- The document list is fetched in full on every sync (one request), so a file missing on disk is downloaded again even when its ETag is unchanged.
 - `cli auth` runs its own short-lived listener on the redirect URI, so the API server must not hold port 8000 during auth.
 
 ## Contract obligations

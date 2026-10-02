@@ -234,8 +234,16 @@ def _sync(
             _upsert(session, matter_id, source_type, record, stats)
         session.commit()
 
+    # Listed in full, without `updated_since`: an unchanged document whose file is
+    # missing on disk must still come back so it can be downloaded again. The ETag
+    # check keeps unchanged ones from being rewritten.
     documents = _list_with_fallback(
-        client, "documents.json", scope, DOCUMENT_FIELDS, "document", stats
+        client,
+        "documents.json",
+        {"matter_id": matter_id},
+        DOCUMENT_FIELDS,
+        "document",
+        stats,
     )
     for document in documents:
         changed = _upsert(session, matter_id, SourceType.DOCUMENT, document, stats)

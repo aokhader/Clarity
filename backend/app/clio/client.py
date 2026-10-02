@@ -122,8 +122,16 @@ class ClioClient:
         response = self._send(path, None, allow_redirect=True)
         if response.status_code in (301, 302, 303, 307, 308):
             location = response.headers["Location"]
-            file_response = self._files.get(location)
-            file_response.raise_for_status()
+            # The query string is the URL's signature; keep it out of error messages.
+            public_url = location.split("?", 1)[0]
+            try:
+                file_response = self._files.get(location)
+            except httpx.HTTPError as error:
+                raise ClioError(0, public_url, str(error)) from error
+            if file_response.status_code >= 400:
+                raise ClioError(
+                    file_response.status_code, public_url, file_response.text
+                )
             content = file_response.content
         else:
             content = response.content
@@ -138,7 +146,14 @@ class ClioClient:
         response: httpx.Response | None = None
         for attempt in range(MAX_ATTEMPTS):
             headers = {"Authorization": f"Bearer {self._get_token()}"}
-            response = self._http.get(url, params=params, headers=headers)
+            try:
+                response = self._http.get(url, params=params, headers=headers)
+            except httpx.TransportError as error:
+                # A dropped connection or timeout is retried like a 5xx.
+                if attempt + 1 == MAX_ATTEMPTS:
+                    raise ClioError(0, str(url), str(error)) from error
+                self._sleep(min(2**attempt, 30))
+                continue
             self.request_count += 1
             status = response.status_code
             if status == 429:
