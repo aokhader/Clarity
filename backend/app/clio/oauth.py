@@ -10,7 +10,7 @@ for a token and touches no case data.
 
 import logging
 import secrets
-import threading
+import time
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -47,7 +47,11 @@ def authorize_url(state: str) -> str:
 
 
 def wait_for_code(state: str) -> str:
-    """Serve the redirect URI once and return the authorization code it receives."""
+    """Serve the redirect URI until the callback arrives, and return its code.
+
+    Other requests can reach the port first (a browser's favicon request, a frontend
+    polling the API), so they are answered with a 404 and the listener keeps waiting.
+    """
     redirect = urlparse(get_settings().clio_redirect_uri)
     received: dict[str, str | None] = {}
 
@@ -55,6 +59,7 @@ def wait_for_code(state: str) -> str:
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             if parsed.path != redirect.path:
+                log.info("Ignoring a request to %s while waiting for Clio", parsed.path)
                 self.send_response(404)
                 self.end_headers()
                 return
@@ -70,20 +75,33 @@ def wait_for_code(state: str) -> str:
         def log_message(self, format: str, *args: object) -> None:
             return
 
-    server = HTTPServer(
+    server = _ExclusiveHTTPServer(
         (redirect.hostname or "127.0.0.1", redirect.port or 80), Handler
     )
-    server.timeout = CALLBACK_TIMEOUT_SECONDS
-    thread = threading.Thread(target=server.handle_request, daemon=True)
-    thread.start()
-    thread.join(CALLBACK_TIMEOUT_SECONDS + 5)
-    server.server_close()
+    deadline = time.monotonic() + CALLBACK_TIMEOUT_SECONDS
+    try:
+        while "code" not in received and time.monotonic() < deadline:
+            server.timeout = max(deadline - time.monotonic(), 0.1)
+            server.handle_request()
+    finally:
+        server.server_close()
 
+    if "code" not in received:
+        raise ClioNotAuthorized(
+            f"No callback from Clio within {CALLBACK_TIMEOUT_SECONDS}s. Check that the "
+            "redirect URI in the Clio app matches CLIO_REDIRECT_URI exactly."
+        )
     if received.get("error") or not received.get("code"):
         raise ClioNotAuthorized(f"Clio did not return a code: {received.get('error')}")
     if received.get("state") != state:
         raise ClioNotAuthorized("OAuth state mismatch")
     return str(received["code"])
+
+
+class _ExclusiveHTTPServer(HTTPServer):
+    # On Windows, address reuse lets a second socket bind a port that is in use, so a
+    # running API server would silently receive the callback instead. Fail loudly.
+    allow_reuse_address = False
 
 
 def exchange_code(session: Session, code: str) -> None:
