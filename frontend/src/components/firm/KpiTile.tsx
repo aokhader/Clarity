@@ -31,45 +31,50 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
   const [only] = kpi.values
   const tone = KPI_TONES[kpi.name]
   return (
-    <div className={cn('group/src relative min-w-0 overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
+    <div className={cn('group/src relative flex min-w-0 flex-col overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
       <tone.Icon aria-hidden className={cn('absolute -right-1.5 -bottom-3 size-18 opacity-10', tone.label)} />
       <h3 className={cn('text-xs font-semibold uppercase tracking-wider', tone.label)}>{KPI_LABELS[kpi.name]}</h3>
-      {kpi.values.length === 0 && <p className="mt-2 text-lg text-muted-foreground">Not found in file</p>}
+      {/* A single value's chips sit in the corner, so however many there are, every figure starts on the same line. */}
       {kpi.values.length === 1 && only && (
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          {/* A range is twice as long as an amount, so it steps down a size to stay on one line. */}
-          <span
-            className={cn(
-              'whitespace-nowrap font-semibold tabular-nums',
-              only.amount_cents === null ? 'text-2xl' : 'text-kpi',
-            )}
-          >
-            {amountText(only)}
-          </span>
+        <div className="absolute top-3 right-3 whitespace-nowrap">
           <RevealOnHover>
-            <SourceChipList facts={only.facts} />
+            <SourceChipList facts={only.facts} max={2} />
           </RevealOnHover>
         </div>
       )}
+      {kpi.values.length === 0 && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
+      {kpi.values.length === 1 && only && (
+        <p
+          className={cn(
+            'mt-2 flex h-10 items-center whitespace-nowrap font-semibold tabular-nums',
+            // A range is twice as long as an amount, so it steps down a size to stay on one line.
+            only.amount_cents === null ? 'text-2xl' : 'text-kpi',
+          )}
+        >
+          {amountText(only)}
+        </p>
+      )}
       {kpi.values.length > 1 && (
-        <>
-          <ul className="mt-1 space-y-0.5">
-            {kpi.values.map((value) => (
-              <li key={value.facts[0]?.id ?? amountText(value)} className="flex flex-wrap items-center gap-2">
-                <span className="whitespace-nowrap text-xl font-semibold tabular-nums">{amountText(value)}</span>
-                <RevealOnHover>
-                  <SourceChipList facts={value.facts} />
-                </RevealOnHover>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-warning">
+        <ul className="mt-2 space-y-1">
+          {kpi.values.map((value) => (
+            <li key={value.facts[0]?.id ?? amountText(value)} className="flex items-center justify-between gap-2">
+              <span className="whitespace-nowrap text-xl font-semibold tabular-nums">{amountText(value)}</span>
+              <RevealOnHover>
+                <SourceChipList facts={value.facts} max={1} />
+              </RevealOnHover>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-auto space-y-0.5 pt-3">
+        {kpi.values.length > 1 && (
+          <p className="flex items-center gap-1 text-xs font-medium text-warning">
             <TriangleAlert className="size-3.5" aria-hidden />
             Sources disagree
           </p>
-        </>
-      )}
-      {kpi.basis && <p className={cn('mt-1 text-xs', tone.label)}>{kpi.basis}</p>}
+        )}
+        {kpi.basis && <p className={cn('text-xs', tone.label)}>{kpi.basis}</p>}
+      </div>
     </div>
   )
 }

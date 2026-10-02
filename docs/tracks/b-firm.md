@@ -78,6 +78,7 @@ Track B also owns these service modules, added in B1:
 
 - The firm page takes the Clarity Dashboard v2 look (dark section rail, icon-headed cards, tinted KPI tiles) after the freeze, at the owner's call, restyle only. Source chips stay, though the mockup drops them (rule 3). This changed the theme tokens in `frontend/src/index.css`, a contract file; the shared `Panel` restyle also reaches the provider page.
 - Chips in the header, stage pill, Financial overview, and brief appear only on hover or keyboard focus of their fact, at the owner's request for a cleaner page (`components/firm/RevealOnHover.tsx`). They stay in the layout and tab order, so every fact is still one click from its source.
+- A Documents page (`?view=documents`, linked from the sidebar) lists every cited source once, grouped by source type with filter pills; each fact opens the source drawer. It is built from the timeline endpoint, so it needed no new route or schema; a source shows its facts, since `FactOut` carries no source title.
 
 ## Stubs and shortcuts
 

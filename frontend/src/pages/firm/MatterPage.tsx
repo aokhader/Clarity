@@ -1,8 +1,9 @@
-import { useParams } from 'react-router'
+import { useParams, useSearchParams } from 'react-router'
 
 import { ActionBoard } from '@/components/firm/ActionBoard'
 import { Brief } from '@/components/firm/Brief'
 import { ChangesSince } from '@/components/firm/ChangesSince'
+import { DocumentsView } from '@/components/firm/DocumentsView'
 import { FirmSidebar } from '@/components/firm/FirmSidebar'
 import { InjuriesList } from '@/components/firm/InjuriesList'
 import { KpiStrip } from '@/components/firm/KpiStrip'
@@ -15,15 +16,19 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export function MatterPage() {
   const matterId = Number(useParams().matterId)
+  const showDocuments = useSearchParams()[0].get('view') === 'documents'
   if (!Number.isInteger(matterId) || matterId <= 0) return <NotFoundPage />
 
   return (
     <div className="grid min-h-screen grid-cols-[16rem_minmax(0,1fr)]">
-      <FirmSidebar />
+      <FirmSidebar showDocuments={showDocuments} />
       <main className="min-w-0 px-10 py-8">
         <div className="mx-auto max-w-[1280px]">
           <MatterShell matterId={matterId}>
-            {(header) => (
+            {(header) =>
+              showDocuments ? (
+                <DocumentsView matterId={matterId} />
+              ) : (
               <>
                 <div id="figures" className="scroll-mt-6">
                   <KpiStrip kpis={header.kpis} />
@@ -50,7 +55,8 @@ export function MatterPage() {
                 </div>
                 <MatterFooter header={header} />
               </>
-            )}
+              )
+            }
           </MatterShell>
         </div>
       </main>
