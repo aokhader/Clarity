@@ -65,7 +65,8 @@ Anything not working at 2:45 PM is cut using the order in `docs/progress.md`. Th
 
 ## Git
 
-- Everyone works on `main`. With disjoint paths, conflicts are rare, and there is no time for long-lived branches.
+- Track A is implemented on the remote `Track-A` branch, not on `main`. Tracks B and C work on `main` and do not commit to `Track-A`.
+- Tracks B and C both work on `main`. With disjoint paths, conflicts are rare, and there is no time for long-lived branches.
 - Commit small. Run `git pull --rebase` before every push.
 - Do not push a broken `main`: run `pytest -q` or `npm run typecheck` for the side you touched first.
 - Never force-push.

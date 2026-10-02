@@ -48,7 +48,7 @@ Meanwhile, the other two people:
 
 | Track | Owner | Checklist | State |
 |---|---|---|---|
-| A: Pipeline | [name] | `docs/tracks/a-pipeline.md` | not started |
+| A: Pipeline | [name] | `docs/tracks/a-pipeline.md` (on the `Track-A` branch) | in progress on `origin/Track-A` |
 | B: Firm view | Abdulaziz Khader | `docs/tracks/b-firm.md` | starting B1 |
 | C: Provider side | [name] | `docs/tracks/c-provider.md` | not started |
 
