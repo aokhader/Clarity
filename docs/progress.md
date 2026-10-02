@@ -1,109 +1,107 @@
 # Progress
 
-Update this file in the same commit as the work it describes.
+This file holds shared state. Each track's checklist lives in `docs/tracks/` and is edited only by its owner. Update this file at sync points.
 
 ## Status
 
-- **Now:** M0 done except the Clio developer application, which needs a person with the Clio account
-- **Next:** M1
-- **Blocked:** M1 needs `CLIO_CLIENT_ID` and `CLIO_CLIENT_SECRET` in `.env`
-- **Fixed times (PT):** feature freeze 3:15 PM, submit before 4:00 PM
+- **Phase:** M0, not started
+- **Fixed times (PT):** integration 2:45 PM, feature freeze 3:15 PM, submit before 4:00 PM
 
-## Milestones
+## Plan
 
-Budgets are targets and total about 4 hours of building before the freeze. At twice the budget, stop and report options.
+```
+M0 Foundation (one person)
+        |
+   +----+----+----------------+
+   |         |                |
+Track A   Track B          Track C
+Pipeline  Firm view        Provider side
+   |         |                |
+   +--- S1 --+------ S2 ------+--- S3
+        |
+Integration 2:45 PM -> M6 Polish -> freeze 3:15 PM -> M7 Submission
+```
 
-If behind schedule, cut in this order:
+How the split works is in `docs/parallel.md`.
+
+## M0 Foundation (30 min)
+
+One person builds the skeleton and the contracts. Nothing in the tracks starts until every box here is checked, because the tracks depend on these files not moving.
+
+- [ ] Repository, `.gitignore`, `.env` from `.env.example`
+- [ ] Backend skeleton: FastAPI app, config, database session, CLI entry point
+- [ ] `models.py`: every table in `docs/architecture.md`
+- [ ] `schemas.py`: response models for every route, fact kinds, and the fact payload models
+- [ ] One empty router file per track, all registered in `main.py`
+- [ ] Frontend skeleton: Vite, Tailwind theme tokens, shadcn/ui, routes for `/matters/:id` and `/p/:token`, `/api` proxy, `src/api/types.ts` mirroring `schemas.py`
+- [ ] `backend/tests/fixtures/synthetic_matter.py` and `cli seed-dev` (requirements in `docs/parallel.md`)
+- [ ] Pushed to `main`; teammates clone and run `seed-dev`
+
+Meanwhile, the other two people:
+
+- [ ] Clio trial account, Sapini loaded through the Swans setup app, developer application with read permissions, credentials to Track A's owner
+- [ ] OpenAPI spec saved to `docs/reference/clio-openapi.json`; field names in `docs/clio-api.md` confirmed or corrected
+- [ ] Look through Sapini in Clio: how many documents and pages, which tabs hold data, which custom fields exist. Add what matters to Known issues.
+- [ ] Ask the attorneys in the room where they draw the sharing line; adjust the visibility defaults in `docs/architecture.md` before C1 starts
+
+## Tracks
+
+| Track | Owner | Checklist | State |
+|---|---|---|---|
+| A: Pipeline | [name] | `docs/tracks/a-pipeline.md` | not started |
+| B: Firm view | [name] | `docs/tracks/b-firm.md` | not started |
+| C: Provider side | [name] | `docs/tracks/c-provider.md` | not started |
+
+## Sync points
+
+- [ ] S1: real sources and structured facts in a snapshot
+- [ ] S2: document facts, page images, quotes
+- [ ] S3: field mapping, KPIs, significance, brief
+- [ ] Integration at 2:45 PM: clean run from `cli reset` on Track A's machine
+
+## If behind at a sync point, cut in this order
 
 1. The share composer becomes a one-click share with default settings. Keep the server-side filter and the provider page.
 2. Drop the since-you-last-opened block.
 3. Drop the second-read verification. Keep the quote check and confidence flags.
 4. Drop timeline filters and search.
 
-### M0 Setup (15 min)
-- [x] Repository, `.gitignore`, `.env` from `.env.example`
-- [x] Backend skeleton: FastAPI app, config, database, models, CLI entry point
-- [x] Frontend skeleton: Vite, Tailwind, shadcn/ui, router, `/api` proxy
-- [ ] Clio developer application created with read permissions; credentials in `.env`
-- [x] OpenAPI spec saved to `docs/reference/clio-openapi.json`; field names in `docs/clio-api.md` confirmed or corrected
+## M6 Polish (2:45 to 3:15 PM, everyone)
 
-### M1 Sync (35 min)
-- [ ] OAuth flow through `cli auth`, tokens stored and refreshed
-- [ ] GET-only client with fields, paging, rate limiting, and the write guard
-- [ ] `cli sync` pulls matter, relationships, contacts, notes, communications, tasks, calendar, activities
-- [ ] Document list and downloads to `data/files/`
-- [ ] Re-sync skips unchanged records; `sync_runs` row written
-- [ ] Test: non-GET raises
+- [ ] Walk the clip script in `docs/submission.md` on the integrated build
+- [ ] Loading, empty, and error states on the screens the clip shows
+- [ ] Fix only what blocks the clip
 
-### M2 Structured facts and firm skeleton (40 min)
-- [ ] Stage 1 facts from tasks, calendar, activities, matter, communications
-- [ ] Endpoints: matter header, actions, feed, fact source
-- [ ] Firm page with header, action board, feed, and source drawer on real data
-- [ ] Database schema frozen at the end of this milestone
+## M7 Submission (3:15 PM to before 4:00 PM)
 
-### M3 Documents (50 min)
-- [ ] Pages: text layer detection, PNG rendering, hashes
-- [ ] `llm.py` wrapper with cache and cost logging
-- [ ] Per-page and per-record extraction with the schema in `docs/digest-pipeline.md`
-- [ ] Verification: quote check, second read, provider resolution
-- [ ] Source drawer shows the page image and quote
-- [ ] Second `cli digest` run makes zero model calls
-
-### M4 Brief and ranking (40 min)
-- [ ] Role and field mapping; KPI facts from custom fields
-- [ ] Deduplication, significance scoring, cross-checks
-- [ ] Brief generation with cited sentences
-- [ ] KPI strip, brief, injuries list, ranked feed with timeline toggle
-- [ ] Since-you-last-opened block with seeded users
-
-### M5 Provider side (40 min)
-- [ ] `visible_facts_for_share` with tests
-- [ ] Share create, preview, patch; token route with opened event
-- [ ] Provider page at `/p/:token`
-- [ ] Share composer with toggles, hide, and live preview
-- [ ] Providers panel shows share and opened status
-
-### M6 Polish (15 min, ends at 3:15 PM)
-- [ ] Loading, empty, and error states
-- [ ] Footer: sync time, digest cost, re-sync
-- [ ] Full run from `cli reset` on a clean checkout
-
-### M7 Submission (45 min, ends before 4:00 PM)
-- [ ] README: what it is, how to run, architecture, what is stubbed
+- [ ] README final (Track C)
 - [ ] 90-second clip recorded on Sapini and uploaded with public access
-- [ ] Form answers drafted from `docs/submission.md`, cost figure taken from `/api/ops/cost`
+- [ ] Form answers final, cost figure from `/api/ops/cost`, stubs collected from all three track files
 - [ ] Final commit pushed; form submitted
 
 ## Decisions
 
-Record the date-free what and why, one line each.
+One line each: what and why.
 
 - FastAPI, SQLite, and a Vite React frontend on localhost: fastest path, and the brief says localhost can win.
 - Visibility is decided by code from fact kind, default-deny: a model must not be the security boundary.
 - Custom fields are mapped to KPI slots by a cached model call: field names differ per firm and must not appear in code.
-- `pydantic-settings` loads `.env` into typed settings: the one dependency added beyond the stack list, approved.
-- `DATA_DIR` resolves against the repository root and the database path derives from it: the CLI and the server always agree on one location. `DATABASE_URL` is gone.
-- `sources` is unique on `(matter_id, clio_type, clio_id)` with a string `clio_id`: contacts and custom fields are account-level in Clio, and calendar entry ids are strings.
-- `llm_calls` doubles as the response cache (`cache_key`, `response_json`) and stores cost as integer micro-dollars: one table for cache and cost, with exact sums.
-- Every Clio request pins `X-API-VERSION` from config: a change of Clio's default minor version cannot shift field meanings.
-- Dark mode is out of scope, so shadcn's `dark:` classes are bound to a `.dark` class we never set, not to the OS colour scheme.
+- Three tracks split on the fact store, with a synthetic seed and snapshots: B and C never wait on the pipeline.
 
-## Stubs and shortcuts
+## Stubs and shortcuts (shared)
 
-Everything here is disclosed on the submission form.
+Track-specific ones live in the track files. Everything is disclosed on the submission form.
 
-- Firm users are seeded stub accounts with a header-based switcher; no real authentication. (`backend/app/db.py`)
-- Seeded `last_opened_at` values so the changes block has content on first run. (`backend/app/db.py`)
-- Until M1 and M2, `cli auth`, `cli sync`, and `cli digest` print "not built yet" and exit with code 2. (`backend/app/cli.py`)
+- No real authentication for firm users: seeded stub accounts with a header-based switcher.
+- `cli seed-dev` loads an invented matter for development and tests. The demo runs on a live Clio sync.
 
 ## Known issues
 
-- The paging envelope (`meta.paging.next`) and the rate-limit headers come from Clio's docs, not the spec. Confirm both on the first real response in M1. (`docs/clio-api.md`)
-- Open decision: Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) hold structured bills and record-request status per provider, but are not in the sync order. Neither accepts `matter_id`, so the sync would page the whole account and filter. (`docs/clio-api.md`)
+- None yet.
 
 ## Cost log
 
-Fill from `/api/ops/cost` after each full digest.
+Track A fills this from `/api/ops/cost` after each full digest.
 
 | Run | Pages | Model calls | Tokens in | Tokens out | Cost |
 |---|---|---|---|---|---|

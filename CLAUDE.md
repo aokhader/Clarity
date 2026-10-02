@@ -26,12 +26,12 @@ Create these in milestone M0 and keep them working.
 
 ```bash
 # backend (from backend/)
-conda activate LawDiGras    # Python 3.12; any 3.11+ venv works too
-pip install -r requirements.txt
+python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 python -m app.cli auth      # one-time Clio OAuth, stores tokens in the database
 python -m app.cli sync      # pull the matter from Clio into sources
 python -m app.cli digest    # pages -> facts -> brief (cached, incremental)
+python -m app.cli seed-dev  # load the synthetic matter for development without Clio
 python -m app.cli reset     # drop the database and the data/ directory
 pytest -q
 
@@ -48,13 +48,21 @@ backend/app/
   main.py  config.py  db.py  models.py  schemas.py  cli.py
   clio/      client.py  oauth.py  sync.py
   digest/    pages.py  structured.py  extract.py  merge.py  verify.py  llm.py  prompts/
+  services/  matter_queries.py  visibility.py  shares.py
   api/       matters.py  facts.py  shares.py  provider.py  ops.py
 backend/tests/
+  fixtures/synthetic_matter.py
 frontend/src/
-  api/  pages/  components/  lib/
+  api/  lib/
+  pages/       firm/  provider/
+  components/  shared/  firm/  share/
 data/        gitignored: app.db, files/, pages/
 docs/
 ```
+
+## Parallel tracks
+
+After M0 the work runs as three tracks with separate owners: A (pipeline), B (firm view), C (provider side). A session works one track and edits only the paths that track owns. The track comes from `CLAUDE.local.md` or from the first message; if neither says, ask before editing anything. The split, the frozen contract files, and the sync points are in `docs/parallel.md`.
 
 ## Context files
 
@@ -68,6 +76,7 @@ Read the matching file before starting work in that area:
 
 | Working on | Read first |
 |---|---|
+| Any work after M0 | `docs/parallel.md` and your track file in `docs/tracks/` |
 | Scope, users, flows, what to cut | `docs/project.md` |
 | Data model, API routes, visibility rules | `docs/architecture.md` |
 | Anything that calls Clio | `docs/clio-api.md` |

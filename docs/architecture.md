@@ -27,7 +27,7 @@ One store of sourced facts feeds both views. The provider view is the same data 
 
 **Fact store (`models.py`).** The center of the design. One row per claim, each carrying its source, a visibility tag, and a significance score.
 
-**API (`api/`).** Read endpoints for the two views, plus share management and ops triggers. All filtering happens here.
+**API (`api/` and `services/`).** Read endpoints for the two views, plus share management and ops triggers. Handlers in `api/` are thin; queries and the visibility filter live in `services/`. All filtering happens on the server.
 
 **Frontend.** A React SPA with two route trees: `/matters/:id` for the firm and `/p/:token` for providers.
 
@@ -39,11 +39,9 @@ SQLite at `data/app.db`. No migrations: tables are created at startup, and `cli 
 sources
   id, matter_id, clio_type, clio_id, etag, clio_created_at, clio_updated_at,
   raw_json, file_path, content_hash, synced_at
-  unique (matter_id, clio_type, clio_id)   -- account-level records (contacts, custom
-                                           -- fields) get one copy per matter
-  clio_id is a string: calendar entry ids are strings in Clio
-  clio_type: matter | custom_field | contact | relationship | note | communication |
-             task | calendar_entry | activity | document
+  unique (clio_type, clio_id)
+  clio_type: matter | contact | relationship | note | communication | task |
+             calendar_entry | activity | document
 
 pages
   id, source_id, page_no, has_text_layer, text, image_path, content_hash,
@@ -53,7 +51,6 @@ facts
   id, matter_id, kind, title, value_json, event_date,
   source_id, page_no, quote,
   provider_contact_id,        -- Clio contact this fact concerns, if any
-  mentions_strategy,          -- extractor flag; such a fact is never shareable
   visibility,                 -- internal | shareable
   significance,               -- 0 to 100
   confidence,                 -- high | medium | low
@@ -65,10 +62,9 @@ digests
   id, matter_id, kind, content_json, input_hash, model, created_at
   kind: brief | field_mapping
 
-llm_calls                             -- also the response cache, keyed by cache_key
-  id, matter_id, purpose, model, cache_key, response_json,
-  input_tokens, output_tokens, cost_micro_usd,   -- integer micro-dollars, exact sums
-  source_id, page_no, cache_hit, error, created_at
+llm_calls
+  id, purpose, model, input_tokens, output_tokens, cost_usd,
+  source_id, page_no, cache_hit, created_at
 
 users
   id, name, role              -- stub accounts, see Auth
@@ -84,10 +80,7 @@ share_events
   id, share_id, event, created_at     -- event: opened
 
 sync_runs
-  id, matter_id, started_at, finished_at, stats_json, error
-
-digest_runs                           -- same shape, so the UI can flag a failed digest
-  id, matter_id, started_at, finished_at, stats_json, error
+  id, started_at, finished_at, stats_json, error
 
 oauth_tokens
   id, access_token, refresh_token, expires_at
@@ -100,7 +93,7 @@ How features fall out of the schema:
 - What changed: facts whose source has `clio_created_at` or `clio_updated_at` later than `views.last_opened_at`
 - Has anyone opened it: `share_events`
 - Adjust before sending: `shares.settings_json` and `hidden_fact_ids_json`
-- Cost per case: sum of `llm_calls.cost_micro_usd` for the matter where `cache_hit` is false
+- Cost per case: sum of `llm_calls.cost_usd` where `cache_hit` is false
 
 ## Fact kinds
 
@@ -113,7 +106,29 @@ expense           deadline           task              client_contact
 party             other
 ```
 
-`value_json` holds the kind-specific payload (for example `{"amount": 1234.5, "currency": "USD"}` for a bill). `title` is the short display string, generated at extraction time.
+`title` is the short display string, generated at extraction time. `value_json` holds the kind-specific payload below. These payloads are the contract between the pipeline and the two views, so define them as Pydantic models in `schemas.py` during M0. Money is integer cents.
+
+| Kind | `value_json` keys |
+|---|---|
+| `case_stage` | `stage`, `inferred` |
+| `status_change` | `from_stage`, `to_stage`, `label` |
+| `injury`, `diagnosis` | `body_part`, `description`, `severity` |
+| `treatment_visit` | `visit_type` |
+| `medical_bill`, `lien` | `amount_cents`, `balance_cents` |
+| `records_received` | `description`, `page_count` |
+| `record_request` | `description`, `status` (open or fulfilled) |
+| `coverage` | `carrier`, `coverage_type`, `confirmed` |
+| `policy_limit` | `amount_cents`, `per` (person or occurrence) |
+| `case_value` | `low_cents`, `high_cents`, `basis` |
+| `liability` | `assessment` |
+| `demand`, `offer`, `settlement` | `amount_cents`, `party` |
+| `expense` | `amount_cents`, `category`, `vendor` |
+| `deadline` | `deadline_type`, `due_at` |
+| `task` | `status`, `due_at`, `assignee`, `waiting_on` (firm, client, provider, insurer, court, other) |
+| `client_contact` | `channel`, `direction` |
+| `party` | `role` |
+
+Any payload may also carry `alt_values` (when two reads or two sources disagree) and `corroborating_source_ids`.
 
 ## Visibility
 
@@ -160,7 +175,6 @@ GET   /api/shares/{id}/preview                   exactly what the provider would
 PATCH /api/shares/{id}                           settings, hidden facts, note, expiry
 POST  /api/shares/{id}/revoke
 
-GET   /api/ops/health                            API and database up; whether .env is filled
 POST  /api/ops/sync            GET /api/ops/sync/status
 POST  /api/ops/digest          GET /api/ops/digest/status
 GET   /api/ops/cost                              tokens and dollars for this matter
