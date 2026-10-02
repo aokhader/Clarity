@@ -40,7 +40,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
 
   return (
     <Panel title="Case metadata" icon={<FileText />}>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-x-8 gap-y-6 py-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-x-8 gap-y-6">
         <MetadataItem icon={<Signpost />} label="Case stage" facts={stage.facts}>
           {stage.stage ? (
             <span>
@@ -87,7 +87,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
         </MetadataItem>
       </div>
       {overdue && (
-        <div className="mt-6 mb-2">
+        <div className="mt-6 border-t border-slate-100 pt-6">
           <MetadataItem icon={<CircleAlert />} label="Overdue" facts={[overdue]} urgent>
             <span className="tabular-nums">
               {overdueDue ? `${formatDate(overdueDue)} · ` : ''}
@@ -95,7 +95,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
               {overdueDue ? ` · ${-daysFromToday(overdueDue)} days overdue` : ''}
             </span>
             {actions.data && actions.data.overdue.length > 1 && (
-              <span className="text-sm text-muted-foreground">and {actions.data.overdue.length - 1} more</span>
+              <span className="text-sm text-muted-foreground"> · and {actions.data.overdue.length - 1} more</span>
             )}
           </MetadataItem>
         </div>

@@ -15,7 +15,10 @@ type MetadataItemProps = {
   children: ReactNode
 }
 
-/** One labelled value in the case metadata card. */
+/**
+ * One labelled value in the case metadata card. The source chip sits beside the label,
+ * whose line is a chip's height, so revealing it never moves the value or opens a gap.
+ */
 export function MetadataItem({ icon, label, facts = [], urgent = false, children }: MetadataItemProps) {
   return (
     <div className="group/src flex items-start gap-3">
@@ -28,16 +31,16 @@ export function MetadataItem({ icon, label, facts = [], urgent = false, children
       >
         {icon}
       </span>
-      <div className="flex min-w-0 flex-col gap-1.5 pt-px">
-        <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">{label}</span>
-        <div className={cn('flex flex-wrap items-center gap-1.5 text-[15px]', urgent && 'text-danger')}>
-          {children}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-h-5 flex-wrap items-center gap-x-2">
+          <span className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">{label}</span>
           {facts.length > 0 && (
             <RevealOnHover>
-              <SourceChipList facts={facts} max={2} />
+              <SourceChipList facts={facts} max={1} />
             </RevealOnHover>
           )}
         </div>
+        <div className={cn('text-[15px] leading-snug', urgent && 'text-danger')}>{children}</div>
       </div>
     </div>
   )
