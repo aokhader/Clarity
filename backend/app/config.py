@@ -7,6 +7,7 @@ This is the only module that reads environment variables. Everything else asks
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,7 +34,12 @@ class Settings(BaseSettings):
     clio_matter_query: str | None = None
 
     # Models. Prices are USD per million tokens.
+    # Wire format of the model API: "anthropic" (Messages API) or "openai" (Chat Completions).
+    llm_provider: Literal["anthropic", "openai"] = "anthropic"
+    # Leave unset for the provider's public endpoint.
+    llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
+    llm_max_output_tokens: int = Field(default=4096, ge=256)
     extract_model: str | None = None
     merge_model: str | None = None
     extract_price_in: Decimal | None = None
@@ -75,6 +81,14 @@ class Settings(BaseSettings):
     @property
     def pages_dir(self) -> Path:
         return self.data_dir / "pages"
+
+    @property
+    def llm_endpoint(self) -> str:
+        if self.llm_base_url:
+            return self.llm_base_url.rstrip("/")
+        if self.llm_provider == "openai":
+            return "https://api.openai.com/v1"
+        return "https://api.anthropic.com/v1"
 
     @property
     def clio_configured(self) -> bool:
