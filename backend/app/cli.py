@@ -51,16 +51,23 @@ def _reset(_args: argparse.Namespace) -> int:
     return 0
 
 
-def _auth(_args: argparse.Namespace) -> int:
+def _auth(args: argparse.Namespace) -> int:
     from app.clio import oauth
 
     init_db()
     state = oauth.new_state()
     print("Open this URL, sign in to Clio, and approve read access:\n")
     print(oauth.authorize_url(state))
-    print(f"\nWaiting for the redirect on {get_settings().clio_redirect_uri} ...")
     try:
-        code = oauth.wait_for_code(state)
+        if args.manual:
+            print("\nAfter approving, copy the full address your browser was sent to")
+            print("(it starts with the redirect URI) and paste it here:")
+            code = oauth.code_from_redirect_url(input("> "), state)
+        else:
+            print(
+                f"\nWaiting for the redirect on {get_settings().clio_redirect_uri} ..."
+            )
+            code = oauth.wait_for_code(state)
         with get_sessionmaker()() as session:
             oauth.exchange_code(session, code)
     except (oauth.ClioNotAuthorized, OSError) as error:
@@ -134,9 +141,15 @@ def main(argv: list[str] | None = None) -> int:
         prog="python -m app.cli", description="Clarity pipeline."
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser(
+    auth = commands.add_parser(
         "auth", help="one-time Clio OAuth; stores tokens in the database"
-    ).set_defaults(run=_auth)
+    )
+    auth.add_argument(
+        "--manual",
+        action="store_true",
+        help="paste the redirected URL instead of listening for it",
+    )
+    auth.set_defaults(run=_auth)
     sync = commands.add_parser("sync", help="pull the matter from Clio into sources")
     sync.add_argument(
         "--matter-id", type=int, help="skip the search and use this Clio matter id"

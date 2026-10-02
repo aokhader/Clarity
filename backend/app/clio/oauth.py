@@ -47,10 +47,11 @@ def authorize_url(state: str) -> str:
 
 
 def wait_for_code(state: str) -> str:
-    """Serve the redirect URI until the callback arrives, and return its code.
+    """Serve the redirect URI until a callback carrying a code or an error arrives.
 
     Other requests can reach the port first (a browser's favicon request, a frontend
-    polling the API), so they are answered with a 404 and the listener keeps waiting.
+    polling the API, a callback without parameters), so they are answered and the
+    listener keeps waiting.
     """
     redirect = urlparse(get_settings().clio_redirect_uri)
     received: dict[str, str | None] = {}
@@ -58,15 +59,18 @@ def wait_for_code(state: str) -> str:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
-            if parsed.path != redirect.path:
-                log.info("Ignoring a request to %s while waiting for Clio", parsed.path)
+            query = parse_qs(parsed.query)
+            if parsed.path != redirect.path or not ({"code", "error"} & query.keys()):
+                # Parameter names only: the values may be secrets.
+                log.info(
+                    "Ignoring %s (parameters: %s) while waiting for Clio",
+                    parsed.path,
+                    sorted(query) or "none",
+                )
                 self.send_response(404)
                 self.end_headers()
                 return
-            query = parse_qs(parsed.query)
-            received["code"] = query.get("code", [None])[0]
-            received["state"] = query.get("state", [None])[0]
-            received["error"] = query.get("error", [None])[0]
+            received.update(_callback_values(query))
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -80,17 +84,31 @@ def wait_for_code(state: str) -> str:
     )
     deadline = time.monotonic() + CALLBACK_TIMEOUT_SECONDS
     try:
-        while "code" not in received and time.monotonic() < deadline:
+        while not received and time.monotonic() < deadline:
             server.timeout = max(deadline - time.monotonic(), 0.1)
             server.handle_request()
     finally:
         server.server_close()
 
-    if "code" not in received:
+    if not received:
         raise ClioNotAuthorized(
             f"No callback from Clio within {CALLBACK_TIMEOUT_SECONDS}s. Check that the "
-            "redirect URI in the Clio app matches CLIO_REDIRECT_URI exactly."
+            "redirect URI in the Clio app matches CLIO_REDIRECT_URI exactly, or run "
+            "`python -m app.cli auth --manual`."
         )
+    return _checked_code(received, state)
+
+
+def code_from_redirect_url(url: str, state: str) -> str:
+    """For `auth --manual`: take the code from the URL the browser was sent to."""
+    return _checked_code(_callback_values(parse_qs(urlparse(url.strip()).query)), state)
+
+
+def _callback_values(query: dict[str, list[str]]) -> dict[str, str | None]:
+    return {key: query.get(key, [None])[0] for key in ("code", "state", "error")}
+
+
+def _checked_code(received: dict[str, str | None], state: str) -> str:
     if received.get("error") or not received.get("code"):
         raise ClioNotAuthorized(f"Clio did not return a code: {received.get('error')}")
     if received.get("state") != state:
