@@ -8,8 +8,14 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.db import SessionDep
 from app.models import Share, User
-from app.schemas import ShareCreate, ShareOut, SharePreviewOut, ShareUpdate
-from app.services import matter_queries, provider_view, shares
+from app.schemas import (
+    ProviderOut,
+    ShareCreate,
+    ShareOut,
+    SharePreviewOut,
+    ShareUpdate,
+)
+from app.services import matter_queries, provider_view, providers, shares
 
 router = APIRouter(prefix="/api", tags=["shares"])
 
@@ -42,6 +48,11 @@ CurrentUser = Annotated[User, Depends(_current_user)]
 
 def _one(session: SessionDep, share: Share) -> ShareOut:
     return shares.shares_out(session, [share])[0]
+
+
+@router.get("/matters/{matter_id}/providers")
+def list_providers(matter_id: MatterId, session: SessionDep) -> list[ProviderOut]:
+    return providers.providers_panel(session, matter_id, datetime.now(UTC))
 
 
 @router.get("/matters/{matter_id}/shares")

@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** C4 (C3's real-snapshot check waits for S1)
+- **Now:** C5 (C3's real-snapshot check waits for S1)
 - **Blocked:** nothing
 
 ## Checklist
@@ -26,8 +26,8 @@
 - [ ] **After S1: switch to the real snapshot and fix what breaks**
 
 ### C4 Providers panel (20 min)
-- [ ] Providers endpoint with totals and share status
-- [ ] `ProvidersPanel` for the firm page: share and opened status, Share button
+- [x] Providers endpoint with totals and share status
+- [x] `ProvidersPanel` for the firm page: share and opened status, Share button
 
 ### C5 Share composer (35 min)
 - [ ] Section toggles, per-item hide, note, expiry
@@ -43,7 +43,9 @@
 
 The visibility function is the security boundary. No other code path may assemble a provider response. Changing a visibility rule needs the team's agreement.
 
-Track C also owns `services/provider_view.py`: the only module that builds a provider response, from `visible_facts_for_share`. `share_preview` and the provider link both call `provider_payload`.
+For Track B: render `<ProvidersPanel matterId={matterId} userId={currentUserId} />` from `components/share/ProvidersPanel` in the firm page's aside. `userId` is the switcher's user id, or `null` until B5 lands; with `null`, Share is disabled and says why.
+
+Track C also owns `services/provider_view.py`, `services/providers.py` (the providers panel), and the hooks in `src/api/provider.ts` and `src/api/shares.ts`. `services/provider_view.py` is the only module that builds a provider response, from `visible_facts_for_share`. `share_preview` and the provider link both call `provider_payload`.
 
 ## Decisions
 
@@ -64,5 +66,6 @@ Track C also owns `services/provider_view.py`: the only module that builds a pro
 
 - For Track A: store each fact's `visibility` with `services.visibility.fact_visibility(kind, mentions_strategy)`. The filter also requires the stored tag to be `shareable`, so a pipeline that leaves the default `internal` shares nothing (fails closed).
 - The `requests` setting releases only open record requests and open tasks; fulfilled and completed ones stay internal.
+- Sharing waits on Track B's B5 (decided: Track C does not seed users or add the header itself). Until B5 seeds stub users and passes a `userId`, the Share button is disabled and the API answers 401. If B5 is cut, provider sharing cannot be demonstrated.
 - The dev database has no `users` rows until Track B seeds stub users (B5), so `POST /api/matters/{id}/shares` returns 401 there. The `X-User-Id` dependency lives in `api/shares.py` for now; B5 can move it somewhere shared.
 - `firm_name` in the provider payload is always null: no synced record carries the firm's name.

@@ -37,6 +37,7 @@ from app.schemas import (
 )
 from app.services import shares
 from app.services.clio_records import RawMatter
+from app.services.providers import distinct_requests
 from app.services.source_views import page_image_path
 from app.services.visibility import (
     SOURCE_SETTINGS,
@@ -159,13 +160,7 @@ def _own_item(
 
 
 def _requests(facts: list[Fact]) -> list[ProviderItemOut]:
-    requests = [f for f in facts if f.kind is FactKind.RECORD_REQUEST]
-    raised_by = {f.source_id for f in requests}
-    # A task that raised a record request is the same ask, so it is listed once.
-    tasks = [
-        f for f in facts if f.kind is FactKind.TASK and f.source_id not in raised_by
-    ]
-    return [_own_item(f) for f in _chronological(requests + tasks)]
+    return [_own_item(f) for f in _chronological(distinct_requests(facts))]
 
 
 def _bills(facts: list[Fact]) -> list[ProviderItemOut]:

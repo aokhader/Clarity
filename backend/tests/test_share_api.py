@@ -267,3 +267,38 @@ def test_provider_opens_only_the_cited_pages_of_their_own_documents(
     assert (
         client.get(f"/api/p/{hidden}/facts/{ortho_bill.id}/source").status_code == 404
     )
+
+
+def _providers(client: TestClient) -> dict[int, dict[str, Any]]:
+    rows = _ok(client.get(f"/api/matters/{MATTER_ID}/providers"))
+    return {row["contact_id"]: row for row in rows}
+
+
+def test_providers_panel_totals_and_share_status(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    rows = _providers(client)
+
+    # Only contacts the field mapping calls medical providers; never the client or insurer.
+    assert set(rows) == {ORTHO_ID, THERAPY_ID}
+    ortho, therapy = rows[ORTHO_ID], rows[THERAPY_ID]
+    assert ortho["role_label"] and therapy["role_label"]
+    # Bills only: a lien on the same charges is not billed twice.
+    assert (ortho["billed_cents"], therapy["billed_cents"]) == (248_000, 96_000)
+    assert (ortho["records_received"], therapy["records_received"]) == (1, 0)
+    assert (ortho["open_requests"], therapy["open_requests"]) == (1, 0)
+    assert ortho["share"] is None
+
+    share = _create(client, user_id)
+    _ok(client.get(f"/api/p/{_token(share)}"))
+    status = _providers(client)[ORTHO_ID]["share"]
+    assert status["share_id"] == share["id"]
+    assert status["opened_count"] == 1
+    assert status["revoked"] is False
+
+    _ok(client.post(f"/api/shares/{share['id']}/revoke"))
+    assert _providers(client)[ORTHO_ID]["share"]["revoked"] is True
+
+    # A new live link takes precedence over the withdrawn one.
+    newer = _create(client, user_id)
+    assert _providers(client)[ORTHO_ID]["share"]["share_id"] == newer["id"]
