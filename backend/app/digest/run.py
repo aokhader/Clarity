@@ -55,13 +55,28 @@ def run_digest(session: Session, matter_id: int) -> DigestRun:
     except ModelsNotConfigured as error:
         session.rollback()
         errors.append(str(error))
+    except Exception as error:
+        # Record the failure so the run does not look unfinished forever, then raise.
+        session.rollback()
+        _finish(session, run, stats, first_call_id, f"{type(error).__name__}: {error}")
+        raise
+    _finish(session, run, stats, first_call_id, "; ".join(errors) or None)
+    log.info("Digest finished: %s", stats["model_calls"])
+    return run
+
+
+def _finish(
+    session: Session,
+    run: DigestRun,
+    stats: dict[str, Any],
+    first_call_id: int,
+    error: str | None,
+) -> None:
     stats["model_calls"] = _call_counts(session, first_call_id)
     run.finished_at = datetime.now(UTC)
     run.stats_json = stats
-    run.error = "; ".join(errors) or None
+    run.error = error[:2000] if error else None
     session.commit()
-    log.info("Digest finished: %s", stats["model_calls"])
-    return run
 
 
 def _call_counts(session: Session, after_id: int) -> dict[str, int]:
