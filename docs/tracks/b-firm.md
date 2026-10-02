@@ -6,14 +6,14 @@
 
 ## Status
 
-- **Now:** B1
+- **Now:** B2
 - **Blocked:** nothing
 
 ## Checklist
 
 ### B1 Firm endpoints (30 min)
-- [ ] Matter header, actions, feed, timeline in `api/matters.py`, queries in `services/matter_queries.py`
-- [ ] Fact source and page image in `api/facts.py`
+- [x] Matter header, actions, feed, timeline in `api/matters.py`, queries in `services/matter_queries.py`
+- [x] Fact source and page image in `api/facts.py`
 
 ### B2 Firm page (30 min)
 - [ ] Shared pieces first, since Track C uses them: `SourceChip`, kind badge, money and date formatting
@@ -45,10 +45,23 @@
 
 The shared components in `frontend/src/components/shared/` are used by Track C. Land them early in B2 and keep their props stable.
 
+Track B also owns these service modules, added in B1:
+
+- `services/fact_views.py`: `renderable_facts`, the one query every firm view starts from (it drops document facts without a page and quote), and the `FactOut` and `FactRef` serializers
+- `services/kpis.py`: the four KPI tiles
+- `services/source_views.py`: the source drawer and page-image lookup
+- `services/clio_records.py`: lenient Pydantic models over raw Clio JSON; Track A may reuse them
+
+## Decisions
+
+- Action board groups do not overlap: overdue, then waiting on others, then upcoming. A record request raised by a task already on the board is not listed twice. Past calendar entries are not overdue.
+- Medical specials are cross-checked at read time against the sum of the bills; agreement merges the sources into one value, disagreement shows both.
+- Timeline search matches at word starts, so "lien" finds liens and not every "client".
+
 ## Stubs and shortcuts
 
 - Seeded stub users and `last_opened_at` values for the changes block.
 
 ## Known issues
 
-- None yet.
+- On Windows, `uvicorn --reload` sometimes keeps serving the old code after a reload. Restart the server if a new route returns 404.
