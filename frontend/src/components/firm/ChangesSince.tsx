@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-react'
 import { useEffect } from 'react'
 
 import { useFirmUser } from '@/api/users'
@@ -41,7 +42,7 @@ export function ChangesSince({ matterId }: { matterId: number }) {
 
   const hidden = facts.length - MAX_SHOWN
   return (
-    <Panel title="Since you last opened" aside={formatDateTime(lastOpened)}>
+    <Panel title="Since you last opened" icon={<Bell />} aside={formatDateTime(lastOpened)}>
       <ol className="-my-2 divide-y">
         {facts.slice(0, MAX_SHOWN).map((fact) => (
           <FeedRow key={fact.id} fact={fact} />

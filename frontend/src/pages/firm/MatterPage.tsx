@@ -3,6 +3,7 @@ import { useParams } from 'react-router'
 import { ActionBoard } from '@/components/firm/ActionBoard'
 import { Brief } from '@/components/firm/Brief'
 import { ChangesSince } from '@/components/firm/ChangesSince'
+import { FirmSidebar } from '@/components/firm/FirmSidebar'
 import { InjuriesList } from '@/components/firm/InjuriesList'
 import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterFooter } from '@/components/firm/MatterFooter'
@@ -17,28 +18,43 @@ export function MatterPage() {
   if (!Number.isInteger(matterId) || matterId <= 0) return <NotFoundPage />
 
   return (
-    <main className="mx-auto max-w-[1360px] px-8 py-6">
-      <MatterShell matterId={matterId}>
-        {(header) => (
-          <>
-            <KpiStrip kpis={header.kpis} />
-            <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
-              <div className="space-y-6">
-                <Brief matterId={matterId} />
-                <ChangesSince matterId={matterId} />
-                <RankedFeed matterId={matterId} />
-              </div>
-              <aside className="space-y-6">
-                <ActionBoard matterId={matterId} />
-                <InjuriesList matterId={matterId} />
-                <ProvidersSection matterId={matterId} />
-              </aside>
-            </div>
-            <MatterFooter header={header} />
-          </>
-        )}
-      </MatterShell>
+    <div className="grid min-h-screen grid-cols-[16rem_minmax(0,1fr)]">
+      <FirmSidebar />
+      <main className="min-w-0 px-10 py-8">
+        <div className="mx-auto max-w-[1280px]">
+          <MatterShell matterId={matterId}>
+            {(header) => (
+              <>
+                <div id="figures" className="scroll-mt-6">
+                  <KpiStrip kpis={header.kpis} />
+                </div>
+                <div className="mt-6 grid grid-cols-[minmax(0,1fr)_26rem] items-start gap-6">
+                  <div className="space-y-6">
+                    <div id="brief" className="scroll-mt-6">
+                      <Brief matterId={matterId} />
+                    </div>
+                    <ChangesSince matterId={matterId} />
+                    <div id="feed" className="scroll-mt-6">
+                      <RankedFeed matterId={matterId} />
+                    </div>
+                  </div>
+                  <aside className="space-y-6">
+                    <div id="actions" className="scroll-mt-6">
+                      <ActionBoard matterId={matterId} />
+                    </div>
+                    <InjuriesList matterId={matterId} />
+                    <div id="providers" className="scroll-mt-6">
+                      <ProvidersSection matterId={matterId} />
+                    </div>
+                  </aside>
+                </div>
+                <MatterFooter header={header} />
+              </>
+            )}
+          </MatterShell>
+        </div>
+      </main>
       <SourceDrawer />
-    </main>
+    </div>
   )
 }

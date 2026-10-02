@@ -1,3 +1,5 @@
+import { CalendarDays } from 'lucide-react'
+
 import { useMatterActions } from '@/api/matters'
 import { ActionGroup } from '@/components/firm/ActionGroup'
 import { LoadError } from '@/components/shared/LoadError'
@@ -7,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export function ActionBoard({ matterId }: { matterId: number }) {
   const actions = useMatterActions(matterId)
   return (
-    <Panel title="Action board">
+    <Panel title="Action board" icon={<CalendarDays />}>
       {actions.isPending && (
         <div className="space-y-3" aria-label="Loading the action board">
           <Skeleton className="h-12" />

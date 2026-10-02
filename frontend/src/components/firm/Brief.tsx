@@ -1,3 +1,5 @@
+import { ScrollText } from 'lucide-react'
+
 import { ApiError } from '@/api/client'
 import { useMatterBrief } from '@/api/matters'
 import { BriefSentence } from '@/components/firm/BriefSentence'
@@ -11,7 +13,7 @@ export function Brief({ matterId }: { matterId: number }) {
 
   if (brief.isPending) {
     return (
-      <Panel title="Brief">
+      <Panel title="Brief" icon={<ScrollText />}>
         <div className="space-y-3" aria-label="Loading the brief">
           <Skeleton className="h-8 w-4/5" />
           <Skeleton className="h-5" />
@@ -24,7 +26,7 @@ export function Brief({ matterId }: { matterId: number }) {
 
   if (brief.isError) {
     return (
-      <Panel title="Brief">
+      <Panel title="Brief" icon={<ScrollText />}>
         {brief.error instanceof ApiError && brief.error.status === 404 ? (
           <p className="text-sm text-muted-foreground">
             No brief yet. The digest writes it once the facts are scored.
@@ -38,7 +40,7 @@ export function Brief({ matterId }: { matterId: number }) {
 
   const { headline, sentences, open_questions: openQuestions } = brief.data
   return (
-    <Panel title="Brief">
+    <Panel title="Brief" icon={<ScrollText />}>
       <p className="font-serif text-2xl leading-snug font-semibold">{headline}</p>
       {sentences.length > 0 ? (
         <p className="mt-3 font-serif text-brief">

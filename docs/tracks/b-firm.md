@@ -76,6 +76,8 @@ Track B also owns these service modules, added in B1:
 - Stub users are seeded in `init_db` (`backend/app/db.py`), so Track C's share endpoints find them on a fresh database. `api/client.ts` gained an optional `userId` and `apiPost`; both additive.
 - Queries do not retry a 4xx, so an unsynced matter shows its message at once (`frontend/src/main.tsx`).
 
+- The firm page takes the Clarity Dashboard v2 look (dark section rail, icon-headed cards, tinted KPI tiles) after the freeze, at the owner's call, restyle only. Source chips stay, though the mockup drops them (rule 3). This changed the theme tokens in `frontend/src/index.css`, a contract file; the shared `Panel` restyle also reaches the provider page.
+
 ## Stubs and shortcuts
 
 - Seeded stub users (Demo Attorney, Demo Paralegal, Demo Case Manager) chosen by a header switcher; no real login. (`backend/app/services/users.py`, `frontend/src/components/firm/UserSwitcher.tsx`)

@@ -1,12 +1,17 @@
+import { DollarSign } from 'lucide-react'
+
 import type { KpiOut } from '@/api/types'
 import { KpiTile } from '@/components/firm/KpiTile'
+import { Panel } from '@/components/shared/Panel'
 
 export function KpiStrip({ kpis }: { kpis: KpiOut[] }) {
   return (
-    <section aria-label="Key figures" className="grid grid-cols-4 divide-x rounded-lg border bg-card">
-      {kpis.map((kpi) => (
-        <KpiTile key={kpi.name} kpi={kpi} />
-      ))}
-    </section>
+    <Panel title="Financial overview" icon={<DollarSign />}>
+      <div className="grid grid-cols-4 gap-4">
+        {kpis.map((kpi) => (
+          <KpiTile key={kpi.name} kpi={kpi} />
+        ))}
+      </div>
+    </Panel>
   )
 }

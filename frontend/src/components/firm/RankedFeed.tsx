@@ -1,3 +1,4 @@
+import { ListOrdered } from 'lucide-react'
 import { useState } from 'react'
 
 import { FeedViewToggle, type FeedView } from '@/components/firm/FeedViewToggle'
@@ -12,6 +13,7 @@ export function RankedFeed({ matterId }: { matterId: number }) {
   const [view, setView] = useState<FeedView>('top')
   return (
     <Panel
+      icon={<ListOrdered />}
       title="What matters"
       aside={view === 'top' ? `Top ${FEED_SIZE} by significance` : 'Every fact, newest first'}
       actions={<FeedViewToggle view={view} topCount={FEED_SIZE} onChange={setView} />}

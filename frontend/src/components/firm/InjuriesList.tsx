@@ -1,3 +1,5 @@
+import { Activity } from 'lucide-react'
+
 import { useMatterInjuries } from '@/api/matters'
 import type { FactOf, FactOut } from '@/api/types'
 import { InjuryRow } from '@/components/firm/InjuryRow'
@@ -14,7 +16,7 @@ export function InjuriesList({ matterId }: { matterId: number }) {
   const injuries = useMatterInjuries(matterId)
   const facts = injuries.data?.filter(isInjury) ?? []
   return (
-    <Panel title="Injuries" aside={injuries.isSuccess ? facts.length : undefined}>
+    <Panel title="Injuries" icon={<Activity />} aside={injuries.isSuccess ? facts.length : undefined}>
       {injuries.isPending && <Skeleton className="h-16" aria-label="Loading injuries" />}
       {injuries.isError && (
         <LoadError what="the injuries" error={injuries.error} onRetry={() => void injuries.refetch()} />
