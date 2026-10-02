@@ -5,6 +5,7 @@ import { KpiStrip } from '@/components/firm/KpiStrip'
 import { MatterShell } from '@/components/firm/MatterShell'
 import { RankedFeed } from '@/components/firm/RankedFeed'
 import { SourceDrawer } from '@/components/firm/SourceDrawer'
+import { ProvidersPanel } from '@/components/share/ProvidersPanel'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export function MatterPage() {
@@ -23,7 +24,8 @@ export function MatterPage() {
               </div>
               <aside className="space-y-6">
                 <ActionBoard matterId={matterId} />
-                {/* Track C's ProvidersPanel renders here once it lands. */}
+                {/* No firm user until the B5 user switcher, so sharing stays disabled. */}
+                <ProvidersPanel matterId={matterId} userId={null} />
               </aside>
             </div>
           </>

@@ -18,7 +18,7 @@
 ### B2 Firm page (30 min)
 - [x] Shared pieces first, since Track C uses them: `SourceChip`, kind badge, money and date formatting
 - [x] Header, action board, ranked feed on seed data
-- [ ] Leave the providers slot in the layout: render `ProvidersPanel` from Track C (slot is in `MatterPage`; waiting on C4)
+- [x] Leave the providers slot in the layout: render `ProvidersPanel` from Track C (gets `userId={null}` until the B5 switcher, so Share stays disabled)
 
 ### B3 Source drawer (25 min)
 - [x] Notes and emails with the quote highlighted
@@ -33,7 +33,7 @@
 - [ ] **After S3: check all three on real data**
 
 ### B5 Since you last opened (20 min)
-- [ ] Changes endpoint, opened endpoint, seeded users, user switcher
+- [ ] Changes endpoint, opened endpoint, seeded users, user switcher; pass the current user to `ProvidersPanel`
 
 ### B6 Footer (10 min)
 - [ ] Last sync time, digest cost, re-sync button, using Track A's ops endpoints
