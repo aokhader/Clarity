@@ -26,7 +26,8 @@ Create these in milestone M0 and keep them working.
 
 ```bash
 # backend (from backend/)
-python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+conda activate LawDiGras    # Python 3.12; any 3.11+ venv works too
+pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 python -m app.cli auth      # one-time Clio OAuth, stores tokens in the database
 python -m app.cli sync      # pull the matter from Clio into sources

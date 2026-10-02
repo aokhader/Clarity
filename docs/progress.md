@@ -4,9 +4,9 @@ Update this file in the same commit as the work it describes.
 
 ## Status
 
-- **Now:** M0, not started
+- **Now:** M0 done except the Clio developer application, which needs a person with the Clio account
 - **Next:** M1
-- **Blocked:** nothing
+- **Blocked:** M1 needs `CLIO_CLIENT_ID` and `CLIO_CLIENT_SECRET` in `.env`
 - **Fixed times (PT):** feature freeze 3:15 PM, submit before 4:00 PM
 
 ## Milestones
@@ -21,11 +21,11 @@ If behind schedule, cut in this order:
 4. Drop timeline filters and search.
 
 ### M0 Setup (15 min)
-- [ ] Repository, `.gitignore`, `.env` from `.env.example`
-- [ ] Backend skeleton: FastAPI app, config, database, models, CLI entry point
-- [ ] Frontend skeleton: Vite, Tailwind, shadcn/ui, router, `/api` proxy
+- [x] Repository, `.gitignore`, `.env` from `.env.example`
+- [x] Backend skeleton: FastAPI app, config, database, models, CLI entry point
+- [x] Frontend skeleton: Vite, Tailwind, shadcn/ui, router, `/api` proxy
 - [ ] Clio developer application created with read permissions; credentials in `.env`
-- [ ] OpenAPI spec saved to `docs/reference/clio-openapi.json`; field names in `docs/clio-api.md` confirmed or corrected
+- [x] OpenAPI spec saved to `docs/reference/clio-openapi.json`; field names in `docs/clio-api.md` confirmed or corrected
 
 ### M1 Sync (35 min)
 - [ ] OAuth flow through `cli auth`, tokens stored and refreshed
@@ -81,6 +81,12 @@ Record the date-free what and why, one line each.
 - FastAPI, SQLite, and a Vite React frontend on localhost: fastest path, and the brief says localhost can win.
 - Visibility is decided by code from fact kind, default-deny: a model must not be the security boundary.
 - Custom fields are mapped to KPI slots by a cached model call: field names differ per firm and must not appear in code.
+- `pydantic-settings` loads `.env` into typed settings: the one dependency added beyond the stack list, approved.
+- `DATA_DIR` resolves against the repository root and the database path derives from it: the CLI and the server always agree on one location. `DATABASE_URL` is gone.
+- `sources` is unique on `(matter_id, clio_type, clio_id)` with a string `clio_id`: contacts and custom fields are account-level in Clio, and calendar entry ids are strings.
+- `llm_calls` doubles as the response cache (`cache_key`, `response_json`) and stores cost as integer micro-dollars: one table for cache and cost, with exact sums.
+- Every Clio request pins `X-API-VERSION` from config: a change of Clio's default minor version cannot shift field meanings.
+- Dark mode is out of scope, so shadcn's `dark:` classes are bound to a `.dark` class we never set, not to the OS colour scheme.
 
 ## Stubs and shortcuts
 
@@ -88,10 +94,12 @@ Everything here is disclosed on the submission form.
 
 - Firm users are seeded stub accounts with a header-based switcher; no real authentication. (`backend/app/db.py`)
 - Seeded `last_opened_at` values so the changes block has content on first run. (`backend/app/db.py`)
+- Until M1 and M2, `cli auth`, `cli sync`, and `cli digest` print "not built yet" and exit with code 2. (`backend/app/cli.py`)
 
 ## Known issues
 
-- None yet.
+- The paging envelope (`meta.paging.next`) and the rate-limit headers come from Clio's docs, not the spec. Confirm both on the first real response in M1. (`docs/clio-api.md`)
+- Open decision: Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) hold structured bills and record-request status per provider, but are not in the sync order. Neither accepts `matter_id`, so the sync would page the whole account and filter. (`docs/clio-api.md`)
 
 ## Cost log
 
