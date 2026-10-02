@@ -85,3 +85,10 @@ export function formatElapsed(iso: IsoDate | IsoDateTime): string {
   if (months < 24) return `${months} months`
   return `${Math.floor(months / 12)} years`
 }
+
+/** Model spend, stored as integer micro-dollars: $0.42, or "under $0.01" for a sliver. */
+export function formatMicroDollars(micros: number): string {
+  if (micros === 0) return '$0.00'
+  if (micros < 10_000) return 'under $0.01'
+  return dollarsAndCents.format(micros / 1_000_000)
+}

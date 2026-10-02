@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B6
+- **Now:** B7 (cut first if behind)
 - **Blocked:** nothing
 
 ## Checklist
@@ -36,7 +36,7 @@
 - [x] Changes endpoint, opened endpoint, seeded users, user switcher; pass the current user to `ProvidersPanel`
 
 ### B6 Footer (10 min)
-- [ ] Last sync time, digest cost, re-sync button, using Track A's ops endpoints
+- [x] Last sync time, digest cost, re-sync button, using Track A's ops endpoints (checked against `origin/Track-A` in a trial merge; on `main` until Track A merges, cost reads "unavailable" and Re-sync reports the 404)
 
 ### B7 Timeline toggle (15 min, cut first)
 - [ ] Full timeline grouped by month with kind filters and search
@@ -83,6 +83,7 @@ Track B also owns these service modules, added in B1:
 
 ## Known issues
 
+- Re-sync runs Track A's sync, which pulls the matter named by `CLIO_MATTER_QUERY`, not necessarily the one on screen. Fine for a one-matter demo.
 - Each visit uses up the changes block. To replay it for another clip take, run `cli seed-dev` (synthetic matter) or delete the `views` rows for the real matter.
 - Track A updates the brief digest in place, so `digests.created_at` (the API's `generated_at`) is the first generation time, not the latest. The UI does not show it.
 - Corroborating-source tabs in the drawer are untested on data: the seed has no corroborating sources. Check them at S2.

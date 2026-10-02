@@ -5,6 +5,7 @@ import { Brief } from '@/components/firm/Brief'
 import { ChangesSince } from '@/components/firm/ChangesSince'
 import { InjuriesList } from '@/components/firm/InjuriesList'
 import { KpiStrip } from '@/components/firm/KpiStrip'
+import { MatterFooter } from '@/components/firm/MatterFooter'
 import { MatterShell } from '@/components/firm/MatterShell'
 import { ProvidersSection } from '@/components/firm/ProvidersSection'
 import { RankedFeed } from '@/components/firm/RankedFeed'
@@ -33,6 +34,7 @@ export function MatterPage() {
                 <ProvidersSection matterId={matterId} />
               </aside>
             </div>
+            <MatterFooter header={header} />
           </>
         )}
       </MatterShell>
