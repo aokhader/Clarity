@@ -1,6 +1,6 @@
-# Case Digest
+# Clarity
 
-Case Digest turns one personal-injury matter in Clio Manage into two views: a 90-second brief for the law firm, and a scoped status page for the medical providers treating the client on lien. Every fact on screen links to the record or PDF page it came from. Clio is read-only: the app never writes to it.
+Clarity turns one personal-injury matter in Clio Manage into two views: a 90-second brief for the law firm, and a scoped status page for the medical providers treating the client on lien. Every fact on screen links to the record or PDF page it came from. Clio is read-only: the app never writes to it.
 
 Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, 2026).
 

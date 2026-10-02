@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     parser = argparse.ArgumentParser(
-        prog="python -m app.cli", description="Case Digest pipeline."
+        prog="python -m app.cli", description="Clarity pipeline."
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser(

@@ -1,6 +1,6 @@
-# Case Digest (working title)
+# Clarity
 
-Case Digest turns one personal-injury case file in Clio Manage into two views: a 90-second brief for the law firm's team, and a scoped status page for the medical providers treating the client on lien. It is our entry in the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026).
+Clarity turns one personal-injury case file in Clio Manage into two views: a 90-second brief for the law firm's team, and a scoped status page for the medical providers treating the client on lien. It is our entry in the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026).
 
 Swans screens every repository before judging: does it run, does it work on the Sapini matter, is the output generated or hardcoded, and how is it engineered. Only the top 7 teams present. The finalists are judged by trial attorneys and AI engineers. Write code that survives that reading.
 
