@@ -9,13 +9,13 @@ import json
 import logging
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.digest import llm
 from app.digest.mapping import MatterMapping
 from app.digest.pages import mark_extracted
@@ -110,7 +110,7 @@ def extract_all(
             replace_facts(session, unit.source, facts, Origin.MODEL, page_no=page_no)
             if unit.page is not None:
                 mark_extracted(unit.page)
-            else:
+            elif unit.source.clio_type is not SourceType.MATTER:
                 mark_processed(unit.source)
             counts["facts"] += len(facts)
         _second_reads(session, matter_id, second_reads, counts)
@@ -132,40 +132,41 @@ def _record_units(
     counts: Counter[str],
 ) -> list[Unit]:
     units: list[Unit] = []
-    readable_fields = mapping.extraction_field_ids()
-    candidates = (
-        sources_of(session, matter_id, SourceType.NOTE)
-        + sources_of(session, matter_id, SourceType.COMMUNICATION)
-        + sources_of(session, matter_id, SourceType.CUSTOM_FIELD)
+    candidates = sources_of(session, matter_id, SourceType.NOTE) + sources_of(
+        session, matter_id, SourceType.COMMUNICATION
     )
     for source in candidates:
-        if (
-            source.clio_type is SourceType.CUSTOM_FIELD
-            and source.id not in readable_fields
-        ):
-            # Code reads this field (mapping.py); drop any model facts from earlier runs.
-            replace_facts(session, source, [], Origin.MODEL)
-            continue
         if is_processed(source):
             counts["unchanged"] += 1
             continue
         text = record_text(source)
+        units.append(_record_unit(source, text, providers, matter_id))
+    # The custom fields code cannot read go in as one record, sourced to the matter.
+    # It is not marked processed: the mapping decides its content, and the model
+    # cache makes an unchanged repeat free.
+    if mapping.matter is not None and mapping.extraction_text:
         units.append(
-            Unit(
-                source=source,
-                text=text,
-                request=llm.ModelRequest(
-                    purpose="extract_record",
-                    role="extract",
-                    prompt=llm.load_prompt("extract_record"),
-                    user_text=_with_providers(text, providers),
-                    output=Extraction,
-                    matter_id=matter_id,
-                    source_id=source.id,
-                ),
-            )
+            _record_unit(mapping.matter, mapping.extraction_text, providers, matter_id)
         )
     return units
+
+
+def _record_unit(
+    source: Source, text: str, providers: dict[int, str], matter_id: int
+) -> Unit:
+    return Unit(
+        source=source,
+        text=text,
+        request=llm.ModelRequest(
+            purpose="extract_record",
+            role="extract",
+            prompt=llm.load_prompt("extract_record"),
+            user_text=_with_providers(text, providers),
+            output=Extraction,
+            matter_id=matter_id,
+            source_id=source.id,
+        ),
+    )
 
 
 def _page_units(
@@ -187,6 +188,7 @@ def _page_units(
         .tuples()
         .all()
     )
+    data_dir = get_settings().data_dir
     units: list[Unit] = []
     for page in pages:
         source = page.source
@@ -195,8 +197,8 @@ def _page_units(
         image: bytes | None = None
         if page.has_text_layer and page.text:
             body = f"{header}\n\nPage text:\n{page.text}"
-        elif page.image_path and Path(page.image_path).exists():
-            image = Path(page.image_path).read_bytes()
+        elif page.image_path and (data_dir / page.image_path).exists():
+            image = (data_dir / page.image_path).read_bytes()
             body = f"{header}\n\nThe page is a scanned image, attached."
         else:
             continue
@@ -242,17 +244,16 @@ def _to_facts(
             counts["dropped_quote"] += 1
             continue
         try:
-            payload = build_payload(kind, item.amount, item.detail)
+            payload = build_payload(kind, item.amount, item.detail, item.title)
         except ValidationError:
-            payload = build_payload(kind, item.amount, {})
+            counts["dropped_payload"] += 1
+            continue
         provider_id = (
             item.provider_contact_id if item.provider_contact_id in providers else None
         )
         provider_id = provider_id or resolve_provider(
             item.provider_name_as_written, providers
         )
-        if item.provider_name_as_written:
-            payload["provider_name_as_written"] = item.provider_name_as_written
         fact = Fact(
             kind=kind,
             title=item.title.strip()[:120] or kind.value,

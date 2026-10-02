@@ -3,12 +3,14 @@
 Three small mappings run before extraction, because extraction needs to know who the
 medical providers are:
 
-- roles: relationship descriptions -> provider, insurer, opposing party, ...
-- fields: custom field names -> canonical KPI slots (case value, specials, ...)
-- activities: non-time ledger entries -> firm cost or the client's medical charge
+- roles: relationship descriptions -> medical provider, insurer, opposing party, other
+- fields: custom field names -> canonical KPI slots, and the firm's stage -> a canonical stage
+- ledger: non-time activities -> firm cost or the client's medical charge
 
-The result is stored as the `field_mapping` digest, and becomes facts with the
-relationship, custom field, or activity as their source.
+The result is stored as the `field_mapping` digest (`FieldMappingContent`). Fields that
+code can read (case value, specials, incident date, limitation date) and the stage
+become `origin = code` facts on the matter source. The rest of the custom fields go
+through record extraction as one input.
 """
 
 import hashlib
@@ -16,6 +18,8 @@ import json
 import logging
 import re
 from collections import Counter
+from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -25,14 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.digest import llm
 from app.digest.payloads import build_payload, to_cents
-from app.digest.records import (
-    custom_field_name,
-    custom_field_value,
-    name_of,
-    parse_date,
-    replace_facts,
-    sources_of,
-)
+from app.digest.records import name_of, parse_date, replace_facts, sources_of
 from app.digest.verify import resolve_provider
 from app.models import (
     Confidence,
@@ -44,19 +41,12 @@ from app.models import (
     Source,
     SourceType,
 )
+from app.schemas import CaseStage, ContactRole, FieldMappingContent, FieldSlot
 
 log = logging.getLogger(__name__)
 
-Role = Literal[
-    "medical_provider",
-    "insurer",
-    "opposing_party",
-    "opposing_counsel",
-    "lienholder",
-    "defense_examiner",
-    "other",
-]
-Slot = Literal[
+ModelRole = Literal["medical_provider", "insurer", "opposing_party", "other"]
+ModelSlot = Literal[
     "case_value",
     "medical_specials",
     "coverage",
@@ -65,15 +55,26 @@ Slot = Literal[
     "statute_of_limitations",
     "none",
 ]
-# Slots whose value code can read directly. Coverage and policy limits are free text
-# with several parts, so those fields go through record extraction instead.
+ModelStage = Literal[
+    "intake",
+    "treating",
+    "treatment_complete",
+    "demand",
+    "negotiation",
+    "litigation",
+    "settled",
+    "closed",
+]
+# Slots whose value code can read. Coverage and policy limits are multi-part free text,
+# so those fields go through record extraction instead.
 CODE_SLOTS = {
-    "case_value",
-    "medical_specials",
-    "date_of_incident",
-    "statute_of_limitations",
+    FieldSlot.CASE_VALUE,
+    FieldSlot.MEDICAL_SPECIALS,
+    FieldSlot.DATE_OF_INCIDENT,
+    FieldSlot.STATUTE_OF_LIMITATIONS,
 }
 TIME_ACTIVITY_TYPES = {"TimeEntry"}
+QUOTE_LIMIT = 300
 _MONEY = re.compile(
     r"\$?\s?(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s*([kKmM])?"
 )
@@ -81,7 +82,7 @@ _MONEY = re.compile(
 
 class RoleEntry(BaseModel):
     contact_id: int
-    role: Role
+    role: ModelRole
 
 
 class RoleMapping(BaseModel):
@@ -90,85 +91,131 @@ class RoleMapping(BaseModel):
 
 class FieldEntry(BaseModel):
     field_id: int
-    slot: Slot
+    slot: ModelSlot
 
 
 class FieldMapping(BaseModel):
     fields: list[FieldEntry]
+    stage: ModelStage | None = None
 
 
-class ActivityEntry(BaseModel):
+class LedgerEntry(BaseModel):
     activity_id: int
     is_medical_charge: bool
     provider_contact_id: int | None = None
     provider_name_as_written: str | None = None
 
 
-class ActivityMapping(BaseModel):
-    activities: list[ActivityEntry]
+class LedgerMapping(BaseModel):
+    activities: list[LedgerEntry]
 
 
-class MatterMapping(BaseModel):
-    roles: dict[int, Role]
+@dataclass
+class CustomValue:
+    field_id: int  # Clio custom field id: stable, unlike the value's own id
+    name: str
+    text: str
+
+
+@dataclass
+class MatterMapping:
+    contact_roles: dict[int, ContactRole]
     contact_names: dict[int, str]
-    slots: dict[int, Slot]  # source id of the custom field -> slot
+    field_slots: dict[int, FieldSlot]
+    matter: Source | None
+    # Custom fields the record extractor reads, as one text, with the matter as source.
+    extraction_text: str
 
     def providers(self) -> dict[int, str]:
         return {
             contact_id: self.contact_names.get(contact_id, str(contact_id))
-            for contact_id, role in self.roles.items()
-            if role == "medical_provider"
-        }
-
-    def extraction_field_ids(self) -> set[int]:
-        """Custom fields the record extractor should read (everything code cannot)."""
-        return {
-            source_id
-            for source_id, slot in self.slots.items()
-            if slot not in CODE_SLOTS
+            for contact_id, role in self.contact_roles.items()
+            if role is ContactRole.MEDICAL_PROVIDER
         }
 
 
 def build_mapping(session: Session, matter_id: int) -> MatterMapping:
+    matters = sources_of(session, matter_id, SourceType.MATTER)
+    matter = matters[0] if matters else None
     relationships = sources_of(session, matter_id, SourceType.RELATIONSHIP)
-    fields = sources_of(session, matter_id, SourceType.CUSTOM_FIELD)
-    activities = [
-        a
-        for a in sources_of(session, matter_id, SourceType.ACTIVITY)
-        if a.raw_json.get("type") not in TIME_ACTIVITY_TYPES
-    ]
-    roles, names = _map_roles(session, matter_id, relationships)
-    slots = _map_fields(session, matter_id, fields)
-    mapping = MatterMapping(roles=roles, contact_names=names, slots=slots)
+    values = custom_values(session, matter_id, matter)
 
+    roles, names = _map_roles(session, matter_id, matter, relationships)
+    slots, stage = _map_fields(session, matter_id, matter, values)
     counts: Counter[str] = Counter()
+    if matter is not None:
+        facts = _stage_facts(matter, stage) + [
+            fact for v in values if (fact := _slot_fact(v, slots.get(v.field_id)))
+        ]
+        replace_facts(session, matter, facts, Origin.CODE)
+        counts["matter"] = len(facts)
     counts["party"] = _party_facts(session, relationships, roles)
-    counts["kpi"] = _slot_facts(session, fields, slots)
-    counts.update(_activity_facts(session, matter_id, activities, mapping.providers()))
+    mapping = MatterMapping(
+        contact_roles=roles,
+        contact_names=names,
+        field_slots=slots,
+        matter=matter,
+        extraction_text=_extraction_text(values, slots),
+    )
+    counts.update(_ledger_facts(session, matter_id, mapping.providers()))
     _store(session, matter_id, mapping)
     session.commit()
     log.info(
-        "Mapping: %d contacts, %d fields, %d providers, facts %s",
+        "Mapping: %d contacts, %d providers, %d slots, facts %s",
         len(roles),
-        len(slots),
         len(mapping.providers()),
+        len(slots),
         dict(counts),
     )
     return mapping
 
 
-def load_mapping(session: Session, matter_id: int) -> MatterMapping | None:
-    digest = session.scalars(
-        select(Digest)
-        .where(Digest.matter_id == matter_id, Digest.kind == DigestKind.FIELD_MAPPING)
-        .order_by(Digest.id.desc())
-    ).first()
-    return MatterMapping.model_validate(digest.content_json) if digest else None
+def custom_values(
+    session: Session, matter_id: int, matter: Source | None
+) -> list[CustomValue]:
+    """The matter's filled-in custom fields, with picklist ids resolved to labels."""
+    if matter is None:
+        return []
+    definitions = {
+        int(d.clio_id): d.raw_json
+        for d in sources_of(session, matter_id, SourceType.CUSTOM_FIELD)
+        if str(d.clio_id).isdigit()
+    }
+    values = []
+    for raw in matter.raw_json.get("custom_field_values") or []:
+        field_id = (raw.get("custom_field") or {}).get("id")
+        if field_id is None:
+            continue
+        definition = definitions.get(int(field_id), {})
+        text = _value_text(raw, definition)
+        if text:
+            name = str(raw.get("field_name") or definition.get("name") or field_id)
+            values.append(CustomValue(int(field_id), name, text))
+    return values
+
+
+def _value_text(raw: dict[str, Any], definition: dict[str, Any]) -> str:
+    options = {
+        str(o.get("id")): str(o.get("option"))
+        for o in definition.get("picklist_options") or []
+    }
+    option = raw.get("picklist_option")
+    if isinstance(option, dict) and str(option.get("id")) in options:
+        return options[str(option["id"])]
+    value = raw.get("value")
+    if value is None:
+        return ""
+    if str(value) in options:
+        return options[str(value)]
+    return str(value).strip()
 
 
 def _map_roles(
-    session: Session, matter_id: int, relationships: list[Source]
-) -> tuple[dict[int, Role], dict[int, str]]:
+    session: Session,
+    matter_id: int,
+    matter: Source | None,
+    relationships: list[Source],
+) -> tuple[dict[int, ContactRole], dict[int, str]]:
     contacts: dict[int, dict[str, Any]] = {}
     for relationship in relationships:
         contact = relationship.raw_json.get("contact") or {}
@@ -179,61 +226,168 @@ def _map_roles(
                 "description": relationship.raw_json.get("description"),
             }
     names = {cid: str(c["name"] or cid) for cid, c in contacts.items()}
-    if not contacts:
-        return {}, names
-    result = llm.call(
-        session,
-        llm.ModelRequest(
-            purpose="map_roles",
-            role="merge",
-            prompt=llm.load_prompt("map_roles"),
-            user_text=json.dumps({"contacts": list(contacts.values())}, indent=1),
-            output=RoleMapping,
-            matter_id=matter_id,
-        ),
-    )
-    roles: dict[int, Role] = {}
-    if isinstance(result, RoleMapping):
-        roles = {
-            e.contact_id: e.role for e in result.contacts if e.contact_id in contacts
-        }
+    roles: dict[int, ContactRole] = {}
+    if contacts:
+        result = llm.call(
+            session,
+            llm.ModelRequest(
+                purpose="map_roles",
+                role="merge",
+                prompt=llm.load_prompt("map_roles"),
+                user_text=json.dumps({"contacts": list(contacts.values())}, indent=1),
+                output=RoleMapping,
+                matter_id=matter_id,
+            ),
+        )
+        if isinstance(result, RoleMapping):
+            roles = {
+                e.contact_id: ContactRole(e.role)
+                for e in result.contacts
+                if e.contact_id in contacts
+            }
+    client = (matter.raw_json.get("client") or {}) if matter else {}
+    if client.get("id"):
+        roles[int(client["id"])] = ContactRole.CLIENT
+        names[int(client["id"])] = str(client.get("name") or client["id"])
     return roles, names
 
 
 def _map_fields(
-    session: Session, matter_id: int, fields: list[Source]
-) -> dict[int, Slot]:
-    if not fields:
-        return {}
-    payload = [
-        {
-            "field_id": f.id,
-            "name": custom_field_name(f.raw_json),
-            "value": custom_field_value(f.raw_json)[:400],
-        }
-        for f in fields
-    ]
+    session: Session,
+    matter_id: int,
+    matter: Source | None,
+    values: list[CustomValue],
+) -> tuple[dict[int, FieldSlot], CaseStage | None]:
+    if matter is None:
+        return {}, None
+    payload = {
+        "fields": [
+            {"field_id": v.field_id, "name": v.name, "value": v.text[:400]}
+            for v in values
+        ],
+        "matter_stage": name_of(matter.raw_json.get("matter_stage")),
+        "matter_status": matter.raw_json.get("status"),
+    }
     result = llm.call(
         session,
         llm.ModelRequest(
             purpose="map_fields",
             role="merge",
             prompt=llm.load_prompt("map_fields"),
-            user_text=json.dumps({"fields": payload}, indent=1),
+            user_text=json.dumps(payload, indent=1),
             output=FieldMapping,
             matter_id=matter_id,
         ),
     )
-    slots: dict[int, Slot] = {f.id: "none" for f in fields}
-    if isinstance(result, FieldMapping):
-        for entry in result.fields:
-            if entry.field_id in slots:
-                slots[entry.field_id] = entry.slot
-    return slots
+    if not isinstance(result, FieldMapping):
+        return {}, None
+    known = {v.field_id for v in values}
+    slots: dict[int, FieldSlot] = {}
+    for entry in result.fields:
+        if entry.field_id in known and entry.slot != "none":
+            slot = FieldSlot(entry.slot)
+            if slot not in slots.values():  # each slot maps to at most one field
+                slots[entry.field_id] = slot
+    return slots, CaseStage(result.stage) if result.stage else None
+
+
+def _code_fact(kind: FactKind, title: str, quote: str, **values: Any) -> Fact:
+    return Fact(
+        kind=kind,
+        title=title[:120],
+        quote=quote[:QUOTE_LIMIT],
+        confidence=Confidence.HIGH,
+        verified=True,
+        significance=0,
+        mentions_strategy=values.pop("mentions_strategy", False),
+        **values,
+    )
+
+
+def _stage_facts(matter: Source, stage: CaseStage | None) -> list[Fact]:
+    label = name_of(matter.raw_json.get("matter_stage"))
+    status = matter.raw_json.get("status")
+    if stage is None and not label:
+        return []
+    quote = label or str(status or "")
+    return [
+        _code_fact(
+            FactKind.CASE_STAGE,
+            f"Stage: {label or stage}",
+            quote,
+            event_date=parse_date(matter.raw_json.get("updated_at")),
+            # Inferred when Clio has no stage and the status alone decided it.
+            value_json=build_payload(
+                FactKind.CASE_STAGE, None, {"stage": stage, "inferred": not label}
+            ),
+        )
+    ]
+
+
+def _slot_fact(value: CustomValue, slot: FieldSlot | None) -> Fact | None:
+    """A fact from a field mapped to a slot code can read; None if it cannot be read."""
+    if slot not in CODE_SLOTS:
+        return None
+    if slot in (FieldSlot.CASE_VALUE, FieldSlot.MEDICAL_SPECIALS):
+        amounts = parse_money(value.text)
+        if not amounts:
+            return None
+        if slot is FieldSlot.CASE_VALUE:
+            payload = {
+                "low_cents": min(amounts),
+                "high_cents": max(amounts),
+                "basis": value.name,
+            }
+            return _code_fact(
+                FactKind.CASE_VALUE,
+                value.name,
+                value.text,
+                mentions_strategy=True,
+                value_json=build_payload(FactKind.CASE_VALUE, None, payload),
+            )
+        return _code_fact(
+            FactKind.MEDICAL_SPECIALS,
+            value.name,
+            value.text,
+            value_json=build_payload(
+                FactKind.MEDICAL_SPECIALS, None, {"amount_cents": amounts[0]}
+            ),
+        )
+    day = parse_date(value.text) or _us_date(value.text)
+    if day is None:
+        return None
+    if slot is FieldSlot.STATUTE_OF_LIMITATIONS:
+        payload = {
+            "deadline_type": "statute_of_limitations",
+            "due_at": f"{day.isoformat()}T00:00:00Z",
+        }
+        return _code_fact(
+            FactKind.DEADLINE,
+            value.name,
+            value.text,
+            event_date=day,
+            value_json=build_payload(FactKind.DEADLINE, None, payload),
+        )
+    return _code_fact(
+        FactKind.INCIDENT,
+        value.name,
+        value.text,
+        event_date=day,
+        value_json=build_payload(FactKind.INCIDENT, None, {}),
+    )
+
+
+def _extraction_text(values: list[CustomValue], slots: dict[int, FieldSlot]) -> str:
+    lines = [
+        f"{v.name}: {v.text}" for v in values if slots.get(v.field_id) not in CODE_SLOTS
+    ]
+    if not lines:
+        return ""
+    return "Type: matter custom fields, as filled in by the firm\n\n" + "\n".join(lines)
 
 
 def _party_facts(
-    session: Session, relationships: list[Source], roles: dict[int, Role]
+    session: Session, relationships: list[Source], roles: dict[int, ContactRole]
 ) -> int:
     count = 0
     for relationship in relationships:
@@ -241,109 +395,31 @@ def _party_facts(
         if not contact.get("id"):
             continue
         contact_id = int(contact["id"])
-        role = roles.get(contact_id, "other")
-        description = str(relationship.raw_json.get("description") or role)
-        fact = Fact(
-            kind=FactKind.PARTY,
-            title=f"{contact.get('name')}: {description}"[:120],
-            quote=description[:300],
-            value_json=build_payload(FactKind.PARTY, None, {"role": role}),
-            provider_contact_id=contact_id if role == "medical_provider" else None,
-            confidence=Confidence.HIGH,
-            verified=True,
-            significance=0,
-            mentions_strategy=False,
+        role = roles.get(contact_id, ContactRole.OTHER)
+        description = str(relationship.raw_json.get("description") or role.value)
+        fact = _code_fact(
+            FactKind.PARTY,
+            f"{contact.get('name')}: {description}",
+            description,
+            value_json=build_payload(FactKind.PARTY, None, {"role": role.value}),
+            provider_contact_id=contact_id
+            if role is ContactRole.MEDICAL_PROVIDER
+            else None,
         )
         replace_facts(session, relationship, [fact], Origin.CODE)
         count += 1
     return count
 
 
-def _slot_facts(session: Session, fields: list[Source], slots: dict[int, Slot]) -> int:
-    count = 0
-    for field in fields:
-        slot = slots.get(field.id, "none")
-        facts = _slot_fact(field, slot) if slot in CODE_SLOTS else []
-        replace_facts(session, field, facts, Origin.CODE)
-        count += len(facts)
-    return count
-
-
-def _slot_fact(field: Source, slot: Slot) -> list[Fact]:
-    """Turn a field mapped to a code slot into a fact; an unreadable value gives none."""
-    value = custom_field_value(field.raw_json)
-    name = custom_field_name(field.raw_json)
-    common = {
-        "quote": value[:300],
-        "confidence": Confidence.HIGH,
-        "verified": True,
-        "significance": 0,
-        "mentions_strategy": False,
-    }
-    if slot in ("case_value", "medical_specials"):
-        amounts = parse_money(value)
-        if not amounts:
-            return []
-        if slot == "case_value":
-            payload = {
-                "low_cents": min(amounts),
-                "high_cents": max(amounts),
-                "basis": name,
-                "slot": slot,
-            }
-            return [
-                Fact(
-                    kind=FactKind.CASE_VALUE,
-                    title=name,
-                    value_json=build_payload(FactKind.CASE_VALUE, None, payload),
-                    **{**common, "mentions_strategy": True},
-                )
-            ]
-        payload = {"amount_cents": amounts[0], "slot": slot}
-        return [
-            Fact(
-                kind=FactKind.OTHER,
-                title=name,
-                value_json=build_payload(FactKind.OTHER, None, payload),
-                **common,
-            )
-        ]
-    day = parse_date(value) or _us_date(value)
-    if day is None:
-        return []
-    if slot == "statute_of_limitations":
-        payload = {
-            "deadline_type": "statute_of_limitations",
-            "due_at": day.isoformat(),
-            "slot": slot,
-        }
-        return [
-            Fact(
-                kind=FactKind.DEADLINE,
-                title=name,
-                event_date=day,
-                value_json=build_payload(FactKind.DEADLINE, None, payload),
-                **common,
-            )
-        ]
-    return [
-        Fact(
-            kind=FactKind.OTHER,
-            title=name,
-            event_date=day,
-            value_json=build_payload(FactKind.OTHER, None, {"slot": slot}),
-            **common,
-        )
-    ]
-
-
-def _activity_facts(
-    session: Session,
-    matter_id: int,
-    activities: list[Source],
-    providers: dict[int, str],
+def _ledger_facts(
+    session: Session, matter_id: int, providers: dict[int, str]
 ) -> Counter[str]:
     counts: Counter[str] = Counter()
+    activities = [
+        a
+        for a in sources_of(session, matter_id, SourceType.ACTIVITY)
+        if a.raw_json.get("type") not in TIME_ACTIVITY_TYPES
+    ]
     if not activities:
         return counts
     entries = [
@@ -351,7 +427,7 @@ def _activity_facts(
             "activity_id": a.id,
             "type": a.raw_json.get("type"),
             "date": a.raw_json.get("date"),
-            "total": a.raw_json.get("total"),
+            "amount": str(activity_amount(a.raw_json)),
             "category": name_of(a.raw_json.get("expense_category")),
             "vendor": name_of(a.raw_json.get("vendor")),
             "note": str(a.raw_json.get("note") or "")[:500],
@@ -368,45 +444,46 @@ def _activity_facts(
             user_text=json.dumps(
                 {"known_providers": known, "entries": entries}, indent=1
             ),
-            output=ActivityMapping,
+            output=LedgerMapping,
             matter_id=matter_id,
         ),
     )
     decisions = (
         {e.activity_id: e for e in result.activities}
-        if isinstance(result, ActivityMapping)
+        if isinstance(result, LedgerMapping)
         else {}
     )
     for activity in activities:
-        decision = decisions.get(activity.id)
-        fact = _activity_fact(activity, decision, providers)
+        fact = _ledger_fact(activity, decisions.get(activity.id), providers)
         replace_facts(session, activity, [fact], Origin.CODE)
         counts[fact.kind.value] += 1
     return counts
 
 
-def _activity_fact(
-    activity: Source, decision: ActivityEntry | None, providers: dict[int, str]
+def activity_amount(raw: dict[str, Any]) -> Decimal:
+    """`total` covers draft, billable, and billed amounts; non-billable is separate."""
+    return Decimal(str(raw.get("total") or 0)) + Decimal(
+        str(raw.get("non_billable_total") or 0)
+    )
+
+
+def _ledger_fact(
+    activity: Source, decision: LedgerEntry | None, providers: dict[int, str]
 ) -> Fact:
     raw = activity.raw_json
     category = name_of(raw.get("expense_category"))
     note = str(raw.get("note") or "")
-    label = category or note.split(";")[0] or "Expense"
-    quote = note or category or label
-    amount = raw.get("total")
+    label = category or note.split(";")[0].strip() or "Expense"
     is_medical = bool(decision and decision.is_medical_charge)
     kind = FactKind.MEDICAL_BILL if is_medical else FactKind.EXPENSE
     provider_id = None
     if is_medical and decision:
-        provider_id = (
-            decision.provider_contact_id
-            if decision.provider_contact_id in providers
-            else None
-        )
+        if decision.provider_contact_id in providers:
+            provider_id = decision.provider_contact_id
         provider_id = provider_id or resolve_provider(
             decision.provider_name_as_written, providers
         )
-    detail: dict[str, Any] = (
+    detail = (
         {}
         if is_medical
         else {"category": category, "vendor": name_of(raw.get("vendor"))}
@@ -414,13 +491,11 @@ def _activity_fact(
     return Fact(
         kind=kind,
         title=label[:120],
-        quote=quote[:300],
+        quote=(note or category or label)[:QUOTE_LIMIT],
         event_date=parse_date(raw.get("date")),
-        value_json=build_payload(
-            kind, amount, {**detail, "ledger_type": raw.get("type")}
-        ),
+        value_json=build_payload(kind, activity_amount(raw), detail),
         provider_contact_id=provider_id,
-        # The amount is exact; only the medical/firm split came from a model.
+        # The amount is exact; only the medical-or-firm split came from a model.
         confidence=Confidence.HIGH if decision else Confidence.MEDIUM,
         verified=decision is not None,
         significance=0,
@@ -443,7 +518,7 @@ def parse_money(text: str) -> list[int]:
     return amounts
 
 
-def _us_date(text: str):
+def _us_date(text: str) -> date | None:
     match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
     if not match:
         return None
@@ -452,7 +527,9 @@ def _us_date(text: str):
 
 
 def _store(session: Session, matter_id: int, mapping: MatterMapping) -> None:
-    content = mapping.model_dump(mode="json")
+    content = FieldMappingContent(
+        contact_roles=mapping.contact_roles, field_slots=mapping.field_slots
+    ).model_dump(mode="json")
     input_hash = hashlib.sha256(
         json.dumps(content, sort_keys=True).encode()
     ).hexdigest()
@@ -467,7 +544,7 @@ def _store(session: Session, matter_id: int, mapping: MatterMapping) -> None:
             kind=DigestKind.FIELD_MAPPING,
             content_json=content,
             input_hash=input_hash,
-            model="mixed",
+            model="merge",
         )
         session.add(existing)
     existing.content_json = content

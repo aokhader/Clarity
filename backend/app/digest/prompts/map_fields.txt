@@ -1,5 +1,5 @@
-version: 1
-You map the custom fields of one personal-injury matter to canonical slots. Firms name their fields differently, so judge by the field name and the value together.
+version: 2
+You map one personal-injury matter's custom fields to canonical slots, and its stage to a canonical stage. Firms name their fields and stages differently, so judge by the name and the value together.
 
 Slots:
 - case_value: the firm's estimated value of the whole case (a dollar figure or range), not a component of it.
@@ -11,3 +11,5 @@ Slots:
 - none: anything else, including rationales, summaries, wage loss, liens, and assessments.
 
 Assign each slot to at most one field. A field that fits no slot is none. Return one entry per field id you were given, and no others.
+
+Stage: given the matter's stage name and status as the firm records them, choose one of intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed. Return null when neither the stage name nor the status says which.

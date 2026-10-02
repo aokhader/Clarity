@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.digest import llm
 from app.models import Confidence, Digest, DigestKind, Fact, FactKind, Origin
+from app.schemas import BriefContent
 
 log = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ def merge(session: Session, matter_id: int) -> Counter[str]:
     counts: Counter[str] = Counter()
     counts["deduplicated"] = deduplicate(session, matter_id)
     counts["scored"] = score(session, matter_id)
+    counts["cross_check_disagreements"] = cross_check(session, matter_id)
     counts["brief"] = int(write_brief(session, matter_id))
     session.commit()
     log.info("Merge: %s", dict(counts))
@@ -165,42 +167,50 @@ def score(session: Session, matter_id: int) -> int:
     return scored
 
 
-def key_figures(session: Session, matter_id: int) -> dict[str, Any]:
-    """Totals from facts, plus the firm's own figures, so the UI can show disagreements."""
+def cross_check(session: Session, matter_id: int) -> int:
+    """Put the sum of medical bills beside the firm's own specials figure.
+
+    A disagreement is stored as an `alt_values` entry on the specials fact, so the KPI
+    tile shows both numbers instead of silently picking one.
+    """
     facts = _facts(session, matter_id)
-    medical_bills = sum(
-        f.value_json.get("amount_cents") or 0
-        for f in facts
-        if f.kind is FactKind.MEDICAL_BILL
-    )
-    firm_spend = sum(
-        f.value_json.get("amount_cents") or 0
-        for f in facts
-        if f.kind is FactKind.EXPENSE and f.origin is Origin.CODE
-    )
-    slots = {f.value_json.get("slot"): f for f in facts if f.value_json.get("slot")}
-    figures: dict[str, Any] = {
-        "medical_bills_total_cents": medical_bills,
-        "firm_spend_cents": firm_spend,
-        "slot_fact_ids": {slot: fact.id for slot, fact in slots.items()},
+    bills = [f for f in facts if f.kind is FactKind.MEDICAL_BILL]
+    total = sum((f.value_json or {}).get("amount_cents") or 0 for f in bills)
+    disagreements = 0
+    for specials in (f for f in facts if f.kind is FactKind.MEDICAL_SPECIALS):
+        value = dict(specials.value_json or {})
+        stated = value.get("amount_cents")
+        if bills and stated is not None and stated != total:
+            value["alt_values"] = [{"amount_cents": total}]
+            disagreements += 1
+        else:
+            value["alt_values"] = []
+        specials.value_json = value
+    session.flush()
+    return disagreements
+
+
+def key_figures(session: Session, matter_id: int) -> dict[str, Any]:
+    """Totals the brief may cite as context. The KPI tiles compute their own."""
+    facts = _facts(session, matter_id)
+
+    def total(kind: FactKind) -> int:
+        return sum(
+            (f.value_json or {}).get("amount_cents") or 0
+            for f in facts
+            if f.kind is kind
+        )
+
+    return {
+        "medical_bills_total_cents": total(FactKind.MEDICAL_BILL),
+        "firm_spend_cents": total(FactKind.EXPENSE),
+        "medical_specials_fact_ids": [
+            f.id for f in facts if f.kind is FactKind.MEDICAL_SPECIALS
+        ],
         "policy_limit_fact_ids": [
             f.id for f in facts if f.kind is FactKind.POLICY_LIMIT
         ],
-        "cross_checks": [],
     }
-    specials = slots.get("medical_specials")
-    if specials is not None and medical_bills:
-        stated = specials.value_json.get("amount_cents")
-        if stated is not None and stated != medical_bills:
-            figures["cross_checks"].append(
-                {
-                    "check": "medical_specials",
-                    "firm_figure_cents": stated,
-                    "firm_fact_id": specials.id,
-                    "sum_of_bills_cents": medical_bills,
-                }
-            )
-    return figures
 
 
 def write_brief(session: Session, matter_id: int) -> bool:
@@ -214,14 +224,13 @@ def write_brief(session: Session, matter_id: int) -> bool:
     open_tasks = [
         f
         for f in facts
-        if f.kind is FactKind.TASK
-        and f.value_json.get("status") not in ("complete", "completed")
+        if f.kind is FactKind.TASK and f.value_json.get("status") != "complete"
     ]
     included = {f.id: f for f in top + stage_facts + open_tasks}
     figures = key_figures(session, matter_id)
     payload = {
         "facts": [_brief_row(f) for f in included.values()],
-        "key_figures": {k: v for k, v in figures.items() if k != "slot_fact_ids"},
+        "key_figures": figures,
         "open_task_ids": [f.id for f in open_tasks],
     }
     user_text = json.dumps(payload, indent=1, default=str)
@@ -244,8 +253,8 @@ def write_brief(session: Session, matter_id: int) -> bool:
     result = llm.call(session, request)
     if not isinstance(result, Brief):
         return False
-    content = _cite_only_known(result, set(included)).model_dump(mode="json")
-    content["key_figures"] = figures
+    cited = _cite_only_known(result, set(included))
+    content = BriefContent.model_validate(cited.model_dump()).model_dump(mode="json")
     if existing is None:
         existing = Digest(
             matter_id=matter_id,

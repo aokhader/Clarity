@@ -50,13 +50,13 @@ def build_pages(session: Session, matter_id: int) -> Counter[str]:
 
 
 def _build_document_pages(session: Session, document: Source) -> str:
-    path = Path(str(document.file_path))
+    path = get_settings().data_dir / str(document.file_path)
     suffix = path.suffix.lower()
     if suffix == ".pdf" or _looks_like_pdf(path):
         return _pdf_pages(session, document, path)
     if suffix in IMAGE_SUFFIXES:
         image = path.read_bytes()
-        _upsert_page(session, document, 1, None, str(path), _sha(image))
+        _upsert_page(session, document, 1, None, str(document.file_path), _sha(image))
         return "image"
     if suffix == ".docx":
         _upsert_page(session, document, 1, _docx_text(path), None, None)
@@ -68,13 +68,15 @@ def _build_document_pages(session: Session, document: Source) -> str:
 
 
 def _pdf_pages(session: Session, document: Source, path: Path) -> str:
-    pages_dir = get_settings().pages_dir
-    pages_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = get_settings().data_dir
+    get_settings().pages_dir.mkdir(parents=True, exist_ok=True)
     # The document hash is in the image name, so an unchanged file is not re-rendered.
     prefix = f"{document.id}_{str(document.content_hash)[:16]}"
     with pymupdf.open(path) as pdf:
         for index, pdf_page in enumerate(pdf, start=1):
-            image_path = pages_dir / f"{prefix}_p{index}.png"
+            # Stored relative to DATA_DIR so snapshots unpack anywhere.
+            relative = f"pages/{prefix}_p{index}.png"
+            image_path = data_dir / relative
             text = pdf_page.get_text().strip()
             if not image_path.exists():
                 pdf_page.get_pixmap(dpi=RENDER_DPI).save(image_path)
@@ -85,7 +87,7 @@ def _pdf_pages(session: Session, document: Source, path: Path) -> str:
                 document,
                 index,
                 text if has_text else None,
-                str(image_path),
+                relative,
                 _sha(content),
                 has_text_layer=has_text,
             )

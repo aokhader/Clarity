@@ -25,30 +25,29 @@ log = logging.getLogger(__name__)
 
 
 # Field lists are tried in order. Clio rejects an unknown field name with a 400, so
-# each list falls back to a smaller one rather than failing the whole sync. Confirm
-# names against docs/reference/clio-openapi.json when it is available.
+# each list falls back to a smaller one rather than failing the whole sync. The first
+# list of each is the one confirmed against the OpenAPI spec (docs/clio-api.md).
 def _fields(*parts: str) -> str:
     return ",".join(parts)
 
 
-MATTER_SEARCH_FIELDS = "id,display_number,description,updated_at"
-_CUSTOM_FIELDS = (
-    "custom_field_values{id,etag,field_name,field_type,value,created_at,updated_at,"
-    "picklist_option{option}}"
+_VALUE_FIELDS = (
+    "custom_field_values{id,field_name,field_type,value,custom_field,picklist_option}"
 )
+MATTER_SEARCH_FIELDS = "id,display_number,description,updated_at"
 MATTER_FIELDS = (
     _fields(
         "id,etag,display_number,description,status,open_date,close_date",
-        "created_at,updated_at,practice_area{name},matter_stage{name}",
-        "client{id,name,type},responsible_attorney{id,name}",
-        _CUSTOM_FIELDS,
-    ),
-    _fields(
-        "id,etag,display_number,description,status,open_date,close_date",
-        "created_at,updated_at,practice_area{name},client{id,name,type}",
-        "custom_field_values{id,field_name,value}",
+        "practice_area{name},matter_stage{name},client{id,name}",
+        "responsible_attorney{name}",
+        _VALUE_FIELDS,
+        "created_at,updated_at",
     ),
     "id,etag,display_number,description,status,created_at,updated_at,client{id,name}",
+)
+CUSTOM_FIELD_FIELDS = (
+    "id,etag,name,field_type,parent_type,picklist_options{id,option},updated_at",
+    "id,etag,name,field_type,updated_at",
 )
 RELATIONSHIP_FIELDS = (
     "id,etag,description,contact{id,name,type},created_at,updated_at",
@@ -57,25 +56,28 @@ RELATIONSHIP_FIELDS = (
 CONTACT_FIELDS = (
     _fields(
         "id,etag,name,type,title,email_addresses{address,name}",
-        "phone_numbers{number,name},created_at,updated_at",
+        "phone_numbers{number,name}",
+        "addresses{name,street,city,province,postal_code,country}",
+        _VALUE_FIELDS,
+        "avatar{url},updated_at",
     ),
-    "id,etag,name,type,created_at,updated_at",
+    "id,etag,name,type,updated_at",
 )
 NOTE_FIELDS = (
-    "id,etag,subject,detail,date,author{id,name},created_at,updated_at",
+    "id,etag,subject,detail,detail_text_type,date,author{name},created_at,updated_at",
     "id,etag,subject,detail,date,created_at,updated_at",
 )
 COMMUNICATION_FIELDS = (
     _fields(
-        "id,etag,subject,body,type,date,senders{id,name,type}",
-        "receivers{id,name,type},created_at,updated_at",
+        "id,etag,subject,body,type,date,received_at",
+        "senders{id,name,type},receivers{id,name,type},created_at,updated_at",
     ),
     "id,etag,subject,body,type,date,created_at,updated_at",
 )
 TASK_FIELDS = (
     _fields(
         "id,etag,name,description,status,priority,due_at,completed_at",
-        "assignee{id,name,type},created_at,updated_at",
+        "statute_of_limitations,assignee{id,name,type},created_at,updated_at",
     ),
     "id,etag,name,description,status,priority,due_at,completed_at,created_at,updated_at",
 )
@@ -84,19 +86,15 @@ CALENDAR_FIELDS = (
 )
 ACTIVITY_FIELDS = (
     _fields(
-        "id,etag,type,date,total,price,quantity,note,expense_category{id,name}",
-        "vendor{id,name},created_at,updated_at",
+        "id,etag,type,date,total,price,quantity,non_billable,non_billable_total,note",
+        "expense_category{name},vendor{id,name},created_at,updated_at",
     ),
-    _fields(
-        "id,etag,type,date,total,price,quantity,note,expense_category{id,name}",
-        "created_at,updated_at",
-    ),
-    "id,etag,type,date,total,note,created_at,updated_at",
+    "id,etag,type,date,total,price,quantity,note,created_at,updated_at",
 )
 DOCUMENT_FIELDS = (
     _fields(
-        "id,etag,name,content_type,size,created_at,updated_at,parent{id,name}",
-        "document_category{id,name},latest_document_version{id,size,content_type}",
+        "id,etag,name,filename,content_type,size,created_at,updated_at",
+        "latest_document_version{id,size,content_type,filename,fully_uploaded}",
     ),
     "id,etag,name,content_type,size,created_at,updated_at",
 )
@@ -106,7 +104,13 @@ MATTER_RECORDS: tuple[tuple[SourceType, str, dict[str, str], tuple[str, ...]], .
     (SourceType.NOTE, "notes.json", {"type": "Matter"}, NOTE_FIELDS),
     (SourceType.COMMUNICATION, "communications.json", {}, COMMUNICATION_FIELDS),
     (SourceType.TASK, "tasks.json", {}, TASK_FIELDS),
-    (SourceType.CALENDAR_ENTRY, "calendar_entries.json", {}, CALENDAR_FIELDS),
+    (
+        SourceType.CALENDAR_ENTRY,
+        "calendar_entries.json",
+        # Without this, only entries on calendars the token's user can view come back.
+        {"owner_entries_across_all_users": "true"},
+        CALENDAR_FIELDS,
+    ),
     (SourceType.ACTIVITY, "activities.json", {}, ACTIVITY_FIELDS),
 )
 
@@ -184,8 +188,12 @@ def _sync(
 ) -> None:
     matter = _get_with_fallback(client, f"matters/{matter_id}.json", {}, MATTER_FIELDS)
     _upsert(session, matter_id, SourceType.MATTER, matter, stats)
-    for value in matter.get("custom_field_values") or []:
-        _upsert(session, matter_id, SourceType.CUSTOM_FIELD, value, stats)
+    # Values stay inside the matter record; definitions are the only place picklist
+    # labels live, and they are account-wide, so they take no matter filter.
+    for definition in _list_with_fallback(
+        client, "custom_fields.json", {}, CUSTOM_FIELD_FIELDS, "custom_field", stats
+    ):
+        _upsert(session, matter_id, SourceType.CUSTOM_FIELD, definition, stats)
     session.commit()
 
     scope: dict[str, Any] = {"matter_id": matter_id}
@@ -205,14 +213,17 @@ def _sync(
         _upsert(session, matter_id, SourceType.RELATIONSHIP, relationship, stats)
     if (matter.get("client") or {}).get("id"):
         contact_ids.add(int(matter["client"]["id"]))
-    for contact_id in sorted(contact_ids):
-        try:
-            contact = _get_with_fallback(
-                client, f"contacts/{contact_id}.json", {}, CONTACT_FIELDS
-            )
+    if contact_ids:
+        contacts = _list_with_fallback(
+            client,
+            "contacts.json",
+            {"ids[]": sorted(contact_ids)},
+            CONTACT_FIELDS,
+            "contact",
+            stats,
+        )
+        for contact in contacts:
             _upsert(session, matter_id, SourceType.CONTACT, contact, stats)
-        except ClioError as error:
-            stats.errors.append(f"contact {contact_id}: {error.status}")
     session.commit()
 
     for source_type, path, extra, fields in MATTER_RECORDS:
@@ -269,14 +280,16 @@ def _upsert(
 def _download(
     client: ClioClient, source: Source, record: dict[str, Any], stats: SyncStats
 ) -> None:
-    files_dir = get_settings().files_dir
-    destination = files_dir / f"{source.clio_id}{_extension(record)}"
+    settings = get_settings()
+    relative = Path("files") / f"{source.clio_id}{_extension(record)}"
+    destination = settings.data_dir / relative
     try:
         client.download(f"documents/{source.clio_id}/download.json", destination)
     except ClioError as error:
         stats.errors.append(f"document {source.clio_id} download: {error.status}")
         return
-    source.file_path = str(destination)
+    # Relative to DATA_DIR, so a zipped data/ snapshot works on another machine.
+    source.file_path = relative.as_posix()
     source.content_hash = hashlib.sha256(destination.read_bytes()).hexdigest()
     stats.counts["document_downloaded"] += 1
 
@@ -349,11 +362,16 @@ def _last_successful_sync(session: Session, matter_id: int) -> datetime | None:
 
 
 def _file_present(source: Source) -> bool:
-    return bool(source.file_path) and Path(str(source.file_path)).exists()
+    return (
+        bool(source.file_path)
+        and (get_settings().data_dir / str(source.file_path)).exists()
+    )
 
 
 def _extension(record: dict[str, Any]) -> str:
-    suffix = Path(str(record.get("name") or "")).suffix.lower()
+    version = record.get("latest_document_version") or {}
+    name = record.get("filename") or version.get("filename") or record.get("name")
+    suffix = Path(str(name or "")).suffix.lower()
     if suffix and len(suffix) <= 6:
         return suffix
     guessed = mimetypes.guess_extension(str(record.get("content_type") or ""))

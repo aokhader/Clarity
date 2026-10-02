@@ -24,7 +24,7 @@ def test_disagreeing_second_read_gives_low_confidence_and_keeps_both() -> None:
     outcome = compare_reads(250.0, date(2024, 3, 1), 280.0, date(2024, 3, 1))
     assert not outcome.verified
     assert outcome.confidence is Confidence.LOW
-    assert outcome.alt_values and outcome.alt_values[0]["amount"] == 280.0
+    assert outcome.alt_values and outcome.alt_values[0]["amount_cents"] == 28000
 
 
 def test_future_date_on_past_tense_kind_is_removed() -> None:
