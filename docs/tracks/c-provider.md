@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** C3
+- **Now:** C4 (C3's real-snapshot check waits for S1)
 - **Blocked:** nothing
 
 ## Checklist
@@ -21,8 +21,8 @@
 - [x] Preview and the token route call the same function
 
 ### C3 Provider page (30 min)
-- [ ] Status tracker, coverage, requests, bills and records, updates, firm note
-- [ ] Expired and revoked states
+- [x] Status tracker, coverage, requests, bills and records, updates, firm note
+- [x] Expired and revoked states
 - [ ] **After S1: switch to the real snapshot and fix what breaks**
 
 ### C4 Providers panel (20 min)
@@ -52,6 +52,9 @@ Track C also owns `services/provider_view.py`: the only module that builds a pro
 - A task that raised a record request is the same ask; the provider sees it once.
 - Unknown token is 404; expired or revoked is 410 with no data; a fact or page the share does not release is 404. Provider responses carry `Cache-Control: no-store`.
 - Creating a share needs `X-User-Id` naming a stub user, and the contact must be a medical provider in the `field_mapping` digest.
+- The provider page fetches its payload once per visit (no refetch on focus), because every fetch records an opened event the firm sees.
+- `ProviderView` renders a payload and nothing else; the share composer's preview (C5) reuses it without the "View page" buttons.
+- The stage tracker marks only the current stage. Earlier stages are not ticked, since a case can skip one.
 
 ## Stubs and shortcuts
 

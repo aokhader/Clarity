@@ -52,6 +52,13 @@ export function formatDateTime(iso: IsoDateTime): string {
   return timeFormat.format(new Date(iso))
 }
 
+const monthFormat = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+
+/** 2026-03 -> March 2026 */
+export function formatMonth(yearMonth: string): string {
+  return monthFormat.format(calendarDay(`${yearMonth}-01`))
+}
+
 const MS_PER_DAY = 86_400_000
 
 /** Whole calendar days from today to the given day: negative in the past. */
