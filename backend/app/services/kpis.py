@@ -7,7 +7,6 @@ estimated or guessed.
 
 from app.models import Fact, FactKind
 from app.schemas import (
-    BillPayload,
     CaseValuePayload,
     ExpensePayload,
     KpiOut,
@@ -15,6 +14,7 @@ from app.schemas import (
     MedicalSpecialsPayload,
     PolicyLimitPayload,
 )
+from app.services.bills import count_bills
 from app.services.fact_views import fact_ref
 
 # (amount, low, high) in cents. Facts with the same amounts agree and share a value.
@@ -71,16 +71,17 @@ def _coverage(facts: list[Fact]) -> KpiOut:
 
 
 def _medical_specials(specials: list[Fact], bills: list[Fact]) -> KpiOut:
-    """The specials figure, checked against the sum of the extracted bills."""
+    """The specials figure, checked against the bills with each provider counted once."""
     entries: list[tuple[_Amounts, list[Fact]]] = []
     for fact in _most_significant_first(specials):
         amount = MedicalSpecialsPayload.model_validate(fact.value_json).amount_cents
         if amount is not None:
             entries.append(((amount, None, None), [fact]))
-    billed = [(BillPayload.model_validate(f.value_json).amount_cents, f) for f in bills]
-    billed_facts = [f for amount, f in billed if amount is not None]
+    # Each provider's charges count once, however many records restate them.
+    counted = count_bills(bills)
+    billed_facts = [fact for c in counted for fact in c.facts]
     if billed_facts:
-        total = sum(amount for amount, _ in billed if amount is not None)
+        total = sum(c.total_cents for c in counted)
         entries.append(((total, None, None), billed_facts))
     values = _values(entries)
     bill_count = _plural(len(billed_facts), "bill")

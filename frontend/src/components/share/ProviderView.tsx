@@ -37,7 +37,7 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
       {(bills || records) && (
         <Panel title="Your bills and records on file">
           <div className="space-y-4">
-            {bills && <BillsTotal bills={bills} />}
+            {payload.bills_total && <BillsTotal total={payload.bills_total} />}
             {bills && (
               <section aria-label="Bills">
                 <h3 className="text-sm font-medium">Bills</h3>

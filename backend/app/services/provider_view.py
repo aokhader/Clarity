@@ -22,6 +22,7 @@ from app.schemas import (
     CoveragePayload,
     PageRef,
     PolicyLimitPayload,
+    ProviderBillsTotalOut,
     ProviderCoverageOut,
     ProviderItemOut,
     ProviderPayload,
@@ -36,6 +37,7 @@ from app.schemas import (
     StatusChangePayload,
 )
 from app.services import shares
+from app.services.bills import CountedBills, count_bills
 from app.services.clio_records import RawMatter
 from app.services.providers import distinct_requests
 from app.services.source_views import page_image_path
@@ -163,15 +165,34 @@ def _requests(facts: list[Fact]) -> list[ProviderItemOut]:
     return [_own_item(f) for f in _chronological(distinct_requests(facts))]
 
 
+def _counted_bills(facts: list[Fact]) -> CountedBills | None:
+    """The share's own bills with each charge once, from the record `count_bills` picks."""
+    counted = count_bills(facts)
+    return counted[0] if counted else None
+
+
 def _bills(facts: list[Fact]) -> list[ProviderItemOut]:
+    """Liens, and the bills of the counted record; restatements of the same charges are left out."""
+    counted = _counted_bills(facts)
+    listed = [f for f in facts if f.kind is not FactKind.MEDICAL_BILL]
+    listed += counted.facts if counted else []
     return [
         _own_item(
             f,
             amount_cents=BillPayload.model_validate(f.value_json).amount_cents,
             has_source=_has_cited_page(f),
         )
-        for f in _chronological(facts)
+        for f in _chronological(listed)
     ]
+
+
+def _bills_total(facts: list[Fact]) -> ProviderBillsTotalOut | None:
+    counted = _counted_bills(facts)
+    if counted is None:
+        return None
+    return ProviderBillsTotalOut(
+        amount_cents=counted.total_cents, bill_count=len(counted.facts)
+    )
 
 
 def _records(facts: list[Fact]) -> list[ProviderItemOut]:
@@ -210,6 +231,9 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         coverage=_coverage(by_setting, settings),
         requests=_requests(by_setting["requests"]) if settings.requests else None,
         bills=_bills(by_setting["own_bills"]) if settings.own_bills else None,
+        bills_total=_bills_total(by_setting["own_bills"])
+        if settings.own_bills
+        else None,
         records=_records(by_setting["own_records"]) if settings.own_records else None,
         treatment_activity=_treatment(by_setting["treatment_activity"])
         if settings.treatment_activity

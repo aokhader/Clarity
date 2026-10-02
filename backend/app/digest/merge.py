@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.digest import llm
 from app.models import Confidence, Digest, DigestKind, Fact, FactKind, Origin
 from app.schemas import BriefContent
+from app.services.bills import billed_total_cents
 
 log = logging.getLogger(__name__)
 
@@ -176,14 +177,17 @@ def score(session: Session, matter_id: int) -> int:
 
 
 def cross_check(session: Session, matter_id: int) -> int:
-    """Put the sum of medical bills beside the firm's own specials figure.
+    """Put the billed total beside the firm's own specials figure.
+
+    The billed total counts each provider's charges once (`services/bills.py`): a ledger
+    entry, a note, and the itemized bill for the same charges are one bill, not three.
 
     A disagreement is stored as an `alt_values` entry on the specials fact, so the KPI
     tile shows both numbers instead of silently picking one.
     """
     facts = _facts(session, matter_id)
     bills = [f for f in facts if f.kind is FactKind.MEDICAL_BILL]
-    total = sum((f.value_json or {}).get("amount_cents") or 0 for f in bills)
+    total = billed_total_cents(bills)
     disagreements = 0
     for specials in (f for f in facts if f.kind is FactKind.MEDICAL_SPECIALS):
         value = dict(specials.value_json or {})
@@ -210,7 +214,7 @@ def key_figures(session: Session, matter_id: int) -> dict[str, Any]:
         )
 
     return {
-        "medical_bills_total_cents": total(FactKind.MEDICAL_BILL),
+        "medical_bills_total_cents": billed_total_cents(facts),
         "firm_spend_cents": total(FactKind.EXPENSE),
         "medical_specials_fact_ids": [
             f.id for f in facts if f.kind is FactKind.MEDICAL_SPECIALS

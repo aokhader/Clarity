@@ -387,6 +387,12 @@ export type ProviderItemOut = {
   has_source: boolean
 }
 
+/** The provider's own bills added up, each charge counted once. */
+export type ProviderBillsTotalOut = {
+  amount_cents: number
+  bill_count: number
+}
+
 export type ProviderStatusOut = {
   stages: CaseStage[]
   current: CaseStage | null
@@ -421,6 +427,8 @@ export type ProviderPayload = {
   coverage: ProviderCoverageOut | null
   requests: ProviderItemOut[] | null
   bills: ProviderItemOut[] | null
+  /** Null when bills are not shared or none carries an amount. */
+  bills_total: ProviderBillsTotalOut | null
   records: ProviderItemOut[] | null
   treatment_activity: ProviderTreatmentOut | null
 }

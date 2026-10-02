@@ -482,6 +482,13 @@ class ProviderItemOut(BaseModel):
     has_source: bool  # true only for this provider's own bills and records
 
 
+class ProviderBillsTotalOut(BaseModel):
+    """The provider's own bills added up, each charge counted once."""
+
+    amount_cents: int
+    bill_count: int
+
+
 class ProviderStatusOut(BaseModel):
     stages: list[CaseStage]  # the tracker, in order
     current: CaseStage | None
@@ -517,6 +524,8 @@ class ProviderPayload(BaseModel):
     coverage: ProviderCoverageOut | None
     requests: list[ProviderItemOut] | None
     bills: list[ProviderItemOut] | None
+    # None when bills are not shared or none carries an amount.
+    bills_total: ProviderBillsTotalOut | None
     records: list[ProviderItemOut] | None
     treatment_activity: ProviderTreatmentOut | None
 

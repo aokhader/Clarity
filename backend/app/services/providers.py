@@ -9,8 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Fact, FactKind, Share, Source, SourceType
-from app.schemas import BillPayload, ProviderOut, ShareStatusOut
+from app.schemas import ProviderOut, ShareStatusOut
 from app.services import shares
+from app.services.bills import billed_total_cents
 from app.services.clio_records import RawRelationship
 from app.services.fact_views import renderable_facts
 from app.services.visibility import share_is_live
@@ -96,11 +97,7 @@ def providers_panel(
                 contact_id=pid,
                 name=shares.contact_name(session, matter_id, pid) or f"Contact {pid}",
                 role_label=labels.get(pid),
-                billed_cents=sum(
-                    BillPayload.model_validate(f.value_json).amount_cents or 0
-                    for f in facts
-                    if f.kind is FactKind.MEDICAL_BILL
-                ),
+                billed_cents=billed_total_cents(facts),
                 records_received=sum(
                     1 for f in facts if f.kind is FactKind.RECORDS_RECEIVED
                 ),
