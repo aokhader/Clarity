@@ -1,9 +1,8 @@
 import type { FactOut } from '@/api/types'
-import { RevealOnHover } from '@/components/firm/RevealOnHover'
-import { SourceChip } from '@/components/shared/SourceChip'
 import { DUE_SOON_DAYS, dueDateOf } from '@/lib/facts'
 import { daysFromToday, formatDate } from '@/lib/format'
 import { WAITING_ON_LABELS } from '@/lib/labels'
+import { useSourceDrawer } from '@/lib/useSourceDrawer'
 import { cn } from '@/lib/utils'
 
 export type ActionStatus = 'Overdue' | 'Waiting' | 'Upcoming' | 'Scheduled'
@@ -41,34 +40,49 @@ function noteOf(fact: FactOut): string | null {
   return null
 }
 
-/** One task, deadline, or record request in the action table. */
+/** One task, deadline, or record request in the action table. The whole row opens its source. */
 export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatus }) {
+  const drawer = useSourceDrawer()
   // A record request's date is when it was sent, not when it is due.
   const due = fact.kind === 'record_request' ? null : dueDateOf(fact)
   const days = due === null ? null : daysFromToday(due)
   const note = noteOf(fact)
   const owner = fact.kind === 'task' ? fact.value.assignee : null
   return (
-    <li className={cn(ACTION_COLUMNS, 'group/src items-center border-b border-slate-100 px-6 py-4 text-[15px]')}>
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="flex items-center gap-2">
-          <span className="min-w-0">{fact.title}</span>
-          <RevealOnHover>
-            <SourceChip fact={fact} />
-          </RevealOnHover>
+    <li className="border-b border-slate-100">
+      <button
+        type="button"
+        onClick={() => drawer.open(fact.id)}
+        className={cn(
+          ACTION_COLUMNS,
+          'w-full cursor-pointer items-center px-6 py-4 text-left text-[15px] transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+        )}
+      >
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span>{fact.title}</span>
+          {(note || fact.confidence === 'low') && (
+            <span className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              {note}
+              {/* The chip carried the low-confidence marker; the row keeps it. */}
+              {fact.confidence === 'low' && (
+                <span className="rounded-sm border border-dashed border-warning px-1.5 text-[11px] font-medium text-warning">
+                  Low confidence
+                </span>
+              )}
+            </span>
+          )}
         </span>
-        {note && <span className="text-[13px] text-muted-foreground">{note}</span>}
-      </div>
-      <div className="flex flex-col gap-0.5 tabular-nums">
-        <span className="text-slate-600">{due ? formatDate(due) : '—'}</span>
-        {days !== null && <span className={cn('text-[13px] font-medium', dueTone(days))}>{dueText(days)}</span>}
-      </div>
-      <span className="truncate text-sm text-slate-600">{owner ?? '—'}</span>
-      <span>
-        <span className={cn('inline-block rounded-full px-2.5 py-1 text-[13px] font-medium', STATUS_STYLES[status])}>
-          {status}
+        <span className="flex flex-col gap-0.5 tabular-nums">
+          <span className="text-slate-600">{due ? formatDate(due) : '—'}</span>
+          {days !== null && <span className={cn('text-[13px] font-medium', dueTone(days))}>{dueText(days)}</span>}
         </span>
-      </span>
+        <span className="truncate text-sm text-slate-600">{owner ?? '—'}</span>
+        <span>
+          <span className={cn('inline-block rounded-full px-2.5 py-1 text-[13px] font-medium', STATUS_STYLES[status])}>
+            {status}
+          </span>
+        </span>
+      </button>
     </li>
   )
 }
