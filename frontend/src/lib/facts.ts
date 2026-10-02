@@ -1,4 +1,5 @@
 import type { FactOut, IsoDate } from '@/api/types'
+import { formatMonth } from '@/lib/format'
 
 /** Items due within this many days are marked as due soon. */
 export const DUE_SOON_DAYS = 7
@@ -11,4 +12,24 @@ export function dueDateOf(fact: FactOut): IsoDate | null {
     return fact.value.due_at?.slice(0, 10) ?? fact.event_date
   }
   return fact.event_date
+}
+
+export type MonthGroup = {
+  key: string
+  label: string
+  facts: FactOut[]
+}
+
+/** Facts grouped by calendar month in the order given, with undated facts as their own group. */
+export function groupByMonth(facts: FactOut[]): MonthGroup[] {
+  const groups = new Map<string, FactOut[]>()
+  for (const fact of facts) {
+    const key = fact.event_date?.slice(0, 7) ?? 'undated'
+    groups.set(key, [...(groups.get(key) ?? []), fact])
+  }
+  return [...groups].map(([key, grouped]) => ({
+    key,
+    label: key === 'undated' ? 'Undated' : formatMonth(key),
+    facts: grouped,
+  }))
 }

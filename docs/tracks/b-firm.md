@@ -6,7 +6,7 @@
 
 ## Status
 
-- **Now:** B7 (cut first if behind)
+- **Now:** B1 to B7 built. Next: switch to Track A's data at S1 to S3 and fix what breaks
 - **Blocked:** nothing
 
 ## Checklist
@@ -39,7 +39,7 @@
 - [x] Last sync time, digest cost, re-sync button, using Track A's ops endpoints (checked against `origin/Track-A` in a trial merge; on `main` until Track A merges, cost reads "unavailable" and Re-sync reports the 404)
 
 ### B7 Timeline toggle (15 min, cut first)
-- [ ] Full timeline grouped by month with kind filters and search
+- [x] Full timeline grouped by month with kind filters and search
 
 ## Contract obligations
 

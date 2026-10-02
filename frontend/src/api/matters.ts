@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { apiGet } from './client'
-import type { ActionsOut, BriefOut, FactOut, MatterHeaderOut, MatterSummaryOut } from './types'
+import type { ActionsOut, BriefOut, FactKind, FactOut, MatterHeaderOut, MatterSummaryOut } from './types'
 
 export function useMatterBrief(matterId: number) {
   return useQuery({
@@ -42,5 +42,18 @@ export function useMatterFeed(matterId: number, limit = 10) {
   return useQuery({
     queryKey: ['matters', matterId, 'feed', limit],
     queryFn: () => apiGet<FactOut[]>(`/matters/${matterId}/feed?limit=${limit}`),
+  })
+}
+
+export function useMatterTimeline(matterId: number, kind: FactKind | null, text: string) {
+  const params = new URLSearchParams()
+  if (kind) params.set('kind', kind)
+  if (text) params.set('q', text)
+  const search = params.size > 0 ? `?${params.toString()}` : ''
+  return useQuery({
+    queryKey: ['matters', matterId, 'timeline', kind, text],
+    queryFn: () => apiGet<FactOut[]>(`/matters/${matterId}/timeline${search}`),
+    // Keep the last result on screen while a new filter loads, so the list does not flash.
+    placeholderData: keepPreviousData,
   })
 }
