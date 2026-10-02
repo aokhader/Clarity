@@ -1,4 +1,5 @@
 import type { ProviderItemOut, ProviderPayload } from '@/api/types'
+import { BillsTotal } from '@/components/share/BillsTotal'
 import { CoverageSection } from '@/components/share/CoverageSection'
 import { ProviderHeader } from '@/components/share/ProviderHeader'
 import { ProviderItemList } from '@/components/share/ProviderItemList'
@@ -6,6 +7,9 @@ import { StatusTracker } from '@/components/share/StatusTracker'
 import { UpdatesList } from '@/components/share/UpdatesList'
 import { Panel } from '@/components/shared/Panel'
 import { formatDate, formatMonth } from '@/lib/format'
+
+/** Bills and records each show this many rows and scroll the rest. */
+const VISIBLE_ITEMS = 10
 
 type ProviderViewProps = {
   payload: ProviderPayload
@@ -33,10 +37,16 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
       {(bills || records) && (
         <Panel title="Your bills and records on file">
           <div className="space-y-4">
+            {bills && <BillsTotal bills={bills} />}
             {bills && (
               <section aria-label="Bills">
                 <h3 className="text-sm font-medium">Bills</h3>
-                <ProviderItemList items={bills} empty="No bills from your office on file." onOpenSource={onOpenSource} />
+                <ProviderItemList
+                  items={bills}
+                  empty="No bills from your office on file."
+                  onOpenSource={onOpenSource}
+                  scroll={{ rows: VISIBLE_ITEMS, label: 'Bills, scrollable' }}
+                />
               </section>
             )}
             {records && (
@@ -46,6 +56,7 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
                   items={records}
                   empty="No records from your office on file."
                   onOpenSource={onOpenSource}
+                  scroll={{ rows: VISIBLE_ITEMS, label: 'Records, scrollable' }}
                 />
               </section>
             )}

@@ -81,6 +81,7 @@ Track B also owns these service modules, added in B1:
 - Case metadata picks the most significant liability fact, the most significant injury, and the statute of limitations among deadlines whose type names it (`statuteDeadline` in `lib/facts.ts`): the next one ahead, or the latest passed. The action table and injuries list show 8 and 6 rows before "Show all", since the real matter has 75 open items and 321 injuries.
 - Chips in the header, stage pill, Financial overview, and brief appear only on hover or keyboard focus of their fact, at the owner's request for a cleaner page (`components/firm/RevealOnHover.tsx`). They stay in the layout and tab order, so every fact is still one click from its source.
 - A Documents page (`?view=documents`, linked from the sidebar) lists every cited source once, grouped by source type with filter pills; each fact opens the source drawer. It is built from the timeline endpoint, so it needed no new route or schema; a source shows its facts, since `FactOut` carries no source title.
+- On the provider page (and both firm previews, which share `ProviderView`), bills and records each show 10 rows and scroll the rest, under a "Total billed by your office" headline that sums the listed bills. These are Track C files (`components/share/ProviderItemList.tsx`, `ProviderView.tsx`, new `BillsTotal.tsx`), changed at the owner's request after the close. Row height is measured, not assumed, because long labels wrap; the total adds only bills the share already releases.
 
 ## Stubs and shortcuts
 
