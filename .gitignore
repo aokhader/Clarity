@@ -11,3 +11,4 @@ dist/
 docs/reference/clio-openapi.json
 CLAUDE.local.md
 data-snapshot.zip
+.claude/launch.json

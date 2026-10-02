@@ -35,13 +35,17 @@ One store of sourced facts feeds both views. The provider view is the same data 
 
 SQLite at `data/app.db`. No migrations: tables are created at startup, and `cli reset` drops everything. Changing a table means running reset, sync, and digest again, so settle the schema early.
 
+`matter_id` is the Clio matter id. `file_path` and `image_path` are stored relative to `DATA_DIR`, so a zipped `data/` snapshot works on another machine.
+
 ```
 sources
   id, matter_id, clio_type, clio_id, etag, clio_created_at, clio_updated_at,
   raw_json, file_path, content_hash, synced_at
-  unique (clio_type, clio_id)
-  clio_type: matter | contact | relationship | note | communication | task |
-             calendar_entry | activity | document
+  unique (matter_id, clio_type, clio_id)   -- account-level records (contacts, custom
+                                           -- fields) get one copy per matter
+  clio_id is a string: calendar entry ids are strings in Clio
+  clio_type: matter | custom_field | contact | relationship | note | communication |
+             task | calendar_entry | activity | document
 
 pages
   id, source_id, page_no, has_text_layer, text, image_path, content_hash,
@@ -51,6 +55,7 @@ facts
   id, matter_id, kind, title, value_json, event_date,
   source_id, page_no, quote,
   provider_contact_id,        -- Clio contact this fact concerns, if any
+  mentions_strategy,          -- extractor flag; such a fact is never shareable
   visibility,                 -- internal | shareable
   significance,               -- 0 to 100
   confidence,                 -- high | medium | low
@@ -62,9 +67,10 @@ digests
   id, matter_id, kind, content_json, input_hash, model, created_at
   kind: brief | field_mapping
 
-llm_calls
-  id, purpose, model, input_tokens, output_tokens, cost_usd,
-  source_id, page_no, cache_hit, created_at
+llm_calls                             -- also the response cache, keyed by cache_key
+  id, matter_id, purpose, model, cache_key, response_json,
+  input_tokens, output_tokens, cost_micro_usd,   -- integer micro-dollars, exact sums
+  source_id, page_no, cache_hit, error, created_at
 
 users
   id, name, role              -- stub accounts, see Auth
@@ -80,7 +86,10 @@ share_events
   id, share_id, event, created_at     -- event: opened
 
 sync_runs
-  id, started_at, finished_at, stats_json, error
+  id, matter_id, started_at, finished_at, stats_json, error
+
+digest_runs                           -- same shape, so the UI can flag a failed digest
+  id, matter_id, started_at, finished_at, stats_json, error
 
 oauth_tokens
   id, access_token, refresh_token, expires_at
@@ -93,7 +102,7 @@ How features fall out of the schema:
 - What changed: facts whose source has `clio_created_at` or `clio_updated_at` later than `views.last_opened_at`
 - Has anyone opened it: `share_events`
 - Adjust before sending: `shares.settings_json` and `hidden_fact_ids_json`
-- Cost per case: sum of `llm_calls.cost_usd` where `cache_hit` is false
+- Cost per case: sum of `llm_calls.cost_micro_usd` for the matter where `cache_hit` is false
 
 ## Fact kinds
 

@@ -40,11 +40,13 @@ To change a contract file after M0:
 **Snapshots.** Only Track A needs Clio and model credentials. At each sync point, A zips `data/` and passes it to B and C directly (AirDrop, USB, or a private share). B and C unzip it over their `data/` directory. This keeps everyone on identical facts and avoids paying for the digest three times.
 
 ```bash
-# Track A
-cd backend && zip -r ../data-snapshot.zip data
-# Tracks B and C
-cd backend && rm -rf data && unzip ../data-snapshot.zip
+# Track A, from the repository root
+zip -r data-snapshot.zip data
+# Tracks B and C, from the repository root, with the API server stopped
+rm -rf data && unzip data-snapshot.zip
 ```
+
+`data/` sits at the repository root (`DATA_DIR` in `.env`), and stored file and page paths are relative to it, so the snapshot unpacks anywhere.
 
 The snapshot contains a real person's medical and legal records. Never commit it, never put it behind a public link, and delete the copies after the event.
 
