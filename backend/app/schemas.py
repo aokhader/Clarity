@@ -272,6 +272,23 @@ class PageRef(BaseModel):
     image_url: str
 
 
+class SourceFieldOut(BaseModel):
+    """One labelled value of a structured record. Exactly one of the values is set."""
+
+    label: str
+    value: str | None = None
+    on: date | None = None
+    amount_cents: int | None = None
+
+
+class SourceSectionOut(BaseModel):
+    """A titled part of a structured record: labelled fields, free text, or both."""
+
+    heading: str
+    fields: list[SourceFieldOut] = []
+    text: str | None = None
+
+
 class SourceOut(BaseModel):
     source_id: int
     source_type: SourceType
@@ -280,6 +297,8 @@ class SourceOut(BaseModel):
     author: str | None  # note author or email sender
     text: str | None  # full text for notes and emails, None for documents
     pages: list[PageRef]  # every page of a document, in order; empty otherwise
+    # Matters and tasks, laid out by aspect for reading; empty for every other source.
+    sections: list[SourceSectionOut] = []
 
 
 class FactSourceOut(BaseModel):

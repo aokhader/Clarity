@@ -21,6 +21,7 @@ class Url(BaseModel):
 
 class CustomFieldValue(BaseModel):
     field_name: str | None = None
+    field_type: str | None = None  # Clio's type, such as "currency", "date", "checkbox"
     value: str | int | float | bool | None = None
 
 
@@ -29,8 +30,10 @@ class RawMatter(BaseModel):
     description: str | None = None
     status: str | None = None
     open_date: dt.date | None = None
+    close_date: dt.date | None = None
     client: Named | None = None
     responsible_attorney: Named | None = None
+    practice_area: Named | None = None
     matter_stage: Named | None = None
     custom_field_values: list[CustomFieldValue] = []
 
@@ -57,7 +60,11 @@ class RawCommunication(BaseModel):
 class RawTask(BaseModel):
     name: str | None = None
     description: str | None = None
+    status: str | None = None
+    priority: str | None = None
     due_at: dt.datetime | dt.date | None = None
+    completed_at: dt.datetime | dt.date | None = None
+    statute_of_limitations: bool | None = None
     assignee: Named | None = None
 
 

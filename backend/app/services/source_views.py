@@ -1,6 +1,7 @@
 """The source drawer: a fact's source record made readable, and rendered page images."""
 
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import NamedTuple
 
@@ -9,8 +10,16 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import Fact, Page, Source, SourceType
-from app.schemas import PAYLOAD_BY_KIND, FactSourceOut, PageRef, SourceOut
+from app.schemas import (
+    PAYLOAD_BY_KIND,
+    FactSourceOut,
+    PageRef,
+    SourceFieldOut,
+    SourceOut,
+    SourceSectionOut,
+)
 from app.services.clio_records import (
+    CustomFieldValue,
     Named,
     RawActivity,
     RawCalendarEntry,
@@ -38,6 +47,7 @@ class _Readable(NamedTuple):
     occurred_on: date | None
     author: str | None
     text: str | None
+    sections: tuple[SourceSectionOut, ...] = ()
 
 
 def _day(value: datetime | date | None) -> date | None:
@@ -52,6 +62,59 @@ def _lines(*parts: str | None) -> str | None:
     return "\n".join(p for p in parts if p) or None
 
 
+def _words(code: str | None) -> str | None:
+    """A Clio code such as "in_progress", as words."""
+    return code.replace("_", " ").capitalize() if code else None
+
+
+def _field(label: str, value: str | float | bool | None) -> SourceFieldOut | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return SourceFieldOut(label=label, value="Yes" if value else "No")
+    if isinstance(value, float) and value.is_integer():
+        return SourceFieldOut(label=label, value=str(int(value)))
+    return SourceFieldOut(label=label, value=str(value))
+
+
+def _custom_field(field: CustomFieldValue) -> SourceFieldOut | None:
+    """A custom field by its Clio type, so money and dates reach the page as values."""
+    label, value = field.field_name or "", field.value
+    if value is None or value == "" or isinstance(value, bool):
+        return _field(label, value)
+    if field.field_type == "currency":
+        # Through the string, so a float such as 0.1 does not become 0.1000000000000000055.
+        try:
+            cents = Decimal(str(value)) * 100
+        except InvalidOperation:
+            return _field(label, value)
+        return SourceFieldOut(label=label, amount_cents=int(cents.to_integral_value()))
+    if field.field_type == "date" and isinstance(value, str):
+        try:
+            return SourceFieldOut(label=label, on=date.fromisoformat(value[:10]))
+        except ValueError:
+            pass
+    return _field(label, value)
+
+
+def _date_field(label: str, value: datetime | date | None) -> SourceFieldOut | None:
+    day = _day(value)
+    return SourceFieldOut(label=label, on=day) if day else None
+
+
+def _section(
+    heading: str, *fields: SourceFieldOut | None, text: str | None = None
+) -> SourceSectionOut | None:
+    present = [f for f in fields if f is not None]
+    if not present and not text:
+        return None
+    return SourceSectionOut(heading=heading, fields=present, text=text)
+
+
+def _sections(*sections: SourceSectionOut | None) -> tuple[SourceSectionOut, ...]:
+    return tuple(s for s in sections if s is not None)
+
+
 def _matter(raw: RawMatter) -> _Readable:
     # Custom-field facts quote the field's value, so list every field as "name: value".
     fields = [f"{v.field_name}: {v.value}" for v in raw.custom_field_values]
@@ -62,7 +125,43 @@ def _matter(raw: RawMatter) -> _Readable:
         f"Status: {raw.status}" if raw.status else None,
         *fields,
     )
-    return _Readable(raw.display_number, raw.open_date, None, text)
+    sections = _sections(
+        _section("Summary", text=raw.description),
+        _section(
+            "Matter",
+            _field("Client", _name(raw.client)),
+            _field("Practice area", _name(raw.practice_area)),
+            _field("Stage", stage),
+            _field("Status", raw.status),
+            _field("Responsible attorney", _name(raw.responsible_attorney)),
+            _date_field("Opened", raw.open_date),
+            _date_field("Closed", raw.close_date),
+        ),
+        _section(
+            "Case fields",
+            *(_custom_field(v) for v in raw.custom_field_values if v.field_name),
+        ),
+    )
+    return _Readable(raw.display_number, raw.open_date, None, text, sections)
+
+
+def _task(task: RawTask) -> _Readable:
+    sections = _sections(
+        _section(
+            "Task",
+            _field("Status", _words(task.status)),
+            _field("Priority", _words(task.priority)),
+            _date_field("Due", task.due_at),
+            _date_field("Completed", task.completed_at),
+            _field("Assigned to", _name(task.assignee)),
+            _field(
+                "Statute of limitations", True if task.statute_of_limitations else None
+            ),
+        ),
+        _section("Description", text=task.description),
+    )
+    text = _lines(task.name, task.description)
+    return _Readable(task.name, _day(task.due_at), _name(task.assignee), text, sections)
 
 
 def _readable(source: Source) -> _Readable:
@@ -78,9 +177,7 @@ def _readable(source: Source) -> _Readable:
             sender = email.senders[0].name if email.senders else None
             return _Readable(email.subject, email.date, sender, email.body)
         case SourceType.TASK:
-            task = RawTask.model_validate(raw)
-            text = _lines(task.name, task.description)
-            return _Readable(task.name, _day(task.due_at), _name(task.assignee), text)
+            return _task(RawTask.model_validate(raw))
         case SourceType.CALENDAR_ENTRY:
             entry = RawCalendarEntry.model_validate(raw)
             text = _lines(entry.summary, entry.location, entry.description)
@@ -125,6 +222,7 @@ def source_out(session: Session, source: Source) -> SourceOut:
         author=readable.author,
         text=readable.text,
         pages=pages,
+        sections=list(readable.sections),
     )
 
 

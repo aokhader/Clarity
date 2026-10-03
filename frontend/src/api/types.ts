@@ -197,6 +197,21 @@ export type PageRef = {
   image_url: string
 }
 
+/** One labelled value of a structured record. Exactly one of the values is set. */
+export type SourceFieldOut = {
+  label: string
+  value: string | null
+  on: IsoDate | null
+  amount_cents: number | null
+}
+
+/** A titled part of a structured record: labelled fields, free text, or both. */
+export type SourceSectionOut = {
+  heading: string
+  fields: SourceFieldOut[]
+  text: string | null
+}
+
 export type SourceOut = {
   source_id: number
   source_type: SourceType
@@ -205,6 +220,8 @@ export type SourceOut = {
   author: string | null
   text: string | null
   pages: PageRef[]
+  /** Matters and tasks, laid out by aspect for reading; empty for every other source. */
+  sections: SourceSectionOut[]
 }
 
 export type FactSourceOut = {

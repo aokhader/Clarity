@@ -1,6 +1,7 @@
 import type { SourceOut } from '@/api/types'
 import { DocumentPages } from '@/components/firm/DocumentPages'
 import { HighlightedText } from '@/components/firm/HighlightedText'
+import { SourceSections } from '@/components/firm/SourceSections'
 import { formatDate } from '@/lib/format'
 import { SOURCE_LABELS } from '@/lib/labels'
 
@@ -24,6 +25,8 @@ export function SourceBody({ source, quote, citedPageNo }: SourceBodyProps) {
       <div className="mt-3">
         {source.pages.length > 0 ? (
           <DocumentPages pages={source.pages} citedPageNo={citedPageNo} quote={quote} />
+        ) : source.sections.length > 0 ? (
+          <SourceSections sections={source.sections} title={source.title} quote={quote} />
         ) : source.text ? (
           <HighlightedText text={source.text} quote={quote} />
         ) : (
