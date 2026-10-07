@@ -2,6 +2,140 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 2, 2026-10-07 01:54 PDT
+
+This pass used the real matter through the running API (port 8000), with `data/app.db` opened read-only and the committed code from `9c05e39` to `c18388b`. There was no browser. To test the draft checker, I sent invented drafts to `POST /api/matters/{id}/shares/draft-check` for the chiropractic provider's link, first with default settings and then with every setting on. The figures in those drafts were read from `GET /api/matters/{id}` when each test ran; none is written here. No share was created. As a control, I rebuilt the update the app writes itself (`providerUpdateText.ts`) for all ten providers, with default settings and with every setting on, and checked it. All 20 came back `supported`, with no lock and no false flag.
+
+### Findings
+
+1. **Regression: the Case value tile now leads with the recovery cap, and its basis line describes the defendant's policy limit.**
+   - Where: Case value tile; `backend/app/services/kpis.py:94-121` (`_case_value`), with `_grouped` at `:63`.
+   - Saw: the tile has four values, each from a single record. In order: the recovery-cap note (fact 308); "At least" the valuation (fact 200); "At least" the economic-damages total (fact 515); and the valuation as a point value (fact 55, the Clio field). It also shows "Sources disagree". With one record each, the tie is broken by significance, and fact 308 scores highest, so the first figure is the defendant's per-person limit. At Pass 1, `049da3d` had merged facts 200 and 55, so the valuation led with two records. `ae9f3e7` split them, which was right, but the valuation lost its lead.
+   - Expected: the valuation leads. "At least X" and "X" agree, so they should count together when the tile ranks its values. D20's re-extract will take facts 308 and 515 off this tile, but until it runs, demo moment 2 opens on a coverage cap labelled "Case value".
+   - Owner: backend (ranking); pipeline and Manager (D20 re-extract and its cost).
+
+2. **The draft checker misses an internal figure written without a currency marker, rounded, or split.**
+   - Where: `backend/app/services/text_mentions.py:88-127` (the amount patterns); `services/share_values.py:59-67` (`withheld_values`); the UI line "No amounts or dates to check" (`frontend/src/components/share/DraftCheckView.tsx:18`).
+   - Saw: I tested the case value, the defendant's limit and the specials total. The checker locks every exact form:
+     - with or without commas, or with cents
+     - in quotes or in parentheses
+     - "$Xk" within $500 of the figure, and "$X thousand"
+     - "X dollars", "USD X", and the figure in words followed by "dollars"
+     - two-decimal millions
+   - Saw: these pass as `unchecked`. The UI then says there is nothing to check, and Send stays enabled:
+     - bare digits, "Xk", "X grand", "X bucks"
+     - the figure in words without "dollars"
+     - "X USD", "X$", or a full-width dollar sign
+   - Saw: these pass as `not_in_file`, and Send stays enabled:
+     - the figure rounded to $10k, or a range around it
+     - the figure split into two amounts across two sentences
+     - thin-space or dot thousands separators
+     - "$X grand", which is read as $X
+     - three-decimal millions: "$2.125 million" is read as $2
+   - Saw: the Firm spend tile's figure passes as `not_in_file`. It is a sum of five internal expenses and is held in no single fact, so it is never a withheld value. A sentence that discloses an internal fact with no figure in it (the settlement plan, a defense exam finding, the client's inconsistent accounts) is `unchecked`, by design (D17).
+   - Expected:
+     - bare numbers of four or more digits, and "k", "grand", "bucks" and a trailing "USD", read as amounts
+     - three decimals parsed correctly
+     - computed internal totals among the withheld values
+     - a figure within about 10% of a withheld amount flagged (see Needs decision)
+     - wording for `unchecked` that does not read as an all-clear, such as "No amounts or dates found. The lock checks figures only."
+   - Owner: backend; ui-builder (wording).
+
+3. **False locks on ordinary dates and on $0.**
+   - Where: `services/share_values.py:59-92`; `services/draft_check.py:147-155`.
+   - Saw:
+     - The incident date, in any full form, is locked with "Kept internal: never shared with providers". Every treating provider has the date of injury on its own intake and bills, so "since the accident on <date>" is the first sentence an attorney writes.
+     - A month and year ("we expect to hear back in <month year>") is locked whenever some internal fact is dated in that month and the link shows nothing then. 41 of the 43 months in the case's span hold a dated fact.
+     - A proposed follow-up day is locked when it falls on an internal calendar entry. That happened for 4 of the 6 days I tried in the next three weeks.
+     - "$0" is locked as "about another provider", because another provider has a no-charge line.
+   - Expected: the incident date is not locked (see Needs decision). A month written as a month, or a day that only coincides with a task or calendar entry, gets a warning, not the lock. $0 never locks.
+   - Owner: backend; Manager for the incident date.
+
+4. **The provider is told that the case last moved more than three years ago.** (`b12930b` changed this; it is still wrong.)
+   - Where: the provider page's status tracker, and the generated update's "last movement"; `services/provider_view.py:106-118`.
+   - Saw: for every provider, `last_movement_on` is the "File opened" status change, because it is the only dated one. The later stage changes (the renewal and discovery) have no date. The case is in active litigation, yet a provider treating on lien reads that nothing has happened since intake. At Pass 1 the error ran the other way: five days ago, taken from the Clio edit date.
+   - Expected: when the latest status change has no date, leave "last movement" out rather than dating it from an older event.
+   - Owner: backend.
+
+5. **The "Don't send" lock on a share's note exists only in the browser.**
+   - Where: `services/shares.py:116` (create) and `:165-166` (update); `provider_view.py:245`; `ShareComposerForm.tsx:179`.
+   - Saw: the composer disables "Create link" while the note is locked. But `POST /api/matters/{id}/shares` and `PATCH /api/shares/{id}` store any note unchecked, and the provider's payload serves it. Changing the settings later never rechecks a stored note. A screener with curl will find this.
+   - Expected: the API refuses a note whose check is `do_not_send`, on create and on any update to the note or the settings. Rule 4: the boundary is enforced in the API.
+   - Owner: backend. The lead confirms, since it changes what the share routes accept.
+
+6. **Amounts and dates from call notes never reach the draft checker.**
+   - Where: `services/known_values.py:15` and `:41-49`, against `CallNotePayload.amounts_cents` and `.dates` (`d6a0330`).
+   - Saw: `fact_values` reads only the integer `amount_cents`, `balance_cents`, `low_cents` and `high_cents`, plus a single `on` or `due_at`. A call note keeps its figures in lists, so a figure the firm heard only on a call is neither locked nor supported. It reads "not in the file".
+   - Expected: call-note figures are among the withheld values. `call_note` is already internal by default-deny.
+   - Owner: backend.
+
+7. **The brief still shows a figure that no fact holds. The fix waits on the re-digest.**
+   - Where: the brief's fourth sentence; `GET /api/matters/{id}/brief` (generated Oct 2).
+   - Saw: D12 now marks the stale bills total "differs", with today's total and its chips (Pass 1 #1, mitigated). The same sentence has a second figure that no fact holds, marked `not_in_file` and with no source. It equals the economic-damages total minus the specials, so the model computed it. The exam date in sentence three is marked "differs" against the later exam (Pass 1 #3, mitigated). The headline still has no chip of its own (D14), though its one amount is matched to facts. The open question that asks for the incident date (Pass 1 #6) is still there. Three of the eight sentences carry a mark.
+   - Expected: after D13, every figure in a sentence is held by a fact that sentence cites.
+   - Owner: Manager (D13 go-ahead), pipeline.
+
+8. **The consent wording leaves out the notes model, and a call does not record who confirmed consent.**
+   - Where: `frontend/src/lib/callConsent.ts:7-10`; `backend/app/api/calls.py:48-62`; the `Call` model (it has no user column).
+   - Saw: the wording read to the other party names Google's speech service only, but the transcript then goes to the configured model provider for notes. It also says "only my side is transcribed", which is not true on a speakerphone. The client sends the firm user with the start request, the server drops it, and the stored consent has no attesting attorney.
+   - Expected: wording that names both processors, and the attesting user stored with the call.
+   - Owner: ui-builder (wording, with the researcher's brief); backend (the user column).
+   - What holds:
+     - Consent comes before transcription. `speech.start()` runs only in the start request's `onSuccess`, after the server has stored the consent (`ActiveCall.tsx:88-95`). Resume appears only once a call exists.
+     - No transcript reaches a provider. `call_note` is in no share setting, so `released_facts` never selects it. The provider routes are still only the three GETs.
+     - Each note renders with its chip, and backend checks the quote's span again before storing it.
+
+9. **The provider's "shared on" and "expires" dates are UTC days.**
+   - Where: `provider_view.py:243-244`.
+   - Saw: `share.created_at.date()` is taken on a UTC timestamp. A link created after 5 pm Pacific reads as shared tomorrow, and the draft checker's "date this link was shared" follows it.
+   - Expected: the firm's local day.
+   - Owner: backend.
+
+10. **Minor.**
+    - Call notes (`digest/call_notes.py:166-172`): a note's amount is accepted if it lies within the tolerance of either figure. "$1m" carries a $500k tolerance, so a note reading "$1m" passes against a quote of "$600,000". The stored amount is the quote's, but the note text on screen misstates it. Owner: pipeline.
+    - The feed still lists one fact twice: the same shoulder-surgery recommendation, from two providers' records. Owner: backend.
+    - Process (D23): `0100241` made `billed_cents` nullable in `types.ts` without fixing `ProviderRow.tsx`. The frontend typecheck was red at that commit until `8acfddd`.
+
+### Pass 1, rechecked at HEAD
+
+- **Regressed:** #5 (Case value), now finding 1 above.
+- **Fixed on screen:**
+  - #2: the basis line reads "The first figure is the sum of 175 bills", and the tile warns only when the server says the sources disagree (`8acfddd`). Fact 201 stays until D20.
+  - #7: the header chip is the Clio date-of-incident field.
+  - #9: one repeat is left (finding 10).
+  - #13: the drawer says "Uploaded". The document's own date needs a re-sync for `received_at`.
+  - #15: "No bills on file", from `0100241` and `8acfddd`.
+- **Marked on screen; the fix waits on the re-digest (D13):** #1 and #3.
+- **Code fixed; the data waits on the re-digest:** #10 (the radiology bill still reads "DEMO"); #16, the stage label's trailing space; #16, the mixed date formats in the brief; and #6, the open question, which is in the brief's input.
+- **Still open in code:**
+  - #12, now finding 4.
+  - #16: the provider's "File opened" date is still two days from the header's opened date.
+- **#16 on the coverage limits:** each limit now appears once on the provider page. The client's own policies still read as plain "Policy limit" until D19's re-read.
+- **Outside the requested list:**
+  - #4 waits on the D19 re-read (no fact has `policy` yet).
+  - #8 is partly fixed: each provider shows at most one open request, but "Waiting on others" lists 45 items, 26 of them undated and 11 from the case's first two years.
+  - #11 is still missing on disk (page images return 404).
+  - #14 is unchanged.
+
+### Rules that never bend
+
+- **Read-only Clio:** `check.sh` passes (8 tests). Calls writes only its own tables. `aeb9819` adds one field to a GET.
+- **No case literals:** `check.sh` passes (4 tests). The new prompt (`call_notes.txt`) is generic. A scan of the trial's diff for names, phone numbers and statute references found none.
+- **Every fact sourced:** each call note has a call source, a quote and offsets. The gaps are the brief's computed figure and the headline's missing chip (finding 7).
+- **Provider boundary:** no provider route exposes draft-check: `POST /api/p/{token}/draft-check` returns 404, and the OpenAPI lists three provider GETs. D17's fact refs appear only on the two firm routes. The share note is the exception (finding 5).
+- **No model on page load:** holds. The only model call is the notes thread, which `POST /calls/{id}/end` starts. No GET reaches `llm`.
+
+### check.sh
+
+At `d6a0330`, with backend's uncommitted files in the tree: lint ok, Clio read-only ok (8), no case data ok (4), nothing private ok (4), backend tests ok (246), frontend types ok, other Node tests SKIPPED (none found). No step failed, so there was nothing to attribute to uncommitted work.
+
+### Needs decision (for the lead)
+
+1. **The incident date on a provider's link.** Should a draft that states it count as supported for every provider, without adding it to the payload? Recommendation: yes. Providers already have it, and locking it is the first false lock an attorney meets.
+2. **Figures near an internal amount.** Options: (a) lock any amount within 10% of a withheld amount; (b) flag it "close to an internal figure" without locking. Recommendation: (b), plus reading unmarked numbers of four or more digits as amounts.
+3. **Dates that only coincide.** Should task and calendar dates, and month-only mentions, lock a sentence, or only warn? Recommendation: lock the dates of deadlines, demands and offers; warn for the rest.
+4. **Finding 5** changes what the share routes accept (a 422 for a locked note), so it needs the lead's yes before backend starts.
+
 ## Pass 1, 2026-10-07 00:52 PDT
 
 Run on the real matter through the running API (port 8000), with `data/app.db` opened read-only and the code at `9c05e39`. No browser. Every firm endpoint answered in 0.2 to 0.35 s, with no model configured, so rule 5 holds. Traced by hand: the four KPI tiles, the provider bill totals of the chiropractic, surgical-facility and radiology providers, every amount and date in the brief, and the header's incident date.
