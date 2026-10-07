@@ -573,6 +573,65 @@ class ProviderSourceOut(BaseModel):
     page: PageRef | None
 
 
+# --- API: the draft checker ---------------------------------------------------------
+
+# supported: the link already shows it. differs: the file has another value for the
+# same subject. not_in_file: nothing in the file states it. do_not_send: only facts
+# this link withholds state it.
+MentionVerdict = Literal["supported", "differs", "not_in_file", "do_not_send"]
+# A sentence takes its worst mention's verdict; with no amount or date it is unchecked.
+SentenceVerdict = Literal[
+    "supported", "differs", "not_in_file", "do_not_send", "unchecked"
+]
+
+
+class DraftCheckIn(BaseModel):
+    """Text a firm user means to send to a provider: an update, or the share's note."""
+
+    text: str
+
+
+class DraftShareCheckIn(BaseModel):
+    """The same, before the link exists: checked against what it would release."""
+
+    share: ShareCreate
+    text: str
+
+
+class DraftMentionOut(BaseModel):
+    """One amount or date in the text, with its verdict.
+
+    Offsets count UTF-16 code units, as JavaScript strings do, so the UI can slice the
+    text it sent. `facts` cites the facts that state the value (supported) or the file's
+    value (differs). A do_not_send mention carries no facts and no file value: the
+    reason names the rule that withholds it, never what it matched.
+    """
+
+    start: int
+    end: int
+    text: str
+    kind: Literal["amount", "date"]
+    verdict: MentionVerdict
+    reason: str
+    facts: list[FactRef]
+    file_amount_cents: int | None  # differs only
+    file_date: date | None  # differs only
+
+
+class DraftSentenceOut(BaseModel):
+    start: int
+    end: int
+    text: str
+    verdict: SentenceVerdict
+    mentions: list[DraftMentionOut]
+
+
+class DraftCheckOut(BaseModel):
+    # The worst verdict of any sentence; unchecked when nothing could be checked.
+    verdict: SentenceVerdict
+    sentences: list[DraftSentenceOut]
+
+
 # --- API: ops ------------------------------------------------------------------------
 
 

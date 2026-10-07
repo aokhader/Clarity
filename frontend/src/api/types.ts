@@ -470,6 +470,60 @@ export type ProviderSourceOut = {
   page: PageRef | null
 }
 
+// --- Draft checker ---------------------------------------------------------------------
+
+/**
+ * supported: the link already shows it. differs: the file has another value for the same
+ * subject. not_in_file: nothing in the file states it. do_not_send: only facts this link
+ * withholds state it.
+ */
+export type MentionVerdict = 'supported' | 'differs' | 'not_in_file' | 'do_not_send'
+/** A sentence takes its worst mention's verdict; with no amount or date it is unchecked. */
+export type SentenceVerdict = MentionVerdict | 'unchecked'
+
+/** Text a firm user means to send to a provider: an update, or the share's note. */
+export type DraftCheckIn = {
+  text: string
+}
+
+/** The same, before the link exists: checked against what it would release. */
+export type DraftShareCheckIn = {
+  share: ShareCreate
+  text: string
+}
+
+/**
+ * One amount or date in the text. Offsets count UTF-16 code units, so `text.slice(start, end)`
+ * is the mention. A do_not_send mention carries no facts and no file value.
+ */
+export type DraftMentionOut = {
+  start: number
+  end: number
+  text: string
+  kind: 'amount' | 'date'
+  verdict: MentionVerdict
+  reason: string
+  facts: FactRef[]
+  /** differs only */
+  file_amount_cents: number | null
+  /** differs only */
+  file_date: IsoDate | null
+}
+
+export type DraftSentenceOut = {
+  start: number
+  end: number
+  text: string
+  verdict: SentenceVerdict
+  mentions: DraftMentionOut[]
+}
+
+export type DraftCheckOut = {
+  /** The worst verdict of any sentence; unchecked when nothing could be checked. */
+  verdict: SentenceVerdict
+  sentences: DraftSentenceOut[]
+}
+
 // --- Ops -------------------------------------------------------------------------------
 
 export type HealthOut = {

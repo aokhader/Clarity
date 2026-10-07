@@ -9,13 +9,22 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from app.db import SessionDep
 from app.models import Share, User
 from app.schemas import (
+    DraftCheckIn,
+    DraftCheckOut,
+    DraftShareCheckIn,
     ProviderOut,
     ShareCreate,
     ShareOut,
     SharePreviewOut,
     ShareUpdate,
 )
-from app.services import matter_queries, provider_view, providers, shares
+from app.services import (
+    draft_check,
+    matter_queries,
+    provider_view,
+    providers,
+    shares,
+)
 
 router = APIRouter(prefix="/api", tags=["shares"])
 
@@ -90,6 +99,32 @@ def preview_share(share: ExistingShare, session: SessionDep) -> SharePreviewOut:
         return provider_view.share_preview(session, share, datetime.now(UTC))
     except provider_view.ShareGone as error:
         raise HTTPException(status_code=410, detail=str(error)) from error
+
+
+@router.post("/shares/{share_id}/draft-check")
+def check_share_draft(
+    share: ExistingShare, body: DraftCheckIn, session: SessionDep
+) -> DraftCheckOut:
+    """Each sentence's amounts and dates against what this link shows and withholds."""
+    try:
+        return draft_check.check_share_draft(
+            session, share, body.text, datetime.now(UTC)
+        )
+    except provider_view.ShareGone as error:
+        raise HTTPException(status_code=410, detail=str(error)) from error
+
+
+@router.post("/matters/{matter_id}/shares/draft-check")
+def check_draft_share_draft(
+    matter_id: MatterId, body: DraftShareCheckIn, session: SessionDep
+) -> DraftCheckOut:
+    """The same check before the link exists, against what it would release."""
+    now = datetime.now(UTC)
+    try:
+        draft = shares.draft_share(session, matter_id, body.share, now)
+    except shares.NotAProvider as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return draft_check.check_share_draft(session, draft, body.text, now)
 
 
 @router.patch("/shares/{share_id}")
