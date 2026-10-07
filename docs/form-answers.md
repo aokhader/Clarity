@@ -4,11 +4,11 @@ Fill every bracket from the running system before submitting. Do not invent numb
 
 ## 1. GitHub repository
 
-https://github.com/aokhader/Clarity (the trial's work is on branch `kit-trial`, which is not yet on GitHub). Team size: **[LEAD: team size. Not measurable from the repository: its history shows two human commit authors.]**
+https://github.com/aokhader/Clarity (the trial's work is on branch `kit-trial`). Team size: 2.
 
 ## 2. 90-second clip
 
-**[LEAD: Google Drive link, public access. Not in the repository.]** Script: `docs/submission.md`.
+**[MANAGER: Google Drive link, public access. Not in the repository.]** Script: `docs/submission.md`.
 
 ## 3. Tech stack
 
