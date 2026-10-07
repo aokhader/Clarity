@@ -4,6 +4,10 @@ Every call is keyed by model, prompt name and version, output schema, and input 
 A key seen before is answered from `llm_calls` with no request. Every call, hit or miss,
 writes an `llm_calls` row, which is where the cost-per-case figure comes from.
 
+A key whose last call failed is answered with that failure, not sent again, so a second
+digest over unchanged inputs costs nothing. The failure stays counted on every run
+until `retrying_failed_calls` (`cli digest --retry-failed`) asks the model again.
+
 Database work stays on the calling thread. Only the HTTP requests run concurrently.
 """
 
@@ -12,7 +16,10 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import lru_cache
@@ -30,6 +37,7 @@ from app.models import LlmCall
 log = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
+_retry_failed: ContextVar[bool] = ContextVar("retry_failed", default=False)
 ANTHROPIC_VERSION = "2023-06-01"
 TOOL_NAME = "record_output"
 TOOL_INSTRUCTION = (
@@ -133,8 +141,8 @@ def run_batch(session: Session, requests: list[ModelRequest]) -> list[BaseModel 
     results: list[BaseModel | None] = [None] * len(requests)
     misses: list[int] = []
     for index, request in enumerate(requests):
-        cached = _lookup(session, request)
-        if cached is not None:
+        found, cached = _lookup(session, request)
+        if found:
             results[index] = cached
         else:
             misses.append(index)
@@ -152,31 +160,63 @@ def call(session: Session, request: ModelRequest) -> BaseModel | None:
     return run_batch(session, [request])[0]
 
 
-def _lookup(session: Session, request: ModelRequest) -> BaseModel | None:
+@contextmanager
+def retrying_failed_calls() -> Iterator[None]:
+    """Within the block, a request whose last call failed goes to the model again."""
+    token = _retry_failed.set(True)
+    try:
+        yield
+    finally:
+        _retry_failed.reset(token)
+
+
+def _lookup(session: Session, request: ModelRequest) -> tuple[bool, BaseModel | None]:
+    """(found, result) from earlier calls. A cached failure is found, with no result."""
     key = request.cache_key
     hit = session.scalars(
         select(LlmCall)
         .where(LlmCall.cache_key == key, LlmCall.response_json.is_not(None))
         .order_by(LlmCall.id.desc())
     ).first()
-    if hit is None or hit.response_json is None:
-        return None
-    try:
-        parsed = request.output.model_validate(hit.response_json)
-    except ValidationError:
-        return None
+    if hit is not None and hit.response_json is not None:
+        try:
+            parsed = request.output.model_validate(hit.response_json)
+        except ValidationError:
+            return False, None
+        _record_hit(session, request, hit.model, None)
+        return True, parsed
+    if _retry_failed.get():
+        return False, None
+    failed = session.scalars(
+        select(LlmCall)
+        .where(
+            LlmCall.cache_key == key,
+            LlmCall.cache_hit.is_(False),
+            LlmCall.error.is_not(None),
+        )
+        .order_by(LlmCall.id.desc())
+    ).first()
+    if failed is None:
+        return False, None
+    _record_hit(session, request, failed.model, f"earlier call failed: {failed.error}")
+    return True, None
+
+
+def _record_hit(
+    session: Session, request: ModelRequest, model: str, error: str | None
+) -> None:
     session.add(
         LlmCall(
             matter_id=request.matter_id,
             purpose=request.purpose,
-            model=hit.model,
-            cache_key=key,
+            model=model,
+            cache_key=request.cache_key,
             cache_hit=True,
             source_id=request.source_id,
             page_no=request.page_no,
+            error=error[:2000] if error else None,
         )
     )
-    return parsed
 
 
 def _record(

@@ -29,6 +29,8 @@ SCORE_BATCH = 50
 BRIEF_FACT_LIMIT = 40
 # 0 means "not scored yet", so a scored fact is stored with at least 1.
 MIN_SCORED = 1
+# A fact the model leaves out of an answered batch is asked about once more.
+SCORE_PASSES = 2
 DEDUP_KINDS = {
     FactKind.INJURY,
     FactKind.DIAGNOSIS,
@@ -79,7 +81,7 @@ class Brief(BaseModel):
 def merge(session: Session, matter_id: int) -> Counter[str]:
     counts: Counter[str] = Counter()
     counts["deduplicated"] = deduplicate(session, matter_id)
-    counts["scored"] = score(session, matter_id)
+    counts.update(score(session, matter_id))
     counts["cross_check_disagreements"] = cross_check(session, matter_id)
     counts["brief"] = int(write_brief(session, matter_id))
     session.commit()
@@ -133,8 +135,32 @@ def deduplicate(session: Session, matter_id: int) -> int:
     return removed
 
 
-def score(session: Session, matter_id: int) -> int:
-    unscored = [f for f in _facts(session, matter_id) if f.significance == 0]
+def score(session: Session, matter_id: int) -> Counter[str]:
+    """Score every unscored fact, in batches.
+
+    A fact the model leaves out of a batch it answered is asked about again in a
+    smaller batch. Left out twice, it gets the lowest score and is counted, so later
+    digests do not ask about it again. A batch whose call failed stays unscored; its
+    failure is cached and the run reports it.
+    """
+    counts: Counter[str] = Counter()
+    pending = [f for f in _facts(session, matter_id) if f.significance == 0]
+    for _attempt in range(SCORE_PASSES):
+        if not pending:
+            break
+        scored, pending = _score_batches(session, matter_id, pending)
+        counts["scored"] += scored
+    for fact in pending:
+        fact.significance = MIN_SCORED
+    counts["score_dropped"] = len(pending)
+    session.flush()
+    return counts
+
+
+def _score_batches(
+    session: Session, matter_id: int, unscored: list[Fact]
+) -> tuple[int, list[Fact]]:
+    """Score in batches; return the count and the facts answered batches left out."""
     requests = []
     batches = [
         unscored[i : i + SCORE_BATCH] for i in range(0, len(unscored), SCORE_BATCH)
@@ -161,6 +187,7 @@ def score(session: Session, matter_id: int) -> int:
             )
         )
     scored = 0
+    left_out: list[Fact] = []
     for batch, result in zip(batches, llm.run_batch(session, requests), strict=True):
         if not isinstance(result, Scores):
             continue
@@ -168,13 +195,13 @@ def score(session: Session, matter_id: int) -> int:
         for fact in batch:
             entry = by_id.get(fact.id)
             if entry is None:
+                left_out.append(fact)
                 continue
             fact.significance = max(entry.significance, MIN_SCORED)
             if fact.kind is FactKind.TASK and entry.waiting_on:
                 fact.value_json = {**fact.value_json, "waiting_on": entry.waiting_on}
             scored += 1
-    session.flush()
-    return scored
+    return scored, left_out
 
 
 def key_figures(session: Session, matter_id: int) -> dict[str, Any]:

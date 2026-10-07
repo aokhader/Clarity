@@ -111,7 +111,7 @@ def _digest(args: argparse.Namespace) -> int:
         except NoSyncedMatter as error:
             print(str(error), file=sys.stderr)
             return 1
-        run = run_digest(session, matter_id)
+        run = run_digest(session, matter_id, retry_failed=args.retry_failed)
         print(json.dumps(run.stats_json, indent=2))
         if run.error:
             print(f"Digest error: {run.error}", file=sys.stderr)
@@ -159,6 +159,11 @@ def main(argv: list[str] | None = None) -> int:
         "digest", help="pages -> facts -> brief (cached, incremental)"
     )
     digest.add_argument("--matter-id", type=int)
+    digest.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="ask the model again for inputs whose last call failed",
+    )
     digest.set_defaults(run=_digest)
     commands.add_parser(
         "seed-dev", help="load the invented matter for development without Clio"

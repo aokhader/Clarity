@@ -143,8 +143,7 @@ def build_mapping(session: Session, matter_id: int) -> MatterMapping:
     values = custom_values(session, matter_id, matter)
     # A failed call must not wipe what the last good mapping produced: its roles and
     # slots stand in, the facts that need the missing answer are left as they are,
-    # and the run records the error. A failed call is not cached, so the next digest
-    # asks again.
+    # and the run records the error. `cli digest --retry-failed` asks the model again.
     previous = _previous_mapping(session, matter_id)
     errors: list[str] = []
     counts: Counter[str] = Counter()

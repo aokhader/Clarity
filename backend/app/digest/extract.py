@@ -112,7 +112,9 @@ def extract_all(
             replace_facts(session, unit.source, facts, Origin.MODEL, page_no=page_no)
             if unit.page is not None:
                 mark_extracted(unit.page)
-            elif unit.source.clio_type is not SourceType.MATTER:
+            elif unit.source.clio_type is SourceType.MATTER:
+                unit.source.content_hash = unit.request.cache_key
+            else:
                 mark_processed(unit.source)
             counts["facts"] += len(facts)
         _second_reads(session, matter_id, second_reads, counts)
@@ -144,12 +146,16 @@ def _record_units(
         text = record_text(source)
         units.append(_record_unit(source, text, providers, matter_id))
     # The custom fields code cannot read go in as one record, sourced to the matter.
-    # It is not marked processed: the mapping decides its content, and the model
-    # cache makes an unchanged repeat free.
+    # The mapping decides its content, so its marker is the request's cache key. An
+    # unchanged one is not applied again, so dedup's removals among its facts stand.
     if mapping.matter is not None and mapping.extraction_text:
-        units.append(
-            _record_unit(mapping.matter, mapping.extraction_text, providers, matter_id)
+        unit = _record_unit(
+            mapping.matter, mapping.extraction_text, providers, matter_id
         )
+        if mapping.matter.content_hash == unit.request.cache_key:
+            counts["unchanged"] += 1
+        else:
+            units.append(unit)
     return units
 
 
