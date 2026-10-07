@@ -104,8 +104,17 @@ def _status(facts: list[Fact], matter: RawMatter | None) -> ProviderStatusOut:
         current=current,
         active=active,
         last_movement_on=max(
-            (f.event_date for f in facts if f.event_date), default=None
+            (f.event_date for f in facts if f.event_date and _is_case_event(f)),
+            default=None,
         ),
+    )
+
+
+def _is_case_event(fact: Fact) -> bool:
+    """A stage mapped from Clio's matter record is dated by the record's last edit,
+    which is not something that happened in the case."""
+    return not (
+        fact.kind is FactKind.CASE_STAGE and fact.source.clio_type is SourceType.MATTER
     )
 
 
@@ -134,8 +143,14 @@ def _coverage(
     limits = None
     if settings.coverage_limits:
         limits = []
+        listed: set[tuple[int | None, str | None, str | None]] = set()
         for fact in _chronological(by_setting["coverage_limits"]):
             payload = PolicyLimitPayload.model_validate(fact.value_json)
+            # A limit several records restate is one line, citing its first statement.
+            limit = (payload.amount_cents, payload.per, payload.policy)
+            if limit in listed:
+                continue
+            listed.add(limit)
             limits.append(
                 ProviderItemOut(
                     fact_id=fact.id,
