@@ -14,12 +14,18 @@ type SourceBodyProps = {
   citedPageNo: number | null
 }
 
+/**
+ * The source's date as the header shows it. A document carries only the day it was
+ * uploaded to Clio, which can be years after the document was written, so it says so.
+ */
+function dateLabel(source: SourceOut): string | null {
+  if (!source.occurred_on) return null
+  const day = formatDate(source.occurred_on)
+  return source.source_type === 'document' ? `Uploaded ${day}` : day
+}
+
 export function SourceBody({ source, quote, citedPageNo }: SourceBodyProps) {
-  const meta = [
-    SOURCE_LABELS[source.source_type],
-    source.occurred_on ? formatDate(source.occurred_on) : null,
-    source.author,
-  ].filter(Boolean)
+  const meta = [SOURCE_LABELS[source.source_type], dateLabel(source), source.author].filter(Boolean)
   // An email's facts can come from its subject line rather than its body.
   const quotedTitle =
     source.pages.length === 0 &&
