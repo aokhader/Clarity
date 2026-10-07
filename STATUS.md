@@ -4,11 +4,11 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | Workers started: pipeline, backend, ui-builder, researcher; servers up | Critic pass at T+1:00; verify U1 in the browser | | | 00:40 |
-| pipeline | Done: P8 23e23dc, P1 0f0bbf8, P3 b988547; 112 tests pass | Awaiting next item from lead | lead: same ruff src fix as backend; --fix from root would break imports | Manager: re-digest so new prompt versions apply? Costs merge calls | 00:39 |
-| backend | B3 done daff938: contract adds RunStatusOut.start_failure; ui-builder can show it. Now B2 | B2 KPI check, B1 draft checker | lead: add [tool.ruff] src=["."] to backend/pyproject.toml; fixes all 13 I001 | | 00:38 |
+| lead | Verified U1 in the browser; the stored brief states a pre-fix bill total | Critic pass; next worker batches | Manager: re-digest go-ahead | Re-digest; headline citations; a read-time figure check on the brief | 01:20 |
+| pipeline | P2 done 21fa27b. P4: keep mapping facts on a failed mapping call | P5 limit check, P6 zero calls | | Manager: re-digest so new prompt versions apply? Costs merge calls | 00:43 |
+| backend | B2 done 049da3d (KPI tiles); B3 daff938 adds RunStatusOut.start_failure. Now B1 | B1 draft checker | lead: add [tool.ruff] src=["."] to backend/pyproject.toml; fixes all 13 I001 | billed_cents nullable? (provider with no bills shows $0) | 00:43 |
 | ui-builder | U1 done 83ad882; U2: checking drawer, brief, KPIs, injuries on real data | U3 provider page check | | Brief headline has no fact ids, so no chip (rule 3) | 00:35 |
-| researcher | R0 written, docs/briefs/draft-checker.md: unblocks backend B1, ui-builder U4. Now R1 | R1 calls brief | lead: commit briefs, researcher has no shell | | 00:55 |
+| researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | | | | | |
 | reviewer | | | | | |
 

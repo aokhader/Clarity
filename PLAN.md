@@ -18,6 +18,11 @@ Decided (details in DECISIONS.md):
   - Calls comes after the draft checker, and the freeze moves to T+6:00.
   - Workers run as background subagents of the lead.
   - The lead runs the dev servers.
+- **D12 to D15:**
+  - Brief figures are checked when served; a mismatch is marked "differs from the file" and shows today's figure.
+  - One re-digest happens after pipeline's batch, once the Manager fills the model settings in `.env`, with a cost estimate first.
+  - The brief headline cites its facts.
+  - The Calls view accepts a typed number, stored only in Clarity.
 
 Waiting for the Manager: nothing.
 
@@ -62,29 +67,33 @@ Both write the same transcript source, so (B) can later replace (A)'s audio with
 Owner, item, budget. Track A review references are in `docs/progress.md` under "Track A review against the architecture".
 
 **Pipeline** (prefer `/ecc:orch-fix-defect`: failing test first)
-- [ ] P1 `balance_cents` and `high_cents` may be stored 100 times too small: the prompt names them in cents but says only `amount` is in dollars (`digest/prompts/extract_page.txt`, `digest/payloads.py`). 30 min
+- [x] P1 `balance_cents` and `high_cents` may be stored 100 times too small: the prompt names them in cents but says only `amount` is in dollars (`digest/prompts/extract_page.txt`, `digest/payloads.py`). 30 min
 - [ ] P2 A partly failed sync counts as clean, so records missed once are never pulled again; a failed download of an updated document keeps the old file because its new ETag is saved first (`clio/sync.py`). 40 min
-- [ ] P3 A sync stopped by anything but `ClioError` stays unfinished (`clio/sync.py`). Pairs with B3. 20 min
+- [x] P3 A sync stopped by anything but `ClioError` stays unfinished (`clio/sync.py`). Pairs with B3. 20 min
 - [ ] P4 A failed mapping call wipes KPI, stage and ledger facts; pages extracted without providers never get attribution later (`digest/mapping.py`, `digest/extract.py`). 40 min
 - [ ] P5 The policy-limit cross-check is missing: `digest/merge.py` checks specials only. 30 min
 - [ ] P6 A second digest can still call the model (after an errored call, dropped score ids, or a dedup-removed custom-field fact) (`digest/extract.py`). 30 min
-- [ ] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
+- [x] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
+- [ ] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
+- [ ] P10 D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
 - [ ] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
 - [ ] B1 Server side of the new feature (D2), with tests on the real matter. 90 min
 - [ ] B2 Check the four KPI tiles and every provider's bills total against the real matter, with the critic. 20 min
+- [ ] B4 D12 and D14: when the brief is served (`services/brief_view.py`), run each sentence's amounts and dates through the draft checker's matcher against today's facts and computed totals. A sentence that disagrees gets a "differs" mark with today's figure and its fact ref. Check the headline's citations like a sentence's. Additive contract change. 40 min, after B1
 - [ ] B3 Report sync failures that happen before the run row exists (no token, no matching matter) instead of only logging them (`api/ops.py`). Pairs with P3. 20 min
 
 **UI**
-- [ ] U1 D3: restore the brief's sentences with a chip on each. Keep the chip rendering in one place so a later switch to "the section is clickable and opens its documents" is a small change. 40 min
+- [x] U1 D3: restore the brief's sentences with a chip on each. Keep the chip rendering in one place so a later switch to "the section is clickable and opens its documents" is a small change. 40 min
 - [ ] U2 Check the source drawer, brief, KPI strip and injuries list on the real matter and fix what breaks (`docs/tracks/b-firm.md`, B3 and B4). 40 min
 - [ ] U3 Check the provider page on the real matter and fix what breaks (`docs/tracks/c-provider.md`). 30 min
 - [ ] U4 UI of the new feature (D2). 90 min
 - [ ] U5 Loading, empty and error states on the screens of the demo moments. 20 min
+- [ ] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
 
 **Researcher**
-- [ ] R0 A brief for the chosen feature: how comparable tools present it, and the rules for the builders. 30 min
+- [x] R0 A brief for the chosen feature: how comparable tools present it, and the rules for the builders. 30 min
 - [ ] R1 A brief for Calls (A). 30 min Covering:
   - the browser speech recognition API: support, limits, and where the audio goes;
   - how `tel:` links behave on Windows and macOS;
@@ -167,3 +176,8 @@ The lead fills these in at the end; each role notes its own in its STATUS row as
 - What to change in the kit. Found so far:
   - **During setup:** role files hard-coded the template's paths (fixed in the kit); the case-data test flagged one-word labels such as "Work" (fixed); GateGuard asked about 25 times during setup.
   - **During D7:** the allowlist is global, so allowing a term for docs also hides it in prompts. Entries need a path scope.
+  - **First hour:**
+    - The researcher role has no shell, so it cannot commit its briefs and the lead commits them.
+    - Uvicorn reloads on every backend edit, so the browser saw transient 502s while agents worked.
+    - Ruff ran from the repository root reported import-order errors that a missing `src` setting caused; the fix was config, not code.
+    - Restoring the brief exposed a stored sentence written before the bill fix. Catching a stale model output early is a job for the critic.
