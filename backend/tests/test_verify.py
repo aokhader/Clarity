@@ -1,6 +1,12 @@
 from datetime import date
 
-from app.digest.verify import compare_reads, quote_in_text, resolve_provider, sane_date
+from app.digest.verify import (
+    compare_reads,
+    find_quote,
+    quote_in_text,
+    resolve_provider,
+    sane_date,
+)
 from app.models import Confidence, FactKind
 
 PAGE = "Patient seen for follow-up.\nImpression:  sprain of the left wrist.\nCharge: $250.00"
@@ -53,3 +59,22 @@ def test_second_read_question_hides_the_first_reads_numbers() -> None:
     question = _second_read_question(fact)
     assert "medical bill" in question
     assert not any(ch.isdigit() for ch in question)
+
+
+def test_a_quote_is_found_with_its_offsets_in_the_original_text() -> None:
+    quote = "Impression: sprain of the left wrist."
+    start, end = find_quote(quote, PAGE) or (0, 0)
+    # The page has two spaces after the colon; the span covers the text as written.
+    assert PAGE[start:end] == "Impression:  sprain of the left wrist."
+
+
+def test_a_quote_matches_across_case_curly_quotes_and_line_breaks() -> None:
+    text = "He said “we’ll send it\nby Friday” and hung up."
+    span = find_quote("WE'LL SEND IT BY FRIDAY\"", text)
+    assert span is not None
+    assert text[span[0] : span[1]] == "we’ll send it\nby Friday”"
+
+
+def test_a_quote_that_is_not_there_has_no_span() -> None:
+    assert find_quote("fracture of the right ankle", PAGE) is None
+    assert find_quote("  ", PAGE) is None
