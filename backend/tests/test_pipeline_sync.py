@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.clio.client import ClioClient
 from app.clio.oauth import ClioNotAuthorized
-from app.clio.sync import sync_matter
+from app.clio.sync import DOCUMENT_FIELDS, sync_matter
 from app.models import Source, SourceType, SyncRun
 
 MATTER = 1
@@ -93,9 +93,11 @@ class FakeClio:
         self.file_status = 200
         self.file_bytes = b""
         self.list_params: dict[str, httpx.QueryParams] = {}
+        self.file_requests = 0
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if request.url.host == FILE_HOST:
+            self.file_requests += 1
             return httpx.Response(self.file_status, content=self.file_bytes)
         path = request.url.path.split("/api/v4/", 1)[-1]
         if path.endswith("/download.json"):
@@ -157,3 +159,30 @@ def test_a_failed_download_of_an_updated_document_is_retried_next_sync(
         select(Source).where(Source.clio_type == SourceType.DOCUMENT)
     ).one()
     assert document.etag == "v2"
+
+
+def test_documents_are_asked_for_the_time_their_last_version_was_received() -> None:
+    assert "received_at" in DOCUMENT_FIELDS[0].split(",")
+
+
+def test_a_field_newly_asked_for_is_kept_on_an_unchanged_record(
+    data_dir: Path, session: Session
+) -> None:
+    clio = FakeClio()
+    clio.documents = [{"id": 5, "etag": "v1", "filename": "scan.pdf"}]
+    clio.file_bytes = b"first version"
+    sync_matter(session, _client(clio), MATTER)
+
+    received = "2020-01-02T03:04:05Z"
+    clio.documents = [{**clio.documents[0], "received_at": received}]
+    run = sync_matter(session, _client(clio), MATTER)
+
+    session.expire_all()
+    document = session.scalars(
+        select(Source).where(Source.clio_type == SourceType.DOCUMENT)
+    ).one()
+    assert document.raw_json["received_at"] == received
+    # The same version: no second download, and not counted as an update.
+    assert clio.file_requests == 1
+    assert run.stats_json is not None
+    assert "document_updated" not in run.stats_json["counts"]

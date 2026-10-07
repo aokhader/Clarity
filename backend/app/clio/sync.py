@@ -93,7 +93,7 @@ ACTIVITY_FIELDS = (
 )
 DOCUMENT_FIELDS = (
     _fields(
-        "id,etag,name,filename,content_type,size,created_at,updated_at",
+        "id,etag,name,filename,content_type,size,received_at,created_at,updated_at",
         "latest_document_version{id,size,content_type,filename,fully_uploaded}",
     ),
     "id,etag,name,content_type,size,created_at,updated_at",
@@ -293,6 +293,13 @@ def _upsert(
     etag = record.get("etag")
     source = _find(session, matter_id, source_type, clio_id)
     if source is not None and etag and source.etag == etag:
+        added = record.keys() - source.raw_json.keys()
+        if added:
+            # The field list grew since this record was stored. Keep the new fields;
+            # the record itself is unchanged, so nothing is downloaded again. A note's
+            # or email's processed hash covers its raw JSON, so it is read again.
+            source.raw_json = {**source.raw_json, **record}
+            stats.counts[f"{source_type.value}_fields_added"] += 1
         stats.counts[f"{source_type.value}_unchanged"] += 1
         return False
     if source is None:
