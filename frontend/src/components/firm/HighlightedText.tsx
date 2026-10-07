@@ -6,12 +6,18 @@ type HighlightedTextProps = {
   text: string
   /** Highlighted and scrolled into view when found. */
   quote: string | null
+  /**
+   * Where the quote sits, when the fact recorded it, as a call note does. Used only while
+   * it still holds the quote; otherwise the quote is searched for.
+   */
+  quoteSpan?: [number, number] | null
 }
 
-export function HighlightedText({ text, quote }: HighlightedTextProps) {
+export function HighlightedText({ text, quote, quoteSpan = null }: HighlightedTextProps) {
   const markRef = useRef<HTMLElement>(null)
   const readable = plainText(text)
-  const span = quote ? findQuote(readable, quote) : null
+  const exact = quoteSpan !== null && quote !== null && readable.slice(...quoteSpan) === quote
+  const span = exact ? quoteSpan : quote ? findQuote(readable, quote) : null
 
   useEffect(() => {
     markRef.current?.scrollIntoView({ block: 'center' })

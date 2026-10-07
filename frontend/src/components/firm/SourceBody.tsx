@@ -11,6 +11,8 @@ type SourceBodyProps = {
   source: SourceOut
   /** The supporting quote, when this is the fact's own source. */
   quote: string | null
+  /** Where the quote sits in the source's text, when the fact recorded it. */
+  quoteSpan?: [number, number] | null
   citedPageNo: number | null
 }
 
@@ -26,7 +28,7 @@ function dateLabel(source: SourceOut): string | null {
   return source.source_type === 'document' ? `Uploaded ${day}` : day
 }
 
-export function SourceBody({ source, quote, citedPageNo }: SourceBodyProps) {
+export function SourceBody({ source, quote, quoteSpan = null, citedPageNo }: SourceBodyProps) {
   const meta = [SOURCE_LABELS[source.source_type], dateLabel(source), source.author].filter(Boolean)
   // An email's facts can come from its subject line rather than its body.
   const quotedTitle =
@@ -44,7 +46,7 @@ export function SourceBody({ source, quote, citedPageNo }: SourceBodyProps) {
         ) : source.sections.length > 0 ? (
           <SourceSections sections={source.sections} title={source.title} quote={quote} />
         ) : source.text ? (
-          <HighlightedText text={source.text} quote={quotedTitle ? null : quote} />
+          <HighlightedText text={source.text} quote={quotedTitle ? null : quote} quoteSpan={quoteSpan} />
         ) : (
           <p className="text-sm text-muted-foreground">This source has no readable text.</p>
         )}

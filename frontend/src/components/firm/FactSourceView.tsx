@@ -1,12 +1,21 @@
-import type { FactSourceOut } from '@/api/types'
+import type { FactOut, FactSourceOut } from '@/api/types'
 import { SourceBody } from '@/components/firm/SourceBody'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SOURCE_LABELS } from '@/lib/labels'
 
+/** A call note records where its quote sits in the transcript; other facts are searched for. */
+function quoteSpanOf(fact: FactOut): [number, number] | null {
+  if (fact.kind !== 'call_note') return null
+  const { quote_start: start, quote_end: end } = fact.value
+  return start !== null && end !== null ? [start, end] : null
+}
+
 /** The cited source, plus a tab for each source that corroborates it. */
 export function FactSourceView({ data }: { data: FactSourceOut }) {
   const { fact, source, corroborating } = data
-  const cited = <SourceBody source={source} quote={fact.quote} citedPageNo={fact.page_no} />
+  const cited = (
+    <SourceBody source={source} quote={fact.quote} quoteSpan={quoteSpanOf(fact)} citedPageNo={fact.page_no} />
+  )
   if (corroborating.length === 0) return cited
 
   return (
