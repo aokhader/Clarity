@@ -45,13 +45,18 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
           <div className="space-y-4">
             {payload.bills_total && <BillsTotal total={payload.bills_total} />}
             {bills && (
-              <section aria-label="Bills">
-                <h3 className="text-sm font-medium">Bills</h3>
+              // The bills setting releases liens as well as bills, and the total above counts
+              // bills only (BillsTotal), so the list says so rather than read as its addends.
+              <section aria-label="Bills and liens">
+                <h3 className="text-sm font-medium">Bills and liens</h3>
+                {payload.bills_total && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">Liens are listed, but not added to the total above.</p>
+                )}
                 <ProviderItemList
                   items={bills}
-                  empty="No bills from your office on file."
+                  empty="No bills or liens from your office on file."
                   onOpenSource={onOpenSource}
-                  scroll={{ rows: VISIBLE_ITEMS, label: 'Bills, scrollable' }}
+                  scroll={{ rows: VISIBLE_ITEMS, label: 'Bills and liens, scrollable' }}
                 />
               </section>
             )}
