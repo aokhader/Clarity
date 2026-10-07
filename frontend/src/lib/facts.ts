@@ -50,3 +50,30 @@ export function statuteDeadline(facts: FactOut[]): { fact: FactOf<'deadline'>; d
     .sort((a, b) => a.due.localeCompare(b.due))
   return dated.find((entry) => daysFromToday(entry.due) >= 0) ?? dated.at(-1) ?? null
 }
+
+export type Injury = FactOf<'injury' | 'diagnosis'>
+
+/** One injury as the list shows it, with every fact that states it, the first leading. */
+export type InjuryGroup = {
+  key: string
+  lead: Injury
+  facts: Injury[]
+}
+
+/**
+ * Injuries that read the same (kind, title, body part, severity), in the order given.
+ * A chart restates an injury on every visit page; this shows it once, citing each page.
+ */
+export function groupSameInjuries(injuries: Injury[]): InjuryGroup[] {
+  const groups = new Map<string, InjuryGroup>()
+  for (const fact of injuries) {
+    const { body_part: bodyPart, severity } = fact.value
+    const key = [fact.kind, fact.title, bodyPart, severity]
+      .map((part) => (part ?? '').trim().toLowerCase().replace(/\s+/g, ' '))
+      .join('|')
+    const group = groups.get(key)
+    if (group) group.facts.push(fact)
+    else groups.set(key, { key, lead: fact, facts: [fact] })
+  }
+  return [...groups.values()]
+}
