@@ -70,12 +70,12 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] P1 `balance_cents` and `high_cents` may be stored 100 times too small: the prompt names them in cents but says only `amount` is in dollars (`digest/prompts/extract_page.txt`, `digest/payloads.py`). 30 min
 - [x] P2 A partly failed sync counts as clean, so records missed once are never pulled again; a failed download of an updated document keeps the old file because its new ETag is saved first (`clio/sync.py`). 40 min
 - [x] P3 A sync stopped by anything but `ClioError` stays unfinished (`clio/sync.py`). Pairs with B3. 20 min
-- [ ] P4 A failed mapping call wipes KPI, stage and ledger facts; pages extracted without providers never get attribution later (`digest/mapping.py`, `digest/extract.py`). 40 min
+- [x] P4 A failed mapping call wipes KPI, stage and ledger facts; pages extracted without providers never get attribution later (`digest/mapping.py`, `digest/extract.py`). 40 min
 - [x] P5 The policy-limit cross-check is missing: `digest/merge.py` checks specials only. 30 min
 - [x] P6 A second digest can still call the model (after an errored call, dropped score ids, or a dedup-removed custom-field fact) (`digest/extract.py`). 30 min
 - [x] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
 - [x] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
-- [ ] P10 (estimate done: (a) re-digest 4 to 6 calls, about $0.20; (b) targeted re-read of 9 records, about $0.19; waiting for the Manager and the model settings) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
+- [ ] P10 (approved under D30; deferred by D34: a 09:31 trial on a database copy got no answer from Gemini in 12 attempts, 503 overload and 429 quota; retry at a quieter hour after the limiter paces evenly) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
 - [x] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
@@ -89,7 +89,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] U2 Check the source drawer, brief, KPI strip and injuries list on the real matter and fix what breaks (`docs/tracks/b-firm.md`, B3 and B4). 40 min
 - [x] U3 Check the provider page on the real matter and fix what breaks (`docs/tracks/c-provider.md`). 30 min
 - [x] U4 UI of the new feature (D2). 90 min
-- [ ] U5 Loading, empty and error states on the screens of the demo moments. 20 min
+- [x] U5 Loading, empty and error states on the screens of the demo moments (done in U8). 20 min
 - [x] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
 
 **From the critic's first pass** (`docs/reviews/critic.md`, Pass 1; the numbers are its finding numbers)
@@ -153,29 +153,30 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - **Passing:** Clio read-only (8 passed), hygiene (4 passed), backend tests (98 passed), frontend types.
 
   30 min
-- [ ] V2 README: verified / built, lightly tested / half-done, cost per case, a repository map. 40 min
-- [ ] V3 One screenshot per view in `docs/screenshots/`, on the synthetic matter (D33), taken by the lead from the reviewer clean clone. 20 min
-- [ ] V4 Fill the brackets in `docs/form-answers.md` from measured numbers. 15 min
-- [ ] V5 Clean-clone run, timed, following the README exactly. 30 min
+- [x] V2 README: verified / built, lightly tested / half-done, cost per case, a repository map. 40 min (1d04d4e, 862632e, 5068bf1)
+- [ ] V3 One screenshot per view in `docs/screenshots/`, on the synthetic matter (D33), taken by the lead from the reviewer clean clone. 20 min (3 of 6 in d62208c; attorney, provider-preview and provider-page wait on two ui-builder layout fixes)
+- [x] V4 Fill the brackets in `docs/form-answers.md` from measured numbers. 15 min (e09aebf; team size, the clip link and the Gemini runs are left to the lead)
+- [x] V5 Clean-clone run, timed, following the README exactly. 30 min (e22a5ae, ea2ef35: two check.sh fixes it found)
 
 **Critic** (each hour)
 - [x] C1 First pass: trace three numbers on screen to their sources on the real matter; walk demo moments 1 to 4.
-- [ ] C2 Second pass after the new feature lands, including `/ecc:orch-review` on the branch's diff.
+- [x] C2 Second pass after the new feature lands, including `/ecc:orch-review` on the branch's diff.
+- [ ] C3 Third pass after the model runs (D34): the re-digested brief and the re-read coverage limits on the real matter.
 
 ## Milestones
 
-T+0:00 is 2026-10-07 00:30 PDT. The clock times are targets: agents run faster than people, and the Manager's test call (C-T) needs a human.
+T+0:00 is 2026-10-07 00:30 PDT. The planned clock times were targets; the Done column gives the time each milestone was reached, from the commits.
 
 | T+ | Clock | Milestone | Done |
 |---|---|---|---|
-| 0:00 | 00:30 | D2, D3, D7 to D11 decided; setup committed; servers up; workers started | [x] |
-| 0:30 | 01:00 | P8 done; first defect has a failing test; lint fixed by its owners | [ ] |
-| 1:00 | 01:30 | First critic pass (C1); P1 and P3 fixed | [ ] |
-| 2:00 | 02:30 | Demo moments 1 and 2 on real data; draft checker server side (B1) done | [ ] |
-| 3:00 | 03:30 | Draft checker UI (U4) on real data; second critic pass (C2); Calls starts | [ ] |
-| 5:30 | 06:00 | Calls on real data, and the Manager's test call (C-T) | [ ] |
-| 2:50 | 03:20 (D32) | **Feature freeze.** Fixes, checks and the README only | [ ] |
-| 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [ ] |
+| 0:00 | 00:30 | D2, D3, D7 to D11 decided; setup committed; servers up; workers started | [x] 00:30 |
+| 0:30 | 01:00 | P8 done; first defect has a failing test; lint fixed by its owners | [x] 00:39 (P8 at 00:31; lint was a config fix, 4b40d16) |
+| 1:00 | 01:30 | First critic pass (C1); P1 and P3 fixed | [x] 00:54 |
+| 2:00 | 02:30 | Demo moments 1 and 2 on real data; draft checker server side (B1) done | [x] 01:15 |
+| 3:00 | 03:30 | Draft checker UI (U4) on real data; second critic pass (C2); Calls starts | [x] 01:55 |
+| 5:30 | 06:00 | Calls on real data, and the Manager's test call (C-T) | [ ] Calls built and checked 01:53; C-T not done |
+| 6:00 | 06:30 | **Feature freeze.** Fixes, checks and the README only | [x] last feature commit 02:53; recorded 09:29 (D32) |
+| 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [ ] check.sh clean; README done 10:04; 3 of 6 screenshots; the model runs wait (D34) |
 
 ## Cut order
 
@@ -193,14 +194,19 @@ Deployment, real authentication, writing anything to Clio, a re-sync or re-diges
 
 ## Trial measures (for the kit's retro)
 
-The lead fills these in at the end; each role notes its own in its STATUS row as it goes.
+The lead fills these in at the end; each role notes its own in its STATUS row as it goes. Measured at 10:10, from the commits and the agents' transcripts; the model runs (D34) and three screenshots are still open.
 
-- Start and end clock times; commits per role
-- Edits the ownership hook blocked, and whether each block was right
-- GateGuard prompts per session (it stays on, D4)
-- Waits: each time a role sat on "Blocked on", for how long
-- Merge or edit collisions in the shared checkout
-- Time to the first `check.sh` with no FAIL
+- **Clock:** kickoff at 00:30. Features ran from 00:30 to 02:53, then nothing until 09:29, when the freeze was recorded. Freeze work ran from 09:29.
+- **Commits per role:** 114 commits after the setup commit, counted by the owned paths each one touches. pipeline 27, ui-builder 27, backend 26, lead 23, reviewer 7, critic 2, researcher 2 (the lead committed these for it).
+- **Ownership hook:** it blocked no edits in any of the 12 agent transcripts. The logs can't tell whether agents stayed in their lanes or the hook never fired for a subagent. It was tested only by piping sample input at setup.
+- **GateGuard prompts:** the lead had 43 before the trial (the Corro analysis, the kit and the setup) and 8 during it. Backend had 2, reviewer 5, pipeline 1 and ui-builder 1. Nearly all the friction fell on the lead.
+- **Waits on "Blocked on":**
+  - The researcher waited for the lead to commit its briefs, since it has no shell.
+  - Backend waited for API restarts (D29 fields).
+  - ui-builder sat idle on Calls until the contract was written down (D22), then built against it.
+  - Pipeline's trial process slept for 26 minutes on a wait the API asked for, which nothing capped (D34).
+- **Collisions:** none in the shared checkout. In one cross-role break, a contract change broke ui-builder's typecheck, and D23 now requires the contract owner to run it.
+- **First `check.sh` with no FAIL:** at 1cd54d0 (00:47), reported by the critic at 00:54, so T+0:24.
 - What to change in the kit. Found so far:
   - **During setup:** role files hard-coded the template's paths (fixed in the kit); the case-data test flagged one-word labels such as "Work" (fixed); GateGuard asked about 25 times during setup.
   - **During D7:** the allowlist is global, so allowing a term for docs also hides it in prompts. Entries need a path scope.
@@ -213,3 +219,10 @@ The lead fills these in at the end; each role notes its own in its STATUS row as
     - Vite needed a restart after parallel edits left a stale module, and the API needed restarts because uvicorn reload missed changes on Windows. The lead runs the servers, so this falls to the lead; a watcher would help.
     - A contract change by one role broke another role build: the contract owner must run the other side typecheck.
     - The lead wrote decision times from estimates rather than the clock; corrected. Take times from `date` or the commits.
+  - **After the freeze:**
+    - **Decision times drifted again.** D22 to D34 were off by up to six and a half hours (D32 said 03:20; it was recorded at 09:29). A rule in a file didn't fix this. The kit needs a `/decide` skill that appends the row with the time from `date`.
+    - **Test the model API with one call in the first hour.** Gemini's free tier answered none of 12 attempts with overload 503s and quota 429s, and that was found after the freeze. A rolling-window limiter let a sixth attempt through exactly 60 s after the first, which Google counted against the minute. Space attempts evenly, cap any wait the API asks for, and log the quota id from the first error.
+    - **Run the clean clone early.** V5 found two `check.sh` problems that only a fresh checkout shows: a false FAIL on the synthetic matter, and a leftover export that blocked `cli reset`.
+    - **Screenshots double as a UI review.** Taking them on the synthetic matter found two layout bugs the real-matter views hid: a money range cut off on a tile, and a lien that reads like a second bill. Take them before the freeze.
+    - **Background agents need a time limit.** A subagent that waits on its own background process waits as long as that process does. When a report is late, the lead checks the process and its log.
+    - **The ownership hook needs a live self-test at `/kickoff`.** It should try one edit outside the role's paths and expect the block. Zero blocks in a day says nothing on its own.
