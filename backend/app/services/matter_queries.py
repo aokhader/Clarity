@@ -24,6 +24,7 @@ from app.schemas import (
 from app.services import brief_view
 from app.services.clio_records import RawContact, RawMatter
 from app.services.fact_views import fact_out, fact_ref, renderable_facts
+from app.services.incident import incident_fact
 from app.services.kpis import kpi_tiles
 
 
@@ -161,7 +162,7 @@ def matter_header(session: Session, matter_id: int) -> MatterHeaderOut:
         else None,
         opened_on=raw.open_date,
         stage=_stage(session, matter_id, by_kind[FactKind.CASE_STAGE]),
-        incident=_dated(_best(by_kind[FactKind.INCIDENT])),
+        incident=_dated(incident_fact(by_kind[FactKind.INCIDENT])),
         last_client_contact=_dated(_best(by_kind[FactKind.CLIENT_CONTACT])),
         kpis=kpi_tiles(by_kind),
         digested=bool(facts),
