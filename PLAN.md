@@ -174,7 +174,7 @@ T+0:00 is 2026-10-07 00:30 PDT. The clock times are targets: agents run faster t
 | 2:00 | 02:30 | Demo moments 1 and 2 on real data; draft checker server side (B1) done | [ ] |
 | 3:00 | 03:30 | Draft checker UI (U4) on real data; second critic pass (C2); Calls starts | [ ] |
 | 5:30 | 06:00 | Calls on real data, and the Manager's test call (C-T) | [ ] |
-| 6:00 | 06:30 (moves later, D18) | **Feature freeze.** Fixes, checks and the README only | [ ] |
+| 2:50 | 03:20 (D32) | **Feature freeze.** Fixes, checks and the README only | [ ] |
 | 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [ ] |
 
 ## Cut order

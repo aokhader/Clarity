@@ -4,8 +4,8 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | Verified Calls in the browser (targets, chips, typed line, no-model notes, consent gate), No bills on file, coverage tile | Critic Pass 2 findings; then freeze and the reviewer | Manager: .env model settings; the test call (C-T) | Approve (a), (b), a re-sync; retry-failed button | 02:05 |
-| pipeline | Live test stopped at errors (scratch DB, $0): flash 503 overloaded after 5 tries; gemini-2.5-pro 404, not offered to new users | Trial on a copy, after a model fix and a retest | Manager: a merge model (Google suggests gemini-3.1-pro-preview) and its prices | Merge model choice; retry flash later | 02:41 |
+| lead | Feature freeze (D32). Gemini native provider live; trial on a database copy running | Review the trial; then back up and run (a), (b); screenshots; critic Pass 3 | | Manager: the test call (C-T) after notes can run | 03:20 |
+| pipeline | Diagnostics passed: 3.8-flash no schema 200 (101 s, thinking 126); flash-lite full request 200, responseJsonSchema accepted, JSON valid. The 503s were capacity, not our request. Spent ~$0.001 | Stopped; waiting for the lead | | Next step for the trial | 03:04 |
 | backend | K7 dde2e3c; D29 6b044aa: digest retry_failed body, RunStatusOut.cached_failed_calls. Standing by | Freeze fixes only | lead: restart :8000 for D29 fields | | 02:30 |
 | ui-builder | D29 retry control 15dc3c3 (not clicked: model switch under way) | Stand by | | | 02:31 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
