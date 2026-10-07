@@ -72,6 +72,7 @@ class BriefSentence(BaseModel):
 
 class Brief(BaseModel):
     headline: str
+    headline_fact_ids: list[int]
     stage: Stage
     stage_fact_ids: list[int]
     sentences: list[BriefSentence]
@@ -269,6 +270,8 @@ def write_brief(session: Session, matter_id: int) -> bool:
         return False
     cited = _cite_only_known(result, set(included))
     content = BriefContent.model_validate(cited.model_dump()).model_dump(mode="json")
+    # Stored beside the contract's fields; backend reads it once BriefContent has it (B4).
+    content["headline_fact_ids"] = cited.headline_fact_ids
     if existing is None:
         existing = Digest(
             matter_id=matter_id,
@@ -285,7 +288,10 @@ def write_brief(session: Session, matter_id: int) -> bool:
 
 
 def _cite_only_known(brief: Brief, known_ids: set[int]) -> Brief:
-    """Drop any sentence that cites no real fact; a citation is the sentence's license."""
+    """Drop any sentence that cites no real fact; a citation is the sentence's license.
+
+    The headline stays even when none of its citations is real; it then cites nothing.
+    """
     sentences = []
     for sentence in brief.sentences:
         ids = [i for i in sentence.fact_ids if i in known_ids]
@@ -294,6 +300,7 @@ def _cite_only_known(brief: Brief, known_ids: set[int]) -> Brief:
     return brief.model_copy(
         update={
             "sentences": sentences,
+            "headline_fact_ids": [i for i in brief.headline_fact_ids if i in known_ids],
             "stage_fact_ids": [i for i in brief.stage_fact_ids if i in known_ids],
         }
     )

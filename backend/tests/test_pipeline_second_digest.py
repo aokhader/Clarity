@@ -69,6 +69,7 @@ class FakeModel:
             ids = [row["fact_id"] for row in json.loads(request.user_text)["facts"]]
             return {
                 "headline": "Invented headline",
+                "headline_fact_ids": ids[:1],
                 "stage": "intake",
                 "stage_fact_ids": [],
                 "sentences": [{"text": "Invented sentence.", "fact_ids": ids[:1]}],
