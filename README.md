@@ -159,15 +159,16 @@ Seen working on the hackathon's matter, and by whom.
 ### Seen working in a clean clone
 
 By the reviewer, on the invented matter, on 2026-10-07:
-- Every step under [Run it](#run-it).
-- `pytest`: 341 passed. `check.sh`: no step failed.
+- The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
+- `pytest`: 341 passed.
+- `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
   - Five deliberate breaks of the provider filter in `services/visibility.py` were tried: the expiry and withdrawal check, another provider's bills, hidden items, strategy flags, and the shareable tag. Each one made the visibility and share tests fail.
 - The draft checker:
   - A sentence restating a provider's own bill total is `supported`.
-  - The internal case valuation is `do_not_send`.
+  - A figure held only in an internal note is `do_not_send`, with "Kept internal: never shared with providers" and a chip to that note.
   - An unknown date is `not_in_file`.
   - The server refuses a share whose note holds the internal figure (422) and accepts one that does not (201).
 
