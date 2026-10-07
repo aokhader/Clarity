@@ -262,7 +262,7 @@ def _execute(request: ModelRequest) -> ModelResult:
         except NoStructuredOutput as error:
             total_in += error.tokens_in
             total_out += error.tokens_out
-            feedback = f"Your previous answer had {error}. {TOOL_INSTRUCTION}"
+            feedback = f"Your previous answer had {error}. {_answer_instruction()}"
             continue
         except (httpx.HTTPError, ExtractionFailed, ValueError) as error:
             return ModelResult(
@@ -295,7 +295,15 @@ def _send(request: ModelRequest, feedback: str | None) -> tuple[Any, int, int]:
     schema = _inline_refs(request.output.model_json_schema())
     if settings.llm_provider == "openai":
         return _send_openai(request, user_text, schema)
+    if settings.llm_provider == "gemini":
+        return _send_gemini(request, user_text, schema)
     return _send_anthropic(request, user_text, schema)
+
+
+def _answer_instruction() -> str:
+    if get_settings().llm_provider == "anthropic":
+        return TOOL_INSTRUCTION
+    return "Answer with one JSON object that matches the schema, and nothing else."
 
 
 JPEG_MAGIC = bytes.fromhex("ffd8ff")
@@ -410,6 +418,136 @@ def _send_openai(
         int(usage.get("prompt_tokens", 0)),
         int(usage.get("completion_tokens", 0)),
     )
+
+
+def _send_gemini(
+    request: ModelRequest, user_text: str, schema: dict[str, Any]
+) -> tuple[Any, int, int]:
+    """Google's generateContent, with the output constrained to the request's schema.
+
+    The key travels in a header, never in the URL, which proxies and logs record.
+    """
+    settings = get_settings()
+    assert settings.llm_api_key is not None
+    key = settings.llm_api_key.get_secret_value()
+    parts: list[dict[str, Any]] = [
+        {
+            "inline_data": {
+                "mime_type": media_type(image),
+                "data": base64.b64encode(image).decode("ascii"),
+            }
+        }
+        for image in request.images
+    ]
+    parts.append({"text": user_text})
+    body: dict[str, Any] = {
+        "systemInstruction": {"parts": [{"text": request.prompt.text}]},
+        "contents": [{"role": "user", "parts": parts}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseJsonSchema": schema,
+            "maxOutputTokens": settings.llm_max_output_tokens,
+        },
+    }
+    url = f"{settings.llm_endpoint}/models/{request.model}:generateContent"
+    headers = {"x-goog-api-key": key}
+    response = _post(
+        url, json=body, headers=headers, timeout=settings.llm_timeout_seconds
+    )
+    if response.status_code == 400 and "responseJsonSchema" in response.text:
+        # The older field takes only an OpenAPI subset of JSON Schema.
+        openapi, stripped = _openapi_schema(schema)
+        log.warning(
+            "Gemini rejected responseJsonSchema; using responseSchema without %s",
+            ", ".join(sorted(stripped)) or "no keywords",
+        )
+        config = body["generationConfig"]
+        del config["responseJsonSchema"]
+        config["responseSchema"] = openapi
+        response = _post(
+            url, json=body, headers=headers, timeout=settings.llm_timeout_seconds
+        )
+    if response.status_code >= 400:
+        error = response.text[:300].replace(key, "[key]")
+        raise ExtractionFailed(f"HTTP {response.status_code}: {error}")
+    payload = response.json()
+    usage = payload.get("usageMetadata") or {}
+    tokens_in = int(usage.get("promptTokenCount", 0))
+    # Thinking is billed as output, so it counts toward the cost.
+    tokens_out = int(usage.get("candidatesTokenCount", 0)) + int(
+        usage.get("thoughtsTokenCount", 0)
+    )
+    candidates = payload.get("candidates") or [{}]
+    content = candidates[0].get("content") or {}
+    text = "".join(
+        str(part.get("text", ""))
+        for part in content.get("parts") or []
+        if not part.get("thought")
+    )
+    reason = candidates[0].get("finishReason")
+    try:
+        return json.loads(text), tokens_in, tokens_out
+    except ValueError:
+        # Paid for even though unusable, so the tokens still go into the cost figure.
+        raise NoStructuredOutput(
+            f"no JSON answer (finish reason {reason})", tokens_in, tokens_out
+        ) from None
+
+
+# Keywords the older `responseSchema` (an OpenAPI subset) accepts.
+_OPENAPI_KEYWORDS = {
+    "type",
+    "format",
+    "description",
+    "nullable",
+    "enum",
+    "items",
+    "minItems",
+    "maxItems",
+    "properties",
+    "required",
+    "minProperties",
+    "maxProperties",
+    "minLength",
+    "maxLength",
+    "pattern",
+    "minimum",
+    "maximum",
+    "anyOf",
+    "propertyOrdering",
+}
+
+
+def _openapi_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], set[str]]:
+    """The schema in the OpenAPI subset: `X | None` becomes nullable X, a constant an
+    enum of one, and any other keyword the subset lacks is dropped and named."""
+    stripped: set[str] = set()
+
+    def convert(node: Any) -> Any:
+        if isinstance(node, list):
+            return [convert(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+        options = node.get("anyOf")
+        if isinstance(options, list) and {"type": "null"} in options:
+            rest = [o for o in options if o != {"type": "null"}]
+            merged = {k: v for k, v in node.items() if k != "anyOf"}
+            if len(rest) == 1:
+                return convert({**merged, **rest[0], "nullable": True})
+            return convert({**merged, "anyOf": rest, "nullable": True})
+        out: dict[str, Any] = {}
+        for key, value in node.items():
+            if key == "const":
+                out["enum"] = [value]
+            elif key == "properties":
+                out[key] = {name: convert(sub) for name, sub in value.items()}
+            elif key in _OPENAPI_KEYWORDS:
+                out[key] = convert(value)
+            else:
+                stripped.add(key)
+        return out
+
+    return convert(schema), stripped
 
 
 def _post(url: str, **kwargs: Any) -> httpx.Response:

@@ -44,8 +44,9 @@ class Settings(BaseSettings):
     clio_oauth_callback_seconds: int = Field(default=300, ge=1)
 
     # Models. Prices are USD per million tokens.
-    # Wire format of the model API: "anthropic" (Messages API) or "openai" (Chat Completions).
-    llm_provider: Literal["anthropic", "openai"] = "anthropic"
+    # Wire format of the model API: "anthropic" (Messages API), "openai" (Chat
+    # Completions), or "gemini" (Google's generateContent, D30).
+    llm_provider: Literal["anthropic", "openai", "gemini"] = "anthropic"
     # Leave unset for the provider's public endpoint.
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
@@ -108,6 +109,8 @@ class Settings(BaseSettings):
             return self.llm_base_url.rstrip("/")
         if self.llm_provider == "openai":
             return "https://api.openai.com/v1"
+        if self.llm_provider == "gemini":
+            return "https://generativelanguage.googleapis.com/v1beta"
         return "https://api.anthropic.com/v1"
 
     @property
