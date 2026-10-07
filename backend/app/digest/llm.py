@@ -44,11 +44,10 @@ TOOL_INSTRUCTION = (
     f"Give your answer only by calling the {TOOL_NAME} tool, exactly once, "
     "with input that matches its schema."
 )
-REQUEST_TIMEOUT_SECONDS = 180
-# Rate limits, overload, and dropped connections are retried with backoff; anything
-# else fails the one call and is recorded, and the next digest run tries it again.
+# Rate limits, overload, and dropped connections are retried with backoff, up to
+# `llm_max_attempts`; anything else fails the one call, which is recorded and cached
+# as failed until `cli digest --retry-failed`.
 RETRY_STATUSES = {429, 500, 502, 503, 504, 529}
-MAX_ATTEMPTS = 5
 
 Role = Literal["extract", "merge"]
 
@@ -348,7 +347,7 @@ def _send_anthropic(
             "x-api-key": settings.llm_api_key.get_secret_value(),
             "anthropic-version": ANTHROPIC_VERSION,
         },
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=settings.llm_timeout_seconds,
     )
     if response.status_code >= 400:
         raise ExtractionFailed(f"HTTP {response.status_code}: {response.text[:300]}")
@@ -399,7 +398,7 @@ def _send_openai(
         f"{settings.llm_endpoint}/chat/completions",
         json=body,
         headers={"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"},
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=settings.llm_timeout_seconds,
     )
     if response.status_code >= 400:
         raise ExtractionFailed(f"HTTP {response.status_code}: {response.text[:300]}")
@@ -415,8 +414,9 @@ def _send_openai(
 
 def _post(url: str, **kwargs: Any) -> httpx.Response:
     """POST, retrying rate limits, overload, and dropped connections with backoff."""
-    for attempt in range(MAX_ATTEMPTS):
-        last = attempt + 1 == MAX_ATTEMPTS
+    attempts = get_settings().llm_max_attempts
+    for attempt in range(attempts):
+        last = attempt + 1 == attempts
         try:
             response = httpx.post(url, **kwargs)
         except httpx.TransportError:

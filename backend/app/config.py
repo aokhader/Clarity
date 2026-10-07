@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     clio_client_secret: SecretStr | None = None
     clio_redirect_uri: str = "http://127.0.0.1:8000/oauth/callback"
     clio_matter_query: str | None = None
+    # Tries per Clio request; rate limits, 5xx and dropped connections are retried.
+    clio_max_attempts: int = Field(default=6, ge=1)
+    # Clio caps list pages at 200 records.
+    clio_page_limit: int = Field(default=200, ge=1, le=200)
+    clio_timeout_seconds: float = Field(default=60, gt=0)
+    clio_download_timeout_seconds: float = Field(default=120, gt=0)
+    # Connection-level retries inside httpx, below the request retries above.
+    clio_transport_retries: int = Field(default=2, ge=0)
+    clio_token_timeout_seconds: float = Field(default=30, gt=0)
+    clio_oauth_callback_seconds: int = Field(default=300, ge=1)
 
     # Models. Prices are USD per million tokens.
     # Wire format of the model API: "anthropic" (Messages API) or "openai" (Chat Completions).
@@ -47,6 +57,16 @@ class Settings(BaseSettings):
     merge_price_in: Decimal | None = None
     merge_price_out: Decimal | None = None
     extract_concurrency: int = Field(default=8, ge=1)
+    llm_timeout_seconds: float = Field(default=180, gt=0)
+    # Tries per model call on rate limits, overload and dropped connections.
+    llm_max_attempts: int = Field(default=5, ge=1)
+    # Inputs extracted, and facts scored, per committed batch.
+    extract_batch_size: int = Field(default=40, ge=1)
+    score_batch_size: int = Field(default=50, ge=1)
+    # Rounds of asking again about facts the scorer leaves out of a batch.
+    score_passes: int = Field(default=2, ge=1)
+    # Facts, by significance, the brief model sees besides the ones always included.
+    brief_fact_limit: int = Field(default=40, ge=1)
 
     # Storage
     data_dir: Path = Path("data")

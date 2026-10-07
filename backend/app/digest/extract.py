@@ -40,7 +40,6 @@ from app.models import Confidence, Fact, FactKind, Origin, Page, Source, SourceT
 
 log = logging.getLogger(__name__)
 
-BATCH_SIZE = 40
 QUOTE_LIMIT = 300
 _DIGITS = re.compile(r"\d")
 # Structured records produce these kinds in code; the extractor never does.
@@ -99,8 +98,9 @@ def extract_all(
     providers = mapping.providers()
     units = _record_units(session, matter_id, mapping, providers, counts)
     units += _page_units(session, matter_id, providers)
-    for start in range(0, len(units), BATCH_SIZE):
-        chunk = units[start : start + BATCH_SIZE]
+    batch_size = get_settings().extract_batch_size
+    for start in range(0, len(units), batch_size):
+        chunk = units[start : start + batch_size]
         results = llm.run_batch(session, [u.request for u in chunk])
         second_reads: list[tuple[Fact, Unit, float | None]] = []
         for unit, result in zip(chunk, results, strict=True):
@@ -121,7 +121,7 @@ def extract_all(
         session.commit()
         log.info(
             "Extraction progress: %d of %d inputs",
-            min(start + BATCH_SIZE, len(units)),
+            min(start + batch_size, len(units)),
             len(units),
         )
     log.info("Extraction: %s", dict(counts))

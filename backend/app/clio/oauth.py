@@ -24,7 +24,6 @@ from app.models import OAuthToken
 
 log = logging.getLogger(__name__)
 
-CALLBACK_TIMEOUT_SECONDS = 300
 # Refresh a little early so a long sync never starts with a nearly dead token.
 EXPIRY_MARGIN = timedelta(minutes=2)
 
@@ -82,7 +81,8 @@ def wait_for_code(state: str) -> str:
     server = _ExclusiveHTTPServer(
         (redirect.hostname or "127.0.0.1", redirect.port or 80), Handler
     )
-    deadline = time.monotonic() + CALLBACK_TIMEOUT_SECONDS
+    wait_seconds = get_settings().clio_oauth_callback_seconds
+    deadline = time.monotonic() + wait_seconds
     try:
         while not received and time.monotonic() < deadline:
             server.timeout = max(deadline - time.monotonic(), 0.1)
@@ -92,7 +92,7 @@ def wait_for_code(state: str) -> str:
 
     if not received:
         raise ClioNotAuthorized(
-            f"No callback from Clio within {CALLBACK_TIMEOUT_SECONDS}s. Check that the "
+            f"No callback from Clio within {wait_seconds}s. Check that the "
             "redirect URI in the Clio app matches CLIO_REDIRECT_URI exactly, or run "
             "`python -m app.cli auth --manual`."
         )
@@ -181,7 +181,7 @@ def _token_request(form: dict[str, str]) -> dict[str, object]:
             "client_id": settings.clio_client_id or "",
             "client_secret": settings.clio_client_secret.get_secret_value(),
         },
-        timeout=30,
+        timeout=settings.clio_token_timeout_seconds,
     )
     if response.status_code >= 400:
         raise ClioNotAuthorized(f"Token request failed ({response.status_code})")

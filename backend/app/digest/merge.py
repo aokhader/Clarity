@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.digest import llm
 from app.digest.brief import write_brief
 from app.digest.cross_check import cross_check
@@ -23,11 +24,8 @@ from app.models import Confidence, Fact, FactKind, Origin
 
 log = logging.getLogger(__name__)
 
-SCORE_BATCH = 50
 # 0 means "not scored yet", so a scored fact is stored with at least 1.
 MIN_SCORED = 1
-# A fact the model leaves out of an answered batch is asked about once more.
-SCORE_PASSES = 2
 DEDUP_KINDS = {
     FactKind.INJURY,
     FactKind.DIAGNOSIS,
@@ -119,7 +117,7 @@ def score(session: Session, matter_id: int) -> Counter[str]:
     """
     counts: Counter[str] = Counter()
     pending = [f for f in _facts(session, matter_id) if f.significance == 0]
-    for _attempt in range(SCORE_PASSES):
+    for _attempt in range(get_settings().score_passes):
         if not pending:
             break
         scored, pending = _score_batches(session, matter_id, pending)
@@ -136,9 +134,8 @@ def _score_batches(
 ) -> tuple[int, list[Fact]]:
     """Score in batches; return the count and the facts answered batches left out."""
     requests = []
-    batches = [
-        unscored[i : i + SCORE_BATCH] for i in range(0, len(unscored), SCORE_BATCH)
-    ]
+    size = get_settings().score_batch_size
+    batches = [unscored[i : i + size] for i in range(0, len(unscored), size)]
     for batch in batches:
         rows = [
             {

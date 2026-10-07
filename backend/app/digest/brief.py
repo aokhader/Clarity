@@ -15,13 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.digest import llm
 from app.digest.records import display_date, parse_date
 from app.models import Digest, DigestKind, Fact, FactKind, SourceType
 from app.schemas import BriefContent
 from app.services.bills import count_bills
 
-BRIEF_FACT_LIMIT = 40
 # Figures the KPI tiles show; their facts are always in the brief's view.
 FIGURE_KINDS = {FactKind.CASE_VALUE, FactKind.MEDICAL_SPECIALS, FactKind.POLICY_LIMIT}
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -102,7 +102,8 @@ def brief_payload(session: Session, matter_id: int) -> dict[str, Any]:
             select(Fact).where(Fact.matter_id == matter_id).order_by(Fact.id)
         )
     )
-    top = sorted(facts, key=lambda f: (-f.significance, f.id))[:BRIEF_FACT_LIMIT]
+    limit = get_settings().brief_fact_limit
+    top = sorted(facts, key=lambda f: (-f.significance, f.id))[:limit]
     stage_facts = [
         f for f in facts if f.kind in (FactKind.CASE_STAGE, FactKind.STATUS_CHANGE)
     ]
