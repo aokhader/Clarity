@@ -76,7 +76,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
 - [x] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
 - [ ] P10 (estimate done: (a) re-digest 4 to 6 calls, about $0.20; (b) targeted re-read of 9 records, about $0.19; waiting for the Manager and the model settings) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
-- [ ] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
+- [x] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
 - [x] B1 Server side of the new feature (D2), with tests on the real matter. 90 min
@@ -111,7 +111,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - a document's own date in the drawer (#13);
   - no duplicate limits on the provider page (#16). 40 min
 - [ ] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
-- [ ] P13 pipeline (D19, D20): the extraction prompt records which policy a limit belongs to, and gives economic damages and recovery caps kinds of their own. Add a command that re-extracts named pages only. Run it after the Manager approves the estimate (P10 b). Bump the prompt version. 45 min plus the run
+- [x] P13 pipeline (D19, D20): the extraction prompt records which policy a limit belongs to, and gives economic damages and recovery caps kinds of their own. Add a command that re-extracts named pages only. Run it after the Manager approves the estimate (P10 b). Bump the prompt version. 45 min plus the run
 - [ ] B10 backend (D19, D20): the contract changes to match P13 (new kinds, the policy field, both additive) with `types.ts`; the new kinds go into visibility as internal; the Coverage tile leads with the defendant limit and labels the others. 40 min
 - [ ] U9 ui-builder (D19): the Coverage tile shows the leading limit and the labelled client policies under it. 20 min, after B10
 - [ ] U8 ui-builder:
@@ -136,7 +136,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - **Request notes.** The request starts a background run the way `api/ops.py` starts a digest, because no request handler calls a model.
   - **Sourcing:** a transcript is a source, so a note's chip opens the transcript with its quote highlighted in the drawer.
   - **Visibility:** call notes are internal under default-deny.
-- [ ] C-P pipeline: a versioned prompt in `digest/prompts/` turns a transcript into notes (a summary, commitments, dates and amounts mentioned, follow-ups), through `digest/llm.py`. 60 min
+- [x] C-P pipeline: a versioned prompt in `digest/prompts/` turns a transcript into notes (a summary, commitments, dates and amounts mentioned, follow-ups), through `digest/llm.py`. 60 min
   - Every note carries a quote that code checks against the transcript (reuse `verify.py`); a note whose quote fails is dropped.
   - Dates and amounts are parsed in code.
 - [ ] C-U ui-builder: a Calls view in the sidebar (`?view=calls`). 90 min
