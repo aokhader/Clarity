@@ -10,7 +10,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | **For Service Provider (the firm's preview)** | **Calls** |
 | ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
 | **The provider's own page** | **The draft checker, in the share composer** |
-| ![The provider page at /p/token](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
+| ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
 The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
 
@@ -161,7 +161,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`; 350 pass at `0a41916`, in the main checkout.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 369 pass at `c097f44`.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - Sharing:
   - A created link returns exactly what the preview showed.
@@ -172,22 +172,20 @@ By the reviewer, on the invented matter, on 2026-10-07:
   - A figure held only in an internal note is `do_not_send`, with "Kept internal: never shared with providers" and a chip to that note.
   - An unknown date is `not_in_file`.
   - The server refuses a share whose note holds the internal figure (422) and accepts one that does not (201).
+- After D35's backend change (`01d6e41`), a live link served each item in its bills list as a bill or a lien.
 
 By the lead, in the browser, on the clean clone's invented matter, while taking the screenshots above:
-- The freeze fixes `b71b281` and `1b5c369`:
+- The freeze fixes `b71b281`, `1b5c369` and `cfc121b` (D35):
   - the Case value range fits its tile, breaking after its dash;
-  - the provider's list reads "Bills and liens", and says liens are not added to the total.
+  - on the provider page and the firm's preview, the list reads "Bills and liens", with a caption that liens are not added to the total;
+  - each lien row is labelled "Lien", with its amount set apart from the bills.
 - The other shots: the brief's chips, the consent step, and the draft checker's lock in the share composer.
 
 ### Built, lightly tested
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
 
-- **Bill or lien on each provider item (D35):**
-  - The provider payload marks each item in the bills list as a bill or a lien (`01d6e41`). The clean clone's API was seen serving both kinds on a live link.
-  - The provider page and the firm's preview label each lien row "Lien" and set its amount apart from the bills. The "Bills and liens" heading, with its caption that liens are not in the total, appears only when a lien is listed (`cfc121b`).
-  - The provider update counts and totals bills only, and lists liens under their own heading (`612945b`).
-  - On the real matter no lien reaches a provider; see Known issues.
+- **Liens in the provider update (D35, `612945b`):** the "Send update" draft counts and totals bills only, and lists liens under a heading of their own. On the real matter no lien reaches a provider; see Known issues.
 
 - **Draft-checker matching (D25, D28):**
   - It reads amounts written with k, grand, bucks, USD, a trailing or full-width dollar sign, or in words, plus bare figures of four or more digits.
@@ -338,7 +336,7 @@ backend/app/
     brief_check.py           brief figures checked against today's facts when served (D12)
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               350 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               369 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
