@@ -111,6 +111,12 @@ def _digest(args: argparse.Namespace) -> int:
         except NoSyncedMatter as error:
             print(str(error), file=sys.stderr)
             return 1
+        if args.pages_only:
+            # PyMuPDF only: no model, and no digest run row, since nothing is digested.
+            from app.digest.pages import build_pages
+
+            print(json.dumps(dict(build_pages(session, matter_id)), indent=2))
+            return 0
         run = run_digest(session, matter_id, retry_failed=args.retry_failed)
         print(json.dumps(run.stats_json, indent=2))
         if run.error:
@@ -224,6 +230,11 @@ def main(argv: list[str] | None = None) -> int:
         "--retry-failed",
         action="store_true",
         help="ask the model again for inputs whose last call failed",
+    )
+    digest.add_argument(
+        "--pages-only",
+        action="store_true",
+        help="split documents into page text and images only; no model call",
     )
     digest.set_defaults(run=_digest)
     reextract = commands.add_parser(
