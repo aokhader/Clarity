@@ -154,7 +154,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 
   30 min
 - [x] V2 README: verified / built, lightly tested / half-done, cost per case, a repository map. 40 min (1d04d4e, 862632e, 5068bf1)
-- [ ] V3 One screenshot per view in `docs/screenshots/`, on the synthetic matter (D33), taken by the lead from the reviewer clean clone. 20 min (3 of 6 in d62208c; attorney, provider-preview and provider-page wait on two ui-builder layout fixes)
+- [x] V3 One screenshot per view in `docs/screenshots/`, on the synthetic matter (D33), taken by the lead from the reviewer clean clone. 20 min (d62208c, 8a5d23d; the provider two are retaken once D35's lien label lands)
 - [x] V4 Fill the brackets in `docs/form-answers.md` from measured numbers. 15 min (e09aebf; team size, the clip link and the Gemini runs are left to the lead)
 - [x] V5 Clean-clone run, timed, following the README exactly. 30 min (e22a5ae, ea2ef35: two check.sh fixes it found)
 

@@ -4,13 +4,13 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | 3 of 6 screenshots in (d62208c); trial stopped: 0 of 12 Gemini attempts succeeded (503s, 429 quota) | Retake 3 after ui-builder fixes; Manager decides the model runs | pipeline: limiter pacing, retry cap | Manager: model runs; push kit-trial; test call (C-T) | 10:08 |
+| lead | 6 of 6 screenshots (8a5d23d); D34 runs wait for the free-tier retry; D35 lien kind with backend | Retake provider shots after D35; model runs later (D34) | backend: D35 kind, then ui-builder | Manager: push kit-trial; test call (C-T) | 10:25 |
 | pipeline | cli auth fix e4c7db8 (names the missing CLIO_CLIENT_ID/SECRET, exits 1, no URL). Pacing and wait cap 71a9be6. Trial stopped; copy kept | Retry of (a), (b) and the trial waits on D34; the lead starts it | | | 10:15 |
 | backend | K7 dde2e3c; D29 6b044aa: digest retry_failed body, RunStatusOut.cached_failed_calls. Standing by | Freeze fixes only | lead: restart :8000 for D29 fields | | 02:30 |
 | ui-builder | KPI figures fit b71b281; "Bills and liens" heading 1b5c369; checked 1440, 1280 | Per-row "Lien" label once payload carries kind | backend: kind on ProviderItemOut (additive) | lead: add kind to the provider payload? | 10:19 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
-| reviewer | V5, V2, V4 done. Clone servers UP until lead says: http://localhost:5183/matters/1, API :8010. Clone (git pull works; only local change is vite ports): C:/Users/azizk/AppData/Local/Temp/claude/D--Documents-GitHub-Clarity/d3b6c4f8-cb50-4bb8-9cd9-552b53704d07/scratchpad/clarity-clone | On a pull touching backend/, I restart :8010 (no --reload). GateGuard prompts: 4 | lead: retake attorney, provider-preview, provider-page; README already links them | | 10:07 |
+| reviewer | V5, V2, V4 done; README current (eac1d21). All 6 screenshots checked: invented matter only, no chrome. Clone servers UP (:5183, :8010) | Stop both when lead says, then report. GateGuard prompts: 4 | lead: say 'stop clone servers' here | | 10:25 |
 
 ## Stubs and shortcuts
 
