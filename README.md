@@ -281,7 +281,7 @@ That is 1,728,515 input and 329,989 output tokens, at the prices then set in `.e
 - **Reopening the matter costs nothing,** because no page load calls a model.
 - **A second digest over unchanged inputs makes no model call,** because results are cached by input hash (`backend/tests/test_pipeline_second_digest.py`).
 
-**Gemini runs: PENDING.** The trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). The re-digest (a) and the targeted re-read (b) have not run. The trial run before them got no successful answer in 12 attempts (503s, and a 429 quota), and the Manager decides whether to run them. They re-run only the calls whose prompts changed, so they will price an update, not a whole case.
+**Gemini runs: PENDING.** The trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). The re-digest (a) and the targeted re-read (b) have not run. The trial run before them got no successful answer in 12 attempts (503s, and a 429 quota). The Manager decided to retry them on the free tier at a quieter hour, with the limiter now spacing attempts evenly (D34). They re-run only the calls whose prompts changed, so they will price an update, not a whole case.
 
 > **[LEAD, after runs (a) and (b): fill from `GET /api/ops/cost` and `llm_calls`: calls, tokens and dollars for each run, by model. A full-case Gemini figure needs a full digest on a fresh database.]**
 
