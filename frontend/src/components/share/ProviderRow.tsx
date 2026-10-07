@@ -34,7 +34,9 @@ export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: Provi
           <p className="font-medium leading-snug">{provider.name}</p>
           {provider.role_label && <p className="text-xs text-muted-foreground">{provider.role_label}</p>}
           <p className="mt-1 tabular-nums">
-            Billed {formatMoney(provider.billed_cents)} · {count(provider.records_received, 'record')}
+            {/* Null means no bill with an amount is on file, which is not a zero bill (D16). */}
+            {provider.billed_cents === null ? 'No bills on file' : `Billed ${formatMoney(provider.billed_cents)}`} ·{' '}
+            {count(provider.records_received, 'record')}
             {provider.open_requests > 0 && ` · ${count(provider.open_requests, 'open request')}`}
           </p>
           <p className="mt-0.5 text-xs">

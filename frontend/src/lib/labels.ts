@@ -26,6 +26,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   medical_specials: 'Specials',
   economic_damages: 'Economic damages',
   recovery_cap: 'Recovery cap',
+  call_note: 'Call note',
   other: 'Other',
 }
 
@@ -40,6 +41,7 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
   calendar_entry: 'Calendar',
   activity: 'Expense',
   document: 'Doc',
+  call: 'Call',
 }
 
 export const STAGE_LABELS: Record<CaseStage, string> = {

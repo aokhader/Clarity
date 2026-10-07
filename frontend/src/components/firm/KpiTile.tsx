@@ -21,7 +21,7 @@ const KPI_TONES: Record<KpiOut['name'], { tile: string; label: string; Icon: Luc
   firm_spend: { tile: 'border-slate-200 bg-slate-100 text-slate-900', label: 'text-slate-700', Icon: TrendingDown },
 }
 
-/** One KPI: a sourced value, every value when sources disagree, or "Not found in file". */
+/** One KPI: a sourced value, every value it lists (disagreeing, or labelled apart), or "Not found in file". */
 export function KpiTile({ kpi }: { kpi: KpiOut }) {
   const [only] = kpi.values
   const tone = KPI_TONES[kpi.name]
@@ -70,7 +70,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
         </ul>
       )}
       <div className="mt-auto space-y-0.5 pt-3">
-        {kpi.values.length > 1 && (
+        {kpi.sources_disagree && (
           <p className="flex items-center gap-1 text-xs font-medium text-warning">
             <TriangleAlert className="size-3.5" aria-hidden />
             Sources disagree
