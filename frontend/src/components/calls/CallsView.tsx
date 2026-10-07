@@ -55,7 +55,7 @@ export function CallsView({ matterId }: { matterId: number }) {
         <Panel title="Call" icon={<PhoneCall />}>
           <p className="text-sm text-muted-foreground">
             Choose someone to call, or type a number. The call opens in this computer&apos;s phone app; with everyone&apos;s
-            agreement, Clarity transcribes your side and writes notes afterwards.
+            agreement, Clarity transcribes what this computer&apos;s microphone hears and writes notes afterwards.
           </p>
         </Panel>
       )}

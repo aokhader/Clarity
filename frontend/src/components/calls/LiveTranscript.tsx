@@ -4,7 +4,7 @@ import type { SpeechStatus, TranscriptSegment } from '@/lib/useSpeechTranscript'
 
 const STATUS_TEXT: Record<SpeechStatus, string> = {
   idle: 'Not transcribing yet.',
-  listening: 'Transcribing your microphone.',
+  listening: "Transcribing this computer's microphone.",
   stopped: 'Transcription stopped.',
   paused: 'Transcription paused.',
   blocked: 'Transcription cannot run.',
@@ -20,13 +20,14 @@ type LiveTranscriptProps = {
   onResume?: () => void
 }
 
-/** The transcript as it is written, with a plain statement of what is and is not heard. */
+/** The transcript as it is written, with a plain statement of whose voice it can hold. */
 export function LiveTranscript({ status, segments, interim, problem, onResume }: LiveTranscriptProps) {
   const Icon = status === 'listening' ? Mic : MicOff
   return (
     <section aria-label="Live transcript" className="space-y-3">
       <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-        Only this computer&apos;s microphone is heard. The other person&apos;s side of the call is not transcribed.
+        What this computer&apos;s microphone hears is transcribed. On a speakerphone that can include the other
+        person&apos;s voice.
       </p>
       <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm font-medium">
         <Icon aria-hidden className={status === 'listening' ? 'size-4 text-danger' : 'size-4 text-muted-foreground'} />

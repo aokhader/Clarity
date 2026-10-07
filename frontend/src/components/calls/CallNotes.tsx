@@ -33,7 +33,9 @@ export function CallNotes({ callId }: { callId: number }) {
   const statusText = STATUS_TEXT[call.notes_status]
   return (
     <section aria-label="Notes from the call" className="space-y-3">
-      <p className="text-sm text-muted-foreground">Only your microphone was transcribed.</p>
+      <p className="text-sm text-muted-foreground">
+        Transcribed from this computer&apos;s microphone, which on a speakerphone can include the other party.
+      </p>
       {statusText && (
         <p role="status" className="text-sm">
           {statusText}
