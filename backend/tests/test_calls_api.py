@@ -4,7 +4,9 @@ The notes extractor is pipeline's and calls a model, so these tests swap in an i
 one. Nothing here dials a number.
 """
 
+import logging
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
@@ -51,13 +53,16 @@ def models_on(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _use_extractor(
-    monkeypatch: pytest.MonkeyPatch, notes: list[_Draft] | Exception
+    monkeypatch: pytest.MonkeyPatch,
+    notes: list[_Draft] | Exception,
+    dropped: Counter[str] | None = None,
 ) -> None:
     def extract(session: Session, transcript: str, **context: Any) -> SimpleNamespace:
         assert transcript == TRANSCRIPT and context["matter_id"] == MATTER_ID
         if isinstance(notes, Exception):
             raise notes
-        return SimpleNamespace(notes=notes, dropped=[])
+        # The shape extract_call_notes returns: dropped notes counted by reason.
+        return SimpleNamespace(notes=notes, dropped=dropped or Counter())
 
     monkeypatch.setattr(call_notes, "_extractor", lambda: extract)
 
@@ -300,3 +305,71 @@ def test_the_transcript_is_closed_once_notes_exist(
 
     assert response.status_code == 409
     assert client.get("/api/calls/999999").status_code == 404
+
+
+def test_the_log_counts_dropped_notes_not_reasons(
+    seeded: Session,
+    client: TestClient,
+    models_on: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _use_extractor(
+        monkeypatch, [_note()], Counter({"quote not found": 2, "no text": 1})
+    )
+
+    with caplog.at_level(logging.INFO, logger=call_notes.__name__):
+        _ended_call(client)
+
+    assert any("1 notes stored, 3 dropped" in r.getMessage() for r in caplog.records)
+
+
+def test_a_failure_while_storing_notes_is_recorded(
+    seeded: Session,
+    client: TestClient,
+    models_on: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _use_extractor(monkeypatch, [_note()])
+
+    def broken_store(*args: Any) -> int:
+        raise RuntimeError("the database refused the note")
+
+    monkeypatch.setattr(call_notes, "_store", broken_store)
+
+    assert _ended_call(client)["call"]["notes_status"] == "failed"
+
+
+def test_notes_in_the_extractors_own_types_are_stored(
+    seeded: Session,
+    client: TestClient,
+    models_on: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import date
+
+    from app.digest.call_notes import CallNoteDraft, CallNotes, MentionedDate
+
+    start = TRANSCRIPT.index(QUOTE)
+    draft = CallNoteDraft(
+        kind="date",
+        text="Bill due Monday",
+        quote=QUOTE,
+        quote_start=start,
+        quote_end=start + len(QUOTE),
+        amounts_cents=[125_000],
+        dates=[MentionedDate(on=date(2031, 7, 14), precision="day")],
+    )
+    monkeypatch.setattr(
+        call_notes,
+        "_extractor",
+        lambda: lambda *args, **kwargs: CallNotes(notes=[draft], dropped=Counter()),
+    )
+
+    detail = _ended_call(client)
+
+    [note] = detail["notes"]
+    assert note["kind"] == "date" and note["text"] == "Bill due Monday"
+    fact = client.get(f"/api/facts/{note['fact']['id']}/source").json()["fact"]
+    assert fact["value"]["amounts_cents"] == [125_000]
+    assert fact["value"]["dates"] == [{"on": "2031-07-14", "precision": "day"}]

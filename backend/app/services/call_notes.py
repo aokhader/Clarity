@@ -84,6 +84,8 @@ def write_notes(session: Session, call_id: int, extract: Extractor) -> None:
     call = session.get(Call, call_id)
     if call is None:
         return
+    # Any failure, in the model call or in storing its notes, is recorded on the call,
+    # so its status never stays "running".
     try:
         result = extract(
             session,
@@ -92,21 +94,20 @@ def write_notes(session: Session, call_id: int, extract: Extractor) -> None:
             call_date=call.started_at.date(),
             counterpart=call.target_json.get("name") or call.target_json.get("role"),
         )
+        stored = _store(session, call, list(result.notes))
+        call.notes_status = NotesStatus.DONE
+        # `dropped` counts the extractor's dropped notes by reason.
+        dropped = sum(result.dropped.values())
+        session.commit()
+        log.info("Call %d: %d notes stored, %d dropped", call_id, stored, dropped)
     except ModelsNotConfigured:
         session.rollback()
         call.notes_status = NotesStatus.NO_MODEL
+        session.commit()
     except Exception as error:
         log.exception("Call %d: notes failed", call_id)
         session.rollback()
         _fail(session, call_id, str(error) or type(error).__name__)
-        return
-    else:
-        stored = _store(session, call, list(result.notes))
-        call.notes_status = NotesStatus.DONE
-        log.info(
-            "Call %d: %d notes stored, %d dropped", call_id, stored, len(result.dropped)
-        )
-    session.commit()
 
 
 def _fail(session: Session, call_id: int, error: str) -> None:
