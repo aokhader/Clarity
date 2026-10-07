@@ -23,12 +23,19 @@ OFFER_DAY = date(2031, 7, 14)
 TASK_DAY = date(2031, 8, 4)
 INCIDENT_DAY = date(2031, 3, 3)
 OTHER_DAY = date(2031, 9, 10)
+# Deadlines (D28): only a legal one, by its type, locks its day.
+CALENDAR_DAY = date(2031, 10, 6)
+EXAM_DAY = date(2031, 10, 8)
+UNTYPED_DAY = date(2031, 10, 9)
+STATUTE_DAY = date(2033, 1, 17)
+ANSWER_DAY = date(2031, 11, 3)
 
 
-def _fact(fact_id: int, kind: FactKind) -> Fact:
+def _fact(fact_id: int, kind: FactKind, value: dict[str, Any] | None = None) -> Fact:
     return Fact(
         id=fact_id,
         kind=kind,
+        value_json=value or {},
         source=Source(clio_type=SourceType.NOTE),
         page_no=None,
         confidence=Confidence.HIGH,
@@ -54,6 +61,22 @@ WITHHELD = [
     KnownValue(NEVER, on=TASK_DAY, facts=(_fact(5, FactKind.TASK),)),
     KnownValue(NEVER, on=INCIDENT_DAY, facts=(_fact(6, FactKind.INCIDENT),)),
     KnownValue(NEVER, on=OTHER_DAY, facts=(_fact(7, FactKind.MEDICAL_BILL),)),
+    *(
+        KnownValue(
+            NEVER,
+            on=day,
+            facts=(_fact(20 + n, FactKind.DEADLINE, {"deadline_type": kind}),),
+        )
+        for n, (day, kind) in enumerate(
+            [
+                (CALENDAR_DAY, "calendar_entry"),
+                (EXAM_DAY, "examination"),
+                (UNTYPED_DAY, None),
+                (STATUTE_DAY, "statute_of_limitations"),
+                (ANSWER_DAY, "answer due"),
+            ]
+        )
+    ),
     KnownValue(
         "Kept internal: about another provider",
         amount_cents=0,
@@ -61,6 +84,10 @@ WITHHELD = [
         rank=1,
     ),
 ]
+
+
+def _day(on: date) -> str:
+    return f"{on:%b} {on.day}, {on.year}"
 
 
 def _verdict(text: str) -> str:
@@ -117,6 +144,21 @@ NOT_LOCKED = [
         f"Something happened in {OFFER_DAY:%B %Y}.",
         "not_in_file",
     ),
+    (
+        "a day on a plain calendar entry",
+        f"Can you see her on {_day(CALENDAR_DAY)}?",
+        "not_in_file",
+    ),
+    (
+        "a day on an exam appointment",
+        f"Her exam is on {_day(EXAM_DAY)}.",
+        "not_in_file",
+    ),
+    (
+        "a day on a deadline with no type",
+        f"Let us speak on {_day(UNTYPED_DAY)}.",
+        "not_in_file",
+    ),
     ("a year", "We will know more in 2031.", "unchecked"),
     ("a phone number", "Call 555-0100 with questions.", "unchecked"),
     ("the link's own total", "Your bills total $2,480.", "supported"),
@@ -142,6 +184,11 @@ def test_the_date_of_a_sensitive_fact_locks() -> None:
     text = f"The offer came on {OFFER_DAY:%b} {OFFER_DAY.day}, {OFFER_DAY.year}."
 
     assert _verdict(text) == "do_not_send"
+
+
+@pytest.mark.parametrize("day", [STATUTE_DAY, ANSWER_DAY], ids=["statute", "answer"])
+def test_the_day_of_a_legal_deadline_locks(day: date) -> None:
+    assert _verdict(f"Everything must be ready by {_day(day)}.") == "do_not_send"
 
 
 def test_a_lock_cites_the_internal_fact() -> None:

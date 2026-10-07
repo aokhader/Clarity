@@ -9,7 +9,8 @@ and date in the text gets one verdict (D25):
   when it is that value rounded the way the writer may have rounded it ("$330,000"),
   when a range around it brackets one, or when two amounts in the text add up to one.
   A date locks only when it is the date of a sensitive internal fact (an offer, a
-  demand, a settlement, a valuation, a limit, a deadline). $0 never locks;
+  demand, a settlement, a valuation, a limit) or of a legal deadline, by its type
+  (D28): a plain calendar entry does not lock. $0 never locks;
 - differs: no value matches, but one shown value is clearly about the same subject
   (the sentence names it), so that value is offered in its place;
 - not_in_file: nothing matches.
@@ -26,7 +27,7 @@ routes are firm-only; nothing here reaches a provider. No model is called.
 from collections.abc import Iterable
 from itertools import combinations
 
-from app.models import Fact, FactKind
+from app.models import Fact
 from app.schemas import (
     DraftCheckOut,
     DraftMentionOut,
@@ -34,6 +35,7 @@ from app.schemas import (
     MentionVerdict,
     SentenceVerdict,
 )
+from app.services.date_sensitivity import sensitive_date
 from app.services.fact_views import fact_ref
 from app.services.known_values import KnownValue
 from app.services.money_mentions import (
@@ -60,17 +62,6 @@ _SEVERITY: list[SentenceVerdict] = [
     "supported",
     "unchecked",
 ]
-# D25: the internal facts whose dates alone disclose something.
-SENSITIVE_DATE_KINDS = frozenset(
-    {
-        FactKind.OFFER,
-        FactKind.DEMAND,
-        FactKind.SETTLEMENT,
-        FactKind.CASE_VALUE,
-        FactKind.POLICY_LIMIT,
-        FactKind.DEADLINE,
-    }
-)
 
 
 def check_text(
@@ -163,8 +154,7 @@ def _check(
         blocked = [
             k
             for k in withheld
-            if _date_matches(mention, k)
-            and any(f.kind in SENSITIVE_DATE_KINDS for f in k.facts)
+            if _date_matches(mention, k) and any(sensitive_date(f) for f in k.facts)
         ]
     if matches:
         return _out(
