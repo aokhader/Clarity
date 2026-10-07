@@ -297,6 +297,14 @@ def _send(request: ModelRequest, feedback: str | None) -> tuple[Any, int, int]:
     return _send_anthropic(request, user_text, schema)
 
 
+JPEG_MAGIC = bytes.fromhex("ffd8ff")
+
+
+def media_type(image: bytes) -> str:
+    """Pages are rendered as PNG; a document that is itself a photo may be a JPEG."""
+    return "image/jpeg" if image.startswith(JPEG_MAGIC) else "image/png"
+
+
 def _send_anthropic(
     request: ModelRequest, user_text: str, schema: dict[str, Any]
 ) -> tuple[Any, int, int]:
@@ -307,7 +315,7 @@ def _send_anthropic(
             "type": "image",
             "source": {
                 "type": "base64",
-                "media_type": "image/png",
+                "media_type": media_type(image),
                 "data": base64.b64encode(image).decode("ascii"),
             },
         }
@@ -365,7 +373,7 @@ def _send_openai(
         {
             "type": "image_url",
             "image_url": {
-                "url": "data:image/png;base64,"
+                "url": f"data:{media_type(image)};base64,"
                 + base64.b64encode(image).decode("ascii")
             },
         }
