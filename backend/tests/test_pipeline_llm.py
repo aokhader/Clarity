@@ -2,6 +2,7 @@
 in the warning log."""
 
 import logging
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ import pytest
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.digest import llm
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
@@ -33,15 +34,17 @@ def _request(images: list[bytes]) -> llm.ModelRequest:
     )
 
 
-@pytest.fixture
-def configured(data_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    for name, value in {
-        "LLM_API_KEY": "test-key",
-        "EXTRACT_MODEL": "test-model",
-        "EXTRACT_PRICE_IN": "1",
-        "EXTRACT_PRICE_OUT": "1",
-    }.items():
-        monkeypatch.setenv(name, value)
+def _provider(monkeypatch: pytest.MonkeyPatch, provider: str) -> None:
+    """Settings built without the .env file, so the developer's own cannot leak in."""
+    settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        llm_provider=provider,
+        llm_api_key="test-key",
+        extract_model="test-model",
+        extract_price_in=Decimal(1),
+        extract_price_out=Decimal(1),
+    )
+    monkeypatch.setattr(llm, "get_settings", lambda: settings)
 
 
 def _capture(monkeypatch: pytest.MonkeyPatch, reply: dict[str, Any]) -> list[dict]:
@@ -67,10 +70,9 @@ OPENAI_REPLY = {
 
 
 def test_each_image_goes_to_anthropic_with_its_own_media_type(
-    configured: None, monkeypatch: pytest.MonkeyPatch
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
-    get_settings.cache_clear()
+    _provider(monkeypatch, "anthropic")
     bodies = _capture(monkeypatch, ANTHROPIC_REPLY)
 
     llm._execute(_request([PNG, JPEG]))
@@ -80,10 +82,9 @@ def test_each_image_goes_to_anthropic_with_its_own_media_type(
 
 
 def test_each_image_goes_to_openai_with_its_own_media_type(
-    configured: None, monkeypatch: pytest.MonkeyPatch
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("LLM_PROVIDER", "openai")
-    get_settings.cache_clear()
+    _provider(monkeypatch, "openai")
     bodies = _capture(monkeypatch, OPENAI_REPLY)
 
     llm._execute(_request([PNG, JPEG]))
