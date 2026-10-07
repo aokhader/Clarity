@@ -1,4 +1,4 @@
-import { ArrowRight, Briefcase, FolderOpen, Gavel, LayoutGrid, ShieldAlert, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Briefcase, FolderOpen, Gavel, LayoutGrid, Phone, ShieldAlert, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { UserSwitcher } from '@/components/firm/UserSwitcher'
@@ -10,9 +10,10 @@ const VIEW_ICONS: Record<MatterViewId, LucideIcon> = {
   attorney: Briefcase,
   provider: ShieldAlert,
   documents: FolderOpen,
+  calls: Phone,
 }
 
-/** The dark rail beside the firm view: product name, the four views, and the stub user. */
+/** The dark rail beside the firm view: product name, the views, and the stub user. */
 export function FirmSidebar({ view }: { view: MatterViewId }) {
   return (
     <aside className="sticky top-0 flex h-screen flex-col bg-slate-900 text-white">

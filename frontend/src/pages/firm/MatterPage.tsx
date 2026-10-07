@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams } from 'react-router'
 
 import type { MatterHeaderOut } from '@/api/types'
+import { CallsView } from '@/components/calls/CallsView'
 import { AttorneyView } from '@/components/firm/AttorneyView'
 import { DocumentsView } from '@/components/firm/DocumentsView'
 import { FirmSidebar } from '@/components/firm/FirmSidebar'
@@ -23,6 +24,8 @@ function ViewContent({ view, matterId, header }: { view: MatterViewId; matterId:
       return <ProviderPreviewView matterId={matterId} />
     case 'documents':
       return <DocumentsView matterId={matterId} />
+    case 'calls':
+      return <CallsView matterId={matterId} />
   }
 }
 

@@ -6,6 +6,7 @@ export const MATTER_VIEWS = [
   { id: 'attorney', label: 'For Attorney' },
   { id: 'provider', label: 'For Service Provider' },
   { id: 'documents', label: 'Documents' },
+  { id: 'calls', label: 'Calls' },
 ] as const
 
 export type MatterViewId = (typeof MATTER_VIEWS)[number]['id']
