@@ -13,7 +13,7 @@ const VISIBLE_ITEMS = 10
 
 type ProviderViewProps = {
   payload: ProviderPayload
-  /** Opens the cited page of a bill or record. Absent in the firm's preview. */
+  /** Opens the cited page of a bill or record: the provider's page viewer, or the firm's drawer in a preview. */
   onOpenSource?: (item: ProviderItemOut) => void
 }
 

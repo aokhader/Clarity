@@ -8,7 +8,7 @@ type ProviderItemListProps = {
   items: ProviderItemOut[]
   /** One plain sentence for when there is nothing to list. */
   empty: string
-  /** Opens the cited page. Absent in the firm's preview, where no link is live. */
+  /** Opens the cited page. Without it, items that have one show no "View page" button. */
   onOpenSource?: (item: ProviderItemOut) => void
   /** Show this many rows and scroll the rest; `label` names the scrolling region. */
   scroll?: { rows: number; label: string }

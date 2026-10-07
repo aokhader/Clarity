@@ -13,6 +13,7 @@ import { DEFAULT_SHARE_SETTINGS } from '@/components/share/shareSettings'
 import { LoadError } from '@/components/shared/LoadError'
 import { Button } from '@/components/ui/button'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
+import { useSourceDrawer } from '@/lib/useSourceDrawer'
 
 const NOTE_DEBOUNCE_MS = 400
 // null leaves the expiry to the firm's configured default.
@@ -49,6 +50,7 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
   )
   const preview = useDraftPreview(matterId, draft)
   const create = useCreateShare(matterId)
+  const drawer = useSourceDrawer()
 
   function toggleHidden(factId: number, hide: boolean) {
     setHidden((current) => (hide ? [...current, factId] : current.filter((id) => id !== factId)))
@@ -128,7 +130,7 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
             ) : preview.isError ? (
               <LoadError what="the preview" error={preview.error} onRetry={() => void preview.refetch()} />
             ) : (
-              <ProviderView payload={preview.data.payload} />
+              <ProviderView payload={preview.data.payload} onOpenSource={(item) => drawer.open(item.fact_id)} />
             )}
           </div>
         </div>
