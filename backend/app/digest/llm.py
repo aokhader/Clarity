@@ -15,8 +15,11 @@ import base64
 import hashlib
 import json
 import logging
+import re
+import threading
 import time
-from collections.abc import Iterator
+from collections import defaultdict, deque
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -350,6 +353,8 @@ def _send_anthropic(
     }
     response = _post(
         f"{settings.llm_endpoint}/messages",
+        model=request.model,
+        rpm=_rpm(request.role),
         json=body,
         headers={
             "x-api-key": settings.llm_api_key.get_secret_value(),
@@ -404,6 +409,8 @@ def _send_openai(
     }
     response = _post(
         f"{settings.llm_endpoint}/chat/completions",
+        model=request.model,
+        rpm=_rpm(request.role),
         json=body,
         headers={"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"},
         timeout=settings.llm_timeout_seconds,
@@ -452,7 +459,12 @@ def _send_gemini(
     url = f"{settings.llm_endpoint}/models/{request.model}:generateContent"
     headers = {"x-goog-api-key": key}
     response = _post(
-        url, json=body, headers=headers, timeout=settings.llm_timeout_seconds
+        url,
+        model=request.model,
+        rpm=_rpm(request.role),
+        json=body,
+        headers=headers,
+        timeout=settings.llm_timeout_seconds,
     )
     if response.status_code == 400 and "responseJsonSchema" in response.text:
         # The older field takes only an OpenAPI subset of JSON Schema.
@@ -465,7 +477,12 @@ def _send_gemini(
         del config["responseJsonSchema"]
         config["responseSchema"] = openapi
         response = _post(
-            url, json=body, headers=headers, timeout=settings.llm_timeout_seconds
+            url,
+            model=request.model,
+            rpm=_rpm(request.role),
+            json=body,
+            headers=headers,
+            timeout=settings.llm_timeout_seconds,
         )
     if response.status_code >= 400:
         error = response.text[:300].replace(key, "[key]")
@@ -550,11 +567,61 @@ def _openapi_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], set[str]]:
     return convert(schema), stripped
 
 
-def _post(url: str, **kwargs: Any) -> httpx.Response:
-    """POST, retrying rate limits, overload, and dropped connections with backoff."""
+class RateLimiter:
+    """At most `limit` HTTP attempts per model in any 60 seconds, across threads.
+
+    The count lives in this process only, so only one process may make model calls
+    during a run: a second process would have its own count and could double the rate.
+    """
+
+    WINDOW_SECONDS = 60.0
+
+    def __init__(
+        self,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self._clock = clock
+        self._sleep = sleep
+        self._lock = threading.Lock()
+        self._sent: defaultdict[str, deque[float]] = defaultdict(deque)
+
+    def acquire(self, model: str, limit: int) -> None:
+        """Return once an attempt to `model` fits in the window; 0 means no limit."""
+        if limit <= 0:
+            return
+        while True:
+            with self._lock:
+                now = self._clock()
+                sent = self._sent[model]
+                while sent and now - sent[0] >= self.WINDOW_SECONDS:
+                    sent.popleft()
+                if len(sent) < limit:
+                    sent.append(now)
+                    return
+                wait = self.WINDOW_SECONDS - (now - sent[0])
+            # Slept outside the lock, so other models are not held up.
+            log.info("Model rate limit: waiting %.0fs for %s", wait, model)
+            self._sleep(wait)
+
+
+_LIMITER = RateLimiter()
+
+
+def _rpm(role: Role) -> int:
+    settings = get_settings()
+    return settings.extract_rpm if role == "extract" else settings.merge_rpm
+
+
+def _post(url: str, *, model: str = "", rpm: int = 0, **kwargs: Any) -> httpx.Response:
+    """POST, retrying rate limits, overload, and dropped connections with backoff.
+
+    Every attempt, the first and each retry, passes the per-model limiter first.
+    """
     attempts = get_settings().llm_max_attempts
     for attempt in range(attempts):
         last = attempt + 1 == attempts
+        _LIMITER.acquire(model, rpm)
         try:
             response = httpx.post(url, **kwargs)
         except httpx.TransportError:
@@ -564,11 +631,30 @@ def _post(url: str, **kwargs: Any) -> httpx.Response:
             continue
         if response.status_code not in RETRY_STATUSES or last:
             return response
-        retry_after = response.headers.get("retry-after", "")
-        wait = float(retry_after) if retry_after.isdigit() else min(2**attempt, 30)
+        wait = _retry_wait(response) or min(2**attempt, 30)
         log.info("Model API %s; retrying in %.0fs", response.status_code, wait)
         time.sleep(wait)
     raise AssertionError("unreachable")
+
+
+_SECONDS = re.compile(r"^(\d+(?:\.\d+)?)s$")
+
+
+def _retry_wait(response: httpx.Response) -> float | None:
+    """The wait the API asks for: a Retry-After header, or Google's RetryInfo."""
+    header = response.headers.get("retry-after", "").strip()
+    if header.isdigit():
+        return float(header)
+    try:
+        details = response.json().get("error", {}).get("details") or []
+    except ValueError:
+        return None
+    for detail in details:
+        if isinstance(detail, dict):
+            match = _SECONDS.match(str(detail.get("retryDelay", "")))
+            if match:
+                return float(match.group(1))
+    return None
 
 
 def _cost_micro_usd(role: Role, outcome: ModelResult) -> int:

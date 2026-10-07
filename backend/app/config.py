@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     merge_price_out: Decimal | None = None
     extract_concurrency: int = Field(default=8, ge=1)
     llm_timeout_seconds: float = Field(default=180, gt=0)
+    # Most HTTP attempts per minute to each role's model, retries included; 0 is no
+    # limit. Enforced per process, so only one process may call models during a run.
+    extract_rpm: int = Field(default=0, ge=0)
+    merge_rpm: int = Field(default=0, ge=0)
     # Tries per model call on rate limits, overload and dropped connections.
     llm_max_attempts: int = Field(default=5, ge=1)
     # Inputs extracted, and facts scored, per committed batch.
