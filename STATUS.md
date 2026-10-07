@@ -4,13 +4,13 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | Feature freeze (D32). Gemini native provider live; trial on a database copy running | Review the trial; then back up and run (a), (b); screenshots; critic Pass 3 | | Manager: the test call (C-T) after notes can run | 03:20 |
-| pipeline | Diagnostics passed: 3.8-flash no schema 200 (101 s, thinking 126); flash-lite full request 200, responseJsonSchema accepted, JSON valid. The 503s were capacity, not our request. Spent ~$0.001 | Stopped; waiting for the lead | | Next step for the trial | 03:04 |
+| lead | 3 of 6 screenshots in (d62208c); trial stopped: 0 of 12 Gemini attempts succeeded (503s, 429 quota) | Retake 3 after ui-builder fixes; Manager decides the model runs | pipeline: limiter pacing, retry cap | Manager: model runs; push kit-trial; test call (C-T) | 10:08 |
+| pipeline | Trial running on a scratch copy (3 pages, 2 records, 1 merge call), sole model caller; first attempt 503, retrying within 5/min | Compare with the real facts; report | | | 09:33 |
 | backend | K7 dde2e3c; D29 6b044aa: digest retry_failed body, RunStatusOut.cached_failed_calls. Standing by | Freeze fixes only | lead: restart :8000 for D29 fields | | 02:30 |
 | ui-builder | D29 retry control 15dc3c3 (not clicked: model switch under way) | Stand by | | | 02:31 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
-| reviewer | | | | | |
+| reviewer | V5, V2, V4 done. Clone servers UP until lead says: http://localhost:5183/matters/1, API :8010. Clone (git pull works; only local change is vite ports): C:/Users/azizk/AppData/Local/Temp/claude/D--Documents-GitHub-Clarity/d3b6c4f8-cb50-4bb8-9cd9-552b53704d07/scratchpad/clarity-clone | On a pull touching backend/, I restart :8010 (no --reload). GateGuard prompts: 4 | lead: retake attorney, provider-preview, provider-page; README already links them | | 10:07 |
 
 ## Stubs and shortcuts
 
