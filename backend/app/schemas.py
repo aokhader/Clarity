@@ -582,9 +582,18 @@ class HealthOut(BaseModel):
     models_configured: bool
 
 
+class StartFailureOut(BaseModel):
+    """A job that stopped before it wrote its run row: no Clio token, no matching matter."""
+
+    at: datetime
+    error: str
+
+
 class RunStatusOut(BaseModel):
     running: bool
     last_run: RunOut | None
+    # Set only while no run row is newer than the failed attempt.
+    start_failure: StartFailureOut | None
 
 
 class CostOut(BaseModel):

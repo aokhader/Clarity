@@ -478,9 +478,17 @@ export type HealthOut = {
   models_configured: boolean
 }
 
+/** A job that stopped before it wrote its run row: no Clio token, no matching matter. */
+export type StartFailureOut = {
+  at: IsoDateTime
+  error: string
+}
+
 export type RunStatusOut = {
   running: boolean
   last_run: RunOut | null
+  /** Set only while no run row is newer than the failed attempt. */
+  start_failure: StartFailureOut | null
 }
 
 export type CostOut = {
