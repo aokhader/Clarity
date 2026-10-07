@@ -32,7 +32,26 @@ class ClioNotAuthorized(Exception):
     """No stored token, or the stored token could not be refreshed."""
 
 
+def missing_client_settings() -> list[str]:
+    """The `.env` names of the Clio app settings that are not filled in."""
+    settings = get_settings()
+    missing = []
+    if not settings.clio_client_id:
+        missing.append("CLIO_CLIENT_ID")
+    if settings.clio_client_secret is None:
+        missing.append("CLIO_CLIENT_SECRET")
+    return missing
+
+
+def _require_client_settings() -> None:
+    missing = missing_client_settings()
+    if missing:
+        raise ClioNotAuthorized(f"Set {' and '.join(missing)} in .env")
+
+
 def authorize_url(state: str) -> str:
+    # Never a URL with client_id=None in it.
+    _require_client_settings()
     settings = get_settings()
     query = urlencode(
         {
@@ -171,9 +190,9 @@ class TokenStore:
 
 
 def _token_request(form: dict[str, str]) -> dict[str, object]:
+    _require_client_settings()
     settings = get_settings()
-    if not settings.clio_configured or settings.clio_client_secret is None:
-        raise ClioNotAuthorized("Set CLIO_CLIENT_ID and CLIO_CLIENT_SECRET in .env")
+    assert settings.clio_client_secret is not None
     response = httpx.post(
         f"{settings.clio_base_url}/oauth/token",
         data={

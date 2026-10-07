@@ -54,6 +54,15 @@ def _reset(_args: argparse.Namespace) -> int:
 def _auth(args: argparse.Namespace) -> int:
     from app.clio import oauth
 
+    # Before the database or any URL: an unset client id would print client_id=None.
+    missing = oauth.missing_client_settings()
+    if missing:
+        print(
+            f"Clio is not set up: set {' and '.join(missing)} in .env, from the "
+            "developer app registered with Clio (docs/clio-api.md).",
+            file=sys.stderr,
+        )
+        return 1
     init_db()
     state = oauth.new_state()
     print("Open this URL, sign in to Clio, and approve read access:\n")
