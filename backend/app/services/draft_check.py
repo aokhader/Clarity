@@ -10,9 +10,10 @@ and date in the text gets one verdict:
   (the sentence names it), so that value is offered in its place;
 - not_in_file: nothing matches.
 
-A do_not_send verdict returns the withheld value's reason and nothing else, so a
-check never reveals what it guards. `check_share_draft` applies the matcher to a
-provider's link. No model is called.
+A do_not_send verdict returns the rule that withholds the value and the refs of the
+facts it matched, so the attorney can open why a sentence is locked (D17). These
+routes are firm-only; nothing here reaches a provider. `check_share_draft` applies the
+matcher to a provider's link. No model is called.
 """
 
 from collections.abc import Iterable
@@ -121,8 +122,12 @@ def _check(
             (f for k in matches for f in k.facts),
         )
     if blocked := [k for k in withheld if _matches(mention, k)]:
-        # The reason names the rule; the matched value and its facts stay here.
-        return out("do_not_send", min(blocked, key=lambda k: k.rank).what)
+        # The most severe rule is the reason; every matched fact is cited (D17).
+        return out(
+            "do_not_send",
+            min(blocked, key=lambda k: k.rank).what,
+            (f for k in blocked for f in k.facts),
+        )
     if same := _same_subject(mention, sentence, shown):
         return out(
             "differs",

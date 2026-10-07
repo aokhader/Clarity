@@ -123,6 +123,16 @@ def _check(client: TestClient, share_id: int, text: str) -> dict[str, Any]:
     return response.json()
 
 
+def _fact_ids(node: Any) -> set[int]:
+    """Every `fact_id` anywhere in a JSON payload."""
+    if isinstance(node, list):
+        return {i for item in node for i in _fact_ids(item)}
+    if isinstance(node, dict):
+        own = {node["fact_id"]} if isinstance(node.get("fact_id"), int) else set()
+        return own | {i for value in node.values() for i in _fact_ids(value)}
+    return set()
+
+
 def _only_mention(result: dict[str, Any]) -> dict[str, Any]:
     [sentence] = result["sentences"]
     [mention] = sentence["mentions"]
@@ -181,7 +191,7 @@ def test_an_amount_nothing_in_the_file_states_is_not_in_file(
     assert mention["facts"] == []
 
 
-def test_an_internal_amount_is_do_not_send_and_reveals_nothing(
+def test_an_internal_amount_is_do_not_send_citing_only_the_fact_ref(
     client: TestClient, seeded: Session, user_id: int
 ) -> None:
     offer = _fact(seeded, FactKind.OFFER, None)
@@ -192,11 +202,53 @@ def test_an_internal_amount_is_do_not_send_and_reveals_nothing(
 
     assert result["verdict"] == "do_not_send"
     assert mention["reason"] == "Kept internal: never shared with providers"
-    assert mention["facts"] == []
+    # D17: the firm can open why the sentence is locked, through the ref alone.
+    assert [ref["id"] for ref in mention["facts"]] == [offer.id]
     assert mention["file_amount_cents"] is None and mention["file_date"] is None
     sent_back = json.dumps(result)
     assert offer.title not in sent_back
     assert offer.quote is not None and offer.quote not in sent_back
+
+
+def test_a_check_puts_nothing_internal_on_the_providers_link(
+    client: TestClient, seeded: Session, user_id: int
+) -> None:
+    offer = _fact(seeded, FactKind.OFFER, None)
+    other = _fact(seeded, FactKind.MEDICAL_BILL, THERAPY_ID)
+    response = client.post(
+        f"/api/matters/{MATTER_ID}/shares",
+        json={"provider_contact_id": ORTHO_ID, "note": "Thank you."},
+        headers={"X-User-Id": str(user_id)},
+    )
+    share = response.json()
+    token = share["url"].rsplit("/p/", 1)[1]
+    text = (
+        f"The insurer offered ${offer.value_json['amount_cents'] // 100:,}. "
+        f"Therapy charges came to ${other.value_json['amount_cents'] // 100:,}."
+    )
+    checked = _check(client, share["id"], text)
+    matched = {
+        ref["id"]
+        for s in checked["sentences"]
+        for m in s["mentions"]
+        for ref in m["facts"]
+    }
+    assert matched == {offer.id, other.id}
+
+    link = client.get(f"/api/p/{token}")
+    preview = client.get(f"/api/shares/{share['id']}/preview").json()["payload"]
+
+    assert link.status_code == 200
+    for payload in (link.json(), preview):
+        assert not _fact_ids(payload) & {offer.id, other.id}
+        sent = json.dumps(payload)
+        assert offer.title not in sent and other.title not in sent
+    assert client.post(
+        f"/api/p/{token}/draft-check", json={"text": text}
+    ).status_code in (
+        404,
+        405,
+    )
 
 
 def test_another_providers_bill_is_do_not_send(

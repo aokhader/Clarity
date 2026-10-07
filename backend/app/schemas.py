@@ -602,9 +602,9 @@ class DraftMentionOut(BaseModel):
     """One amount or date in the text, with its verdict.
 
     Offsets count UTF-16 code units, as JavaScript strings do, so the UI can slice the
-    text it sent. `facts` cites the facts that state the value (supported) or the file's
-    value (differs). A do_not_send mention carries no facts and no file value: the
-    reason names the rule that withholds it, never what it matched.
+    text it sent. `facts` cites the facts that state the value (supported, do_not_send)
+    or the file's value (differs). A do_not_send mention carries no file value; its
+    reason names the rule that withholds it (D17: firm routes only).
     """
 
     start: int

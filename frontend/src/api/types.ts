@@ -494,7 +494,8 @@ export type DraftShareCheckIn = {
 
 /**
  * One amount or date in the text. Offsets count UTF-16 code units, so `text.slice(start, end)`
- * is the mention. A do_not_send mention carries no facts and no file value.
+ * is the mention. `facts` cites what states the value (supported, do_not_send) or the
+ * file's value (differs). A do_not_send mention carries no file value (D17).
  */
 export type DraftMentionOut = {
   start: number
