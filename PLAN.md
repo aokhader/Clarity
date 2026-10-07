@@ -81,7 +81,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 **Backend**
 - [x] B1 Server side of the new feature (D2), with tests on the real matter. 90 min
 - [x] B2 Check the four KPI tiles and every provider's bills total against the real matter, with the critic. 20 min
-- [ ] B4 D12 and D14: when the brief is served (`services/brief_view.py`), run each sentence's amounts and dates through the draft checker's matcher against today's facts and computed totals. A sentence that disagrees gets a "differs" mark with today's figure and its fact ref. Check the headline's citations like a sentence's. Additive contract change. 40 min, after B1
+- [x] B4 D12 and D14: when the brief is served (`services/brief_view.py`), run each sentence's amounts and dates through the draft checker's matcher against today's facts and computed totals. A sentence that disagrees gets a "differs" mark with today's figure and its fact ref. Check the headline's citations like a sentence's. Additive contract change. 40 min, after B1
 - [x] B3 Report sync failures that happen before the run row exists (no token, no matching matter) instead of only logging them (`api/ops.py`). Pairs with P3. 20 min
 
 **UI**
@@ -99,20 +99,20 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - no open question that the page already answers (#6);
   - one date format (#16).
 - [x] P12 pipeline: a neutral title for ledger facts (#10); no trailing space in the stage label (#16). 15 min
-- [ ] B5 backend, repairing `049da3d`: 30 min
+- [x] B5 backend, repairing `049da3d`: 30 min
   - the specials tile must not say "disagree" and "matches" at once (#2);
   - a one-ended valuation must not become a point value;
   - per-occurrence limits come back.
-- [ ] B6 backend: the header's incident-date chip opens a source that contains the date (#7). 20 min
-- [ ] B7 backend with pipeline: a record request closes when a later records-received fact answers it, and restatements collapse to one (#8). 45 min
-- [ ] B8 backend:
+- [x] B6 backend: the header's incident-date chip opens a source that contains the date (#7). 20 min
+- [x] B7 backend with pipeline: a record request closes when a later records-received fact answers it, and restatements collapse to one (#8). 45 min
+- [x] B8 backend:
   - one row per fact in the ranked feed, citing every record that states it, like the injuries list (#9);
   - "last movement" comes from the latest dated case event (#12);
   - a document's own date in the drawer (#13);
   - no duplicate limits on the provider page (#16). 40 min
-- [ ] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
+- [x] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
 - [x] P13 pipeline (D19, D20): the extraction prompt records which policy a limit belongs to, and gives economic damages and recovery caps kinds of their own. Add a command that re-extracts named pages only. Run it after the Manager approves the estimate (P10 b). Bump the prompt version. 45 min plus the run
-- [ ] B10 backend (D19, D20): the contract changes to match P13 (new kinds, the policy field, both additive) with `types.ts`; the new kinds go into visibility as internal; the Coverage tile leads with the defendant limit and labels the others. 40 min
+- [x] B10 backend (D19, D20): the contract changes to match P13 (new kinds, the policy field, both additive) with `types.ts`; the new kinds go into visibility as internal; the Coverage tile leads with the defendant limit and labels the others. 40 min
 - [ ] U9 ui-builder (D19): the Coverage tile shows the leading limit and the labelled client policies under it. 20 min, after B10
 - [ ] U8 ui-builder:
   - loading, empty and error states (U5);
@@ -129,7 +129,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - how comparable legal tools present call notes.
 
 **Calls (after the draft checker, D9)**
-- [ ] C-B backend: the call model and routes, built only on new tables, so nothing needs `cli reset` (that would wipe the synced matter). 90 min
+- [x] C-B backend: the call model and routes, built only on new tables, so nothing needs `cli reset` (that would wipe the synced matter). 90 min
   - **Who to call next:** open action items waiting on someone, joined with each contact's phone number from the synced Clio contacts.
   - **Start a call**, with the consent confirmation logged.
   - **Save the transcript.**
