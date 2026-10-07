@@ -301,6 +301,12 @@ export type KpiOut = {
   name: 'case_value' | 'coverage' | 'medical_specials' | 'firm_spend'
   values: KpiValueOut[]
   basis: string | null
+  /**
+   * True when two values are figures for the same thing: show "Sources disagree" from this,
+   * not from the number of values. The Coverage tile lists different policies as separate,
+   * labelled entries, which do not disagree (D19).
+   */
+  sources_disagree: boolean
 }
 
 export type RunOut = {

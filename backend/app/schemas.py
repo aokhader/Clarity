@@ -417,11 +417,14 @@ class KpiValueOut(BaseModel):
 
 
 class KpiOut(BaseModel):
-    """One KPI tile. No values means "Not found in file"; two or more means sources disagree."""
+    """One KPI tile. No values means "Not found in file"."""
 
     name: Literal["case_value", "coverage", "medical_specials", "firm_spend"]
     values: list[KpiValueOut]
     basis: str | None
+    # True when two values are figures for the same thing. The Coverage tile lists
+    # different policies as separate entries, which do not disagree (D19).
+    sources_disagree: bool
 
 
 class RunOut(BaseModel):

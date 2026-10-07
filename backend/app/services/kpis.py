@@ -1,14 +1,15 @@
 """The four KPI tiles: case value, coverage, medical specials, and firm spend.
 
 A tile lists every distinct value the file supports, each with its sources. No
-value means "Not found in file"; two or more mean the sources disagree. Nothing is
-estimated or guessed.
+value means "Not found in file"; two figures for the same thing mean the sources
+disagree. Nothing is estimated or guessed.
 
 When sources disagree, the figure stated by the most records comes first, so one
 misread line cannot become the headline over a figure the file states again and again.
 """
 
 from dataclasses import dataclass
+from itertools import combinations
 
 from app.models import Fact, FactKind
 from app.schemas import (
@@ -28,11 +29,15 @@ _Amounts = tuple[int | None, int | None, int | None]
 # The record key of the bill sum: however many bills add up to it, it is one figure.
 _BILL_SUM = "bills"
 
-_PER_LABELS: dict[str | None, str] = {
-    "person": "Per person",
-    "occurrence": "Per occurrence",
+# (policy, per) of a limit; None where the file does not say.
+_LimitKind = tuple[str | None, str | None]
+_POLICY_NAMES: dict[str, str] = {
+    "defendant_liability": "Defendant liability",
+    "client_no_fault": "Client no-fault",
+    "client_um_uim": "Client UM/UIM",
+    "client_other": "Client's other policy",
 }
-_LABEL_ORDER: list[str | None] = ["Per person", "Per occurrence", None]
+_PER_WORDS = {"person": "per person", "occurrence": "per occurrence"}
 
 
 @dataclass(frozen=True)
@@ -104,28 +109,74 @@ def _case_value(facts: list[Fact]) -> KpiOut:
             ),
             None,
         )
-    return KpiOut(name="case_value", values=[_value(g) for g in groups], basis=basis)
+    values = [_value(g) for g in groups]
+    return KpiOut(
+        name="case_value",
+        values=values,
+        basis=basis,
+        sources_disagree=len(values) > 1,
+    )
 
 
 def _coverage(facts: list[Fact]) -> KpiOut:
-    """Every stated limit, each labelled per person or per occurrence.
+    """Every stated limit, labelled by whose policy it is and per person or occurrence.
 
-    A per-occurrence limit is not a per-person one, so each value carries its own label,
-    per-person limits first, and the basis names the kind only when every value shares it.
+    The defendant's liability limit leads, then the client's own policies, then limits
+    whose policy is not known. Different policies are separate entries, not a
+    disagreement: two figures disagree only when they could be the same limit.
     """
-    statements = [
-        _stated((payload.amount_cents, None, None), fact, _PER_LABELS.get(payload.per))
-        for fact in _most_significant_first(facts)
-        if (payload := PolicyLimitPayload.model_validate(fact.value_json)).amount_cents
-        is not None
-    ]
+    statements: list[_Statement] = []
+    kind_of: dict[str | None, _LimitKind] = {}
+    for fact in _most_significant_first(facts):
+        payload = PolicyLimitPayload.model_validate(fact.value_json)
+        if payload.amount_cents is None:
+            continue
+        label = _limit_label(payload.policy, payload.per)
+        kind_of[label] = (payload.policy, payload.per)
+        statements.append(_stated((payload.amount_cents, None, None), fact, label))
     groups = sorted(_grouped(statements), key=lambda g: _LABEL_ORDER.index(g[0].label))
     labels = {g[0].label for g in groups}
+    limits = [(g[0].amounts[0], kind_of[g[0].label]) for g in groups]
     return KpiOut(
         name="coverage",
         values=[_value(g) for g in groups],
         basis=labels.pop() if len(labels) == 1 else None,
+        sources_disagree=any(_conflict(a, b) for a, b in combinations(limits, 2)),
     )
+
+
+def _limit_label(policy: str | None, per: str | None) -> str | None:
+    per_words = _PER_WORDS.get(per or "")
+    if policy is None:
+        return per_words.capitalize() if per_words else None
+    name = _POLICY_NAMES[policy]
+    return f"{name}, {per_words}" if per_words else name
+
+
+# Tile order: the defendant's policy, then the client's, then policy unknown; per
+# person before per occurrence.
+_LABEL_ORDER = [
+    _limit_label(policy, per)
+    for policy in [*_POLICY_NAMES, None]
+    for per in ("person", "occurrence", None)
+]
+
+
+def _conflict(
+    a: tuple[int | None, _LimitKind], b: tuple[int | None, _LimitKind]
+) -> bool:
+    """Two different figures that could be the same limit: the same per, and the same
+    policy, where an unknown policy or per could be either."""
+    (amount_a, (policy_a, per_a)), (amount_b, (policy_b, per_b)) = a, b
+    return (
+        amount_a != amount_b
+        and _may_match(policy_a, policy_b)
+        and _may_match(per_a, per_b)
+    )
+
+
+def _may_match(one: str | None, other: str | None) -> bool:
+    return one == other or one is None or other is None
 
 
 def _medical_specials(specials: list[Fact], bills: list[Fact]) -> KpiOut:
@@ -161,7 +212,10 @@ def _medical_specials(specials: list[Fact], bills: list[Fact]) -> KpiOut:
         # bills confirm rather than that the tile "matches".
         basis = f"The first figure is the sum of {bill_count}"
     return KpiOut(
-        name="medical_specials", values=[_value(g) for g in groups], basis=basis
+        name="medical_specials",
+        values=[_value(g) for g in groups],
+        basis=basis,
+        sources_disagree=len(groups) > 1,
     )
 
 
@@ -171,13 +225,16 @@ def _firm_spend(expenses: list[Fact]) -> KpiOut:
     ]
     counted = [(amount, f) for amount, f in counted if amount is not None]
     if not counted:
-        return KpiOut(name="firm_spend", values=[], basis=None)
+        return KpiOut(name="firm_spend", values=[], basis=None, sources_disagree=False)
     value = KpiValueOut(
         amount_cents=sum(amount for amount, _ in counted),
         facts=[fact_ref(f) for _, f in counted],
     )
     return KpiOut(
-        name="firm_spend", values=[value], basis=_plural(len(counted), "expense")
+        name="firm_spend",
+        values=[value],
+        basis=_plural(len(counted), "expense"),
+        sources_disagree=False,
     )
 
 

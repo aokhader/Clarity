@@ -240,3 +240,83 @@ def test_specials_no_bill_sum_confirms_keep_the_stated_figure_first(
 
     assert [v.amount_cents for v in tile.values] == [900_00, 100_00]
     assert tile.basis == "Differs from the sum of 1 bill"
+
+
+# --- B10 (D19): whose policy a limit belongs to ---------------------------------------
+
+
+def _limit(
+    session: Session, cents: int, per: str | None, policy: str | None = None
+) -> Fact:
+    value: dict[str, Any] = {"amount_cents": cents, "per": per, "policy": policy}
+    return _fact(session, FactKind.POLICY_LIMIT, value)
+
+
+def test_coverage_leads_with_the_defendants_limit_and_labels_the_clients(
+    session: Session,
+) -> None:
+    facts = [
+        _limit(session, 25_000_00, "person", "client_um_uim"),
+        _limit(session, 50_000_00, "person", "client_no_fault"),
+        _limit(session, 100_000_00, "person", "defendant_liability"),
+        _limit(session, 300_000_00, "occurrence", "defendant_liability"),
+    ]
+
+    tile = _tile(facts, "coverage")
+
+    assert [(v.amount_cents, v.label) for v in tile.values] == [
+        (100_000_00, "Defendant liability, per person"),
+        (300_000_00, "Defendant liability, per occurrence"),
+        (50_000_00, "Client no-fault, per person"),
+        (25_000_00, "Client UM/UIM, per person"),
+    ]
+    # Different policies are separate entries, not a disagreement.
+    assert tile.sources_disagree is False
+
+
+def test_two_figures_for_the_same_policy_disagree(session: Session) -> None:
+    facts = [
+        _limit(session, 100_000_00, "person", "defendant_liability"),
+        _limit(session, 50_000_00, "person", "defendant_liability"),
+    ]
+
+    assert _tile(facts, "coverage").sources_disagree is True
+
+
+def test_limits_of_unknown_policy_show_as_before(session: Session) -> None:
+    facts = [
+        _limit(session, 100_000_00, "person"),
+        _limit(session, 50_000_00, "person"),
+        _limit(session, 300_000_00, "occurrence"),
+    ]
+
+    tile = _tile(facts, "coverage")
+
+    assert [v.label for v in tile.values] == [
+        "Per person",
+        "Per person",
+        "Per occurrence",
+    ]
+    assert tile.sources_disagree is True
+
+
+def test_an_unknown_policy_stating_the_same_figure_does_not_disagree(
+    session: Session,
+) -> None:
+    facts = [
+        _limit(session, 100_000_00, "person", "defendant_liability"),
+        _limit(session, 100_000_00, "person"),
+    ]
+
+    assert _tile(facts, "coverage").sources_disagree is False
+
+
+def test_other_tiles_disagree_when_they_hold_two_figures(session: Session) -> None:
+    one = _fact(session, FactKind.EXPENSE, {"amount_cents": 100_00})
+    specials = [
+        _fact(session, FactKind.MEDICAL_SPECIALS, {"amount_cents": cents})
+        for cents in (100_00, 200_00)
+    ]
+
+    assert _tile([one], "firm_spend").sources_disagree is False
+    assert _tile(specials, "medical_specials").sources_disagree is True
