@@ -185,3 +185,56 @@ def test_an_empty_transcript_needs_no_model(model: FakeModel, session: Session) 
     result = extract_call_notes(session, "  ", matter_id=MATTER)
 
     assert result.notes == [] and model.calls == 0
+
+
+# D28: one amount reader serves the draft checker and the call notes, so a figure said
+# in any form it reads is checked, and parsed, the same way in both.
+SPOKEN_AMOUNTS = [
+    ("They will pay twelve grand for it.", "They will pay $12,000.", 1_200_000),
+    (
+        "Lost wages come to about 12k so far.",
+        "Lost wages are about $12,000.",
+        1_200_000,
+    ),
+    ("The bill came to 500 bucks.", "The bill was $500.", 50_000),
+    ("She said 850$ was the copay.", "The copay is $850.", 85_000),
+    # A full-width dollar sign, and a narrow no-break space between thousands.
+    ("The deposit is \uff04850 today.", "The deposit is $850.", 85_000),
+    ("The scan was 2\u202f000 dollars.", "The scan cost $2,000.", 200_000),
+]
+
+
+def _one_note(
+    model: FakeModel, session: Session, transcript: str, kind: str, text: str
+) -> Any:
+    model.answer = {"notes": [_note(kind, text, transcript)]}
+    return extract_call_notes(session, transcript, matter_id=MATTER)
+
+
+@pytest.mark.parametrize(("said", "noted", "cents"), SPOKEN_AMOUNTS)
+def test_an_amount_said_in_any_form_supports_a_note_that_restates_it(
+    model: FakeModel, session: Session, said: str, noted: str, cents: int
+) -> None:
+    result = _one_note(model, session, said, "amount", noted)
+
+    assert [n.amounts_cents for n in result.notes] == [[cents]]
+    assert not result.dropped
+
+
+@pytest.mark.parametrize(("said", "_noted", "cents"), SPOKEN_AMOUNTS)
+def test_an_amount_note_without_a_figure_takes_the_spoken_one(
+    model: FakeModel, session: Session, said: str, _noted: str, cents: int
+) -> None:
+    result = _one_note(model, session, said, "amount", "An amount was agreed.")
+
+    assert [n.amounts_cents for n in result.notes] == [[cents]]
+
+
+def test_a_note_stating_another_figure_than_the_spoken_one_is_dropped(
+    model: FakeModel, session: Session
+) -> None:
+    said = "They will pay twelve grand for it."
+    result = _one_note(model, session, said, "amount", "They will pay $15,000.")
+
+    assert result.notes == []
+    assert result.dropped["unsupported_figure"] == 1
