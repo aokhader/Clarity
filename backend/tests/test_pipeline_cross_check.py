@@ -27,12 +27,13 @@ def _limit(
     dollars: int,
     per: str | None,
     page_no: int | None = None,
+    policy: str | None = None,
 ) -> Fact:
     fact = Fact(
         matter_id=MATTER,
         kind=FactKind.POLICY_LIMIT,
         title="Invented limit",
-        value_json={"amount_cents": dollars * 100, "per": per},
+        value_json={"amount_cents": dollars * 100, "per": per, "policy": policy},
         source_id=source.id,
         page_no=page_no,
         quote="Invented quote",
@@ -85,3 +86,27 @@ def test_a_document_limit_is_not_checked_against_itself(
 
     assert cross_check(session, MATTER) == 0
     assert first.value_json.get("alt_values") in (None, [])
+
+
+def test_a_limit_of_another_policy_does_not_contradict_the_firms(
+    data_dir: Path, session: Session
+) -> None:
+    matter = _source(session, SourceType.MATTER, "m")
+    letter = _source(session, SourceType.DOCUMENT, "d")
+    firm = _limit(session, matter, 40_000, "person", policy="defendant_liability")
+    _limit(session, letter, 70_000, "person", page_no=1, policy="client_um_uim")
+
+    assert cross_check(session, MATTER) == 0
+    assert firm.value_json["alt_values"] == []
+
+
+def test_a_limit_of_unknown_policy_is_still_compared(
+    data_dir: Path, session: Session
+) -> None:
+    matter = _source(session, SourceType.MATTER, "m")
+    letter = _source(session, SourceType.DOCUMENT, "d")
+    firm = _limit(session, matter, 40_000, "person", policy="defendant_liability")
+    _limit(session, letter, 70_000, "person", page_no=1)
+
+    assert cross_check(session, MATTER) == 1
+    assert firm.value_json["alt_values"][0]["amount_cents"] == 7_000_000

@@ -58,9 +58,10 @@ def _check_policy_limits(facts: list[Fact], matter_sources: set[int]) -> int:
 
     The firm's figure is a limit read from the matter's custom fields, where the mapped
     policy-limit field is extracted. Only limits on the same basis (per person or per
-    occurrence) are compared. A file can name more than one policy, so the firm's figure
-    agrees when any other source states it; only a figure no source confirms carries
-    the other values.
+    occurrence) and of the same policy are compared; a limit whose policy is unknown is
+    compared with every policy. A file can name more than one policy, so the firm's
+    figure agrees when any other source states it; only a figure no source confirms
+    carries the other values.
     """
     limits = [
         f
@@ -73,7 +74,10 @@ def _check_policy_limits(facts: list[Fact], matter_sources: set[int]) -> int:
     for firm in (f for f in limits if f.source_id in matter_sources):
         value = dict(firm.value_json)
         same_basis = [
-            f for f in stated_elsewhere if f.value_json.get("per") == value.get("per")
+            f
+            for f in stated_elsewhere
+            if f.value_json.get("per") == value.get("per")
+            and _same_policy(f.value_json.get("policy"), value.get("policy"))
         ]
         amounts = {f.value_json["amount_cents"] for f in same_basis}
         alternatives: list[dict[str, Any]] = []
@@ -83,6 +87,10 @@ def _check_policy_limits(facts: list[Fact], matter_sources: set[int]) -> int:
         value["alt_values"] = alternatives
         firm.value_json = value
     return disagreements
+
+
+def _same_policy(one: str | None, other: str | None) -> bool:
+    return one is None or other is None or one == other
 
 
 def _first_of_each_amount(facts: list[Fact]) -> list[dict[str, Any]]:
