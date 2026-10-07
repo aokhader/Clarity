@@ -96,11 +96,35 @@ def _status(facts: list[Fact], matter: RawMatter | None) -> ProviderStatusOut:
         stages=list(CaseStage),
         current=current,
         active=active,
-        last_movement_on=max(
-            (f.event_date for f in facts if f.event_date and _is_case_event(f)),
-            default=None,
-        ),
+        last_movement_on=_last_movement(facts, current),
     )
+
+
+def _last_movement(facts: list[Fact], current: CaseStage | None) -> date | None:
+    """When the case last moved, from the case events this link shows, or None.
+
+    A dated move into the current stage answers it. Failing that, the latest dated
+    event answers it only when every status change is dated: an undated change may be
+    the latest, and dating the case from an older event would say nothing has happened
+    since (critic Pass 2, finding 4).
+    """
+    events = [f for f in facts if _is_case_event(f)]
+    into_current = [
+        f.event_date for f in events if f.event_date and _stage_of(f) == current
+    ]
+    if current is not None and into_current:
+        return max(into_current)
+    changes = [f for f in events if f.kind is FactKind.STATUS_CHANGE]
+    if any(f.event_date is None for f in changes):
+        return None
+    return max((f.event_date for f in events if f.event_date), default=None)
+
+
+def _stage_of(fact: Fact) -> CaseStage | None:
+    """The stage a case event moved the case to, when it says."""
+    if fact.kind is FactKind.STATUS_CHANGE:
+        return StatusChangePayload.model_validate(fact.value_json).to_stage
+    return CaseStagePayload.model_validate(fact.value_json).stage
 
 
 def _is_case_event(fact: Fact) -> bool:

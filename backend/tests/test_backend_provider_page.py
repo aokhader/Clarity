@@ -132,3 +132,60 @@ def test_a_restated_limit_cites_its_earliest_statement(
     limits = _payload(client, user_id, coverage_limits=True)["coverage"]["limits"]
 
     assert [item["fact_id"] for item in limits] == [earlier.id]
+
+
+# --- K4: last movement never dates the case from an older event ----------------------
+
+
+def _change(session: Session, to_stage: str | None, on: date | None) -> Fact:
+    source = Source(
+        matter_id=MATTER_ID,
+        clio_type=SourceType.NOTE,
+        clio_id=f"stage-note-{session.query(Source).count()}",
+        raw_json={},
+    )
+    session.add(source)
+    session.flush()
+    fact = Fact(
+        matter_id=MATTER_ID,
+        kind=FactKind.STATUS_CHANGE,
+        title="Stage changed",
+        value_json=validate_payload(
+            FactKind.STATUS_CHANGE, {"to_stage": to_stage, "label": "The case moved"}
+        ),
+        event_date=on,
+        source_id=source.id,
+        quote="The case moved",
+        visibility=Visibility.SHAREABLE,
+        confidence=Confidence.HIGH,
+        origin=Origin.MODEL,
+    )
+    session.add(fact)
+    session.commit()
+    return fact
+
+
+def test_an_undated_later_change_leaves_last_movement_unknown(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    # The case moved on to a stage the dated change does not reach; when is unknown.
+    stage = _one(seeded, FactKind.CASE_STAGE)
+    stage.value_json = {**stage.value_json, "stage": "litigation"}
+    seeded.commit()
+    _change(seeded, "litigation", None)
+
+    assert _payload(client, user_id)["status"]["last_movement_on"] is None
+
+
+def test_a_dated_move_into_the_current_stage_dates_last_movement(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    stage = _one(seeded, FactKind.CASE_STAGE)
+    stage.value_json = {**stage.value_json, "stage": "litigation"}
+    seeded.commit()
+    moved = _change(seeded, "litigation", date(2031, 7, 14))
+    _change(seeded, None, None)  # an undated note of some earlier step
+
+    status = _payload(client, user_id)["status"]
+
+    assert status["last_movement_on"] == moved.event_date.isoformat()
