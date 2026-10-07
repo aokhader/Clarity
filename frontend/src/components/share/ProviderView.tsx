@@ -24,9 +24,15 @@ type ProviderViewProps = {
  */
 export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
   const { status, coverage, requests, bills, records, treatment_activity, updates } = payload
+  const sharesNothing =
+    [status, coverage, requests, bills, records, treatment_activity, updates].every((section) => section === null) &&
+    !payload.note
   return (
     <div className="space-y-4">
       <ProviderHeader payload={payload} />
+      {sharesNothing && (
+        <p className="text-sm text-muted-foreground">The firm has not shared any case details on this link.</p>
+      )}
       {status && <StatusTracker status={status} />}
       {coverage && <CoverageSection coverage={coverage} />}
       {requests && (

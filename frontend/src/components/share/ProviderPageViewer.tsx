@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
+import { useState } from 'react'
 
 import { useProviderSource } from '@/api/provider'
 import type { ProviderItemOut } from '@/api/types'
@@ -18,6 +19,7 @@ type ProviderPageViewerProps = {
 export function ProviderPageViewer({ token, item, onClose }: ProviderPageViewerProps) {
   const source = useProviderSource(token, item?.fact_id ?? null)
   const page = source.data?.page ?? null
+  const [unloadedUrl, setUnloadedUrl] = useState<string | null>(null)
   return (
     <Dialog.Root open={item !== null} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
@@ -47,10 +49,12 @@ export function ProviderPageViewer({ token, item, onClose }: ProviderPageViewerP
               </blockquote>
             )}
             {source.data &&
-              (page ? (
+              (page && unloadedUrl !== page.image_url ? (
                 <img
+                  key={page.image_url}
                   src={page.image_url}
                   alt={`Page ${page.page_no} of the document`}
+                  onError={() => setUnloadedUrl(page.image_url)}
                   className="w-full rounded-md border"
                 />
               ) : (

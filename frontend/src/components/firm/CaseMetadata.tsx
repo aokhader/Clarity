@@ -1,16 +1,27 @@
 import { Activity, Calendar, CircleAlert, FileText, Hourglass, MessageSquare, ShieldCheck, Signpost } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { useMatterActions, useMatterInjuries, useMatterTimeline } from '@/api/matters'
 import type { FactOut, MatterHeaderOut } from '@/api/types'
 import { MetadataItem } from '@/components/firm/MetadataItem'
+import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'
 import { STALE_CONTACT_DAYS, dueDateOf, statuteDeadline } from '@/lib/facts'
 import { daysFromToday, formatDate, formatDaysAgo, formatElapsed } from '@/lib/format'
 import { STAGE_LABELS } from '@/lib/labels'
 
 const NOT_FOUND = <span className="text-muted-foreground">Not found in file</span>
+// A failed request is not an empty file, so it never reads "Not found".
+const UNAVAILABLE = <span className="text-muted-foreground">Could not load</span>
 // A span, not the Skeleton div: the value sits inside the card's button.
 const LOADING = <span aria-label="Loading" className="inline-block h-5 w-40 animate-pulse rounded-md bg-muted align-middle" />
+
+/** A card's value from its request: loading, failed, the value, or not found in the file. */
+function cardValue(query: { isPending: boolean; isError: boolean }, value: ReactNode): ReactNode {
+  if (query.isPending) return LOADING
+  if (query.isError) return UNAVAILABLE
+  return value ?? NOT_FOUND
+}
 
 function mostSignificant(facts: FactOut[] | undefined): FactOut | null {
   if (!facts || facts.length === 0) return null
@@ -37,6 +48,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
   const overdue = actions.data?.overdue[0] ?? null
   const overdueDue = overdue ? dueDateOf(overdue) : null
   const staleContact = contact !== null && -daysFromToday(contact.on) > STALE_CONTACT_DAYS
+  const failed = [liability, deadlines, injuries, actions].filter((query) => query.isError)
 
   return (
     <Panel title="Case metadata" icon={<FileText />}>
@@ -74,7 +86,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
           facts={topLiability ? [topLiability] : []}
           fullText={topLiability?.title}
         >
-          {liability.isPending ? LOADING : topLiability ? <span>{topLiability.title}</span> : NOT_FOUND}
+          {cardValue(liability, topLiability && <span>{topLiability.title}</span>)}
         </MetadataItem>
         <MetadataItem
           icon={<Activity />}
@@ -82,18 +94,17 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
           facts={topInjury ? [topInjury] : []}
           fullText={topInjury?.title}
         >
-          {injuries.isPending ? LOADING : topInjury ? <span>{topInjury.title}</span> : NOT_FOUND}
+          {cardValue(injuries, topInjury && <span>{topInjury.title}</span>)}
         </MetadataItem>
         <MetadataItem icon={<Hourglass />} label="Statute of limitations" facts={statute ? [statute.fact] : []}>
-          {deadlines.isPending ? (
-            LOADING
-          ) : statute ? (
-            <span className="tabular-nums">
-              {formatDate(statute.due)}{' '}
-              <span className="text-muted-foreground">({inDays(daysFromToday(statute.due))})</span>
-            </span>
-          ) : (
-            NOT_FOUND
+          {cardValue(
+            deadlines,
+            statute && (
+              <span className="tabular-nums">
+                {formatDate(statute.due)}{' '}
+                <span className="text-muted-foreground">({inDays(daysFromToday(statute.due))})</span>
+              </span>
+            ),
           )}
         </MetadataItem>
       </div>
@@ -109,6 +120,15 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
               <span className="text-sm text-muted-foreground"> · and {actions.data.overdue.length - 1} more</span>
             )}
           </MetadataItem>
+        </div>
+      )}
+      {failed[0] && (
+        <div className="mt-4">
+          <LoadError
+            what="part of the case metadata"
+            error={failed[0].error}
+            onRetry={() => failed.forEach((query) => void query.refetch())}
+          />
         </div>
       )}
     </Panel>
