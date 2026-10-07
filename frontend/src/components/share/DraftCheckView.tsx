@@ -7,7 +7,11 @@ import type { DraftCheckState } from '@/lib/useCheckedDraft'
 import { cn } from '@/lib/utils'
 
 const VERDICT_LINES: Record<SentenceVerdict, { Icon: LucideIcon; tone: string; text: string }> = {
-  supported: { Icon: CircleCheck, tone: 'text-success', text: 'Every amount and date matches what the link shows.' },
+  supported: {
+    Icon: CircleCheck,
+    tone: 'text-success',
+    text: 'Every amount and date found matches what the link shows. The check covers figures only.',
+  },
   differs: { Icon: TriangleAlert, tone: 'text-warning', text: 'Some amounts or dates differ from the file.' },
   not_in_file: { Icon: CircleHelp, tone: 'text-muted-foreground', text: 'Some amounts or dates are not in the file.' },
   do_not_send: {
@@ -15,7 +19,12 @@ const VERDICT_LINES: Record<SentenceVerdict, { Icon: LucideIcon; tone: string; t
     tone: 'text-danger',
     text: "Don't send: it mentions facts this link keeps internal. Remove those sentences to send it.",
   },
-  unchecked: { Icon: CircleHelp, tone: 'text-muted-foreground', text: 'No amounts or dates to check.' },
+  // Not an all-clear: words that reveal an internal fact without a figure are not caught (D17).
+  unchecked: {
+    Icon: CircleHelp,
+    tone: 'text-muted-foreground',
+    text: 'No amounts or dates found. The check covers figures only.',
+  },
 }
 
 const CHECKING = <p className="text-sm text-muted-foreground">Checking amounts and dates against the file…</p>
