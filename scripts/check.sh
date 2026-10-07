@@ -100,11 +100,18 @@ else python_tests "Clio is read-only" tests/test_clio_client.py; fi
 
 # 3. No case data in code, docs, file names or commit messages
 export_file=${KIT_EXPORT:-}
+skip_reason="no synced matter in data/app.db and no KIT_EXPORT"
 if [ -z "$export_file" ] && [ $have_python -eq 1 ] && [ -f data/app.db ]; then
-  if "$PYTHON" scripts/export_raw.py >"$LOG" 2>&1; then export_file=data/raw-export.json; fi
+  "$PYTHON" scripts/export_raw.py >"$LOG" 2>&1
+  case $? in
+    0) export_file=data/raw-export.json ;;
+    # export_raw.py's NOTHING_SYNCED: the invented matter's text is committed on purpose.
+    3) skip_reason="data/app.db holds only the synthetic matter from seed-dev; sync a real matter or set KIT_EXPORT" ;;
+    *) skip_reason="scripts/export_raw.py failed: $(tail -n 1 "$LOG")" ;;
+  esac
 fi
 if [ -z "$export_file" ] || [ ! -e "$export_file" ]; then
-  report "No case data in the repository" SKIPPED "no synced matter in data/app.db and no KIT_EXPORT"
+  report "No case data in the repository" SKIPPED "$skip_reason"
 else
   KIT_EXPORT="$export_file" node_tests "No case data in the repository" tests/no_literals.test.mjs
 fi
