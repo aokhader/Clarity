@@ -15,11 +15,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.digest import llm
+from app.digest.ledger import LedgerEntry, LedgerMapping
 from app.digest.mapping import (
     FieldEntry,
     FieldMapping,
-    LedgerEntry,
-    LedgerMapping,
     RoleEntry,
     RoleMapping,
     build_mapping,

@@ -22,6 +22,7 @@ from app.digest.mapping import MatterMapping
 from app.digest.pages import mark_extracted
 from app.digest.payloads import model_payload
 from app.digest.records import (
+    QUOTE_LIMIT,
     is_processed,
     mark_processed,
     parse_date,
@@ -40,7 +41,6 @@ from app.models import Confidence, Fact, FactKind, Origin, Page, Source, SourceT
 
 log = logging.getLogger(__name__)
 
-QUOTE_LIMIT = 300
 _DIGITS = re.compile(r"\d")
 # Structured records produce these kinds in code; the extractor never does.
 CODE_ONLY_KINDS = {FactKind.CASE_STAGE, FactKind.TASK}
