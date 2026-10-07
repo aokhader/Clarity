@@ -392,7 +392,8 @@ export type ProviderOut = {
   contact_id: number
   name: string
   role_label: string | null
-  billed_cents: number
+  /** null: no bill with an amount is on file. Never show it as zero (D16). */
+  billed_cents: number | null
   records_received: number
   open_requests: number
   share: ShareStatusOut | null

@@ -527,7 +527,8 @@ class ProviderOut(BaseModel):
     contact_id: int
     name: str
     role_label: str | None  # the relationship description as written in Clio
-    billed_cents: int
+    # None: no bill with an amount is on file. Never shown as zero (D16).
+    billed_cents: int | None
     records_received: int
     open_requests: int
     share: ShareStatusOut | None
