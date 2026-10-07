@@ -25,10 +25,6 @@ function itemLine(item: ProviderItemOut): string {
   return `- ${on}${item.label}${amount}`
 }
 
-function totalCents(items: ProviderItemOut[]): number {
-  return items.reduce((sum, item) => sum + (item.amount_cents ?? 0), 0)
-}
-
 /**
  * A plain-text update for a provider's office, written from the share's payload and
  * nothing else. A section the attorney turned off is null in the payload and is left
@@ -76,11 +72,12 @@ export function providerUpdateText(payload: ProviderPayload, url: string): Provi
   }
 
   if (bills) {
-    sections.push(
-      bills.length === 0
-        ? ['No bills from your office on file.']
-        : [`Your bills on file: ${plural(bills.length, 'bill')}, ${formatMoney(totalCents(bills))} in total`, ...bills.map(itemLine)],
-    )
+    // The total is the server's, each charge counted once, so it matches the provider page.
+    const total = payload.bills_total
+    const heading = total
+      ? `Your bills on file: ${plural(total.bill_count, 'bill')}, ${formatMoney(total.amount_cents)} in total`
+      : `Your bills on file: ${plural(bills.length, 'bill')}`
+    sections.push(bills.length === 0 ? ['No bills from your office on file.'] : [heading, ...bills.map(itemLine)])
   }
 
   if (records) {
