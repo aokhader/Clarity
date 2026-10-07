@@ -173,6 +173,12 @@ By the reviewer, on the invented matter, on 2026-10-07:
   - An unknown date is `not_in_file`.
   - The server refuses a share whose note holds the internal figure (422) and accepts one that does not (201).
 
+By the lead, in the browser, on the clean clone's invented matter, while taking the screenshots above:
+- The freeze fixes `b71b281` and `1b5c369`:
+  - the Case value range fits its tile, breaking after its dash;
+  - the provider's list reads "Bills and liens", and says liens are not added to the total.
+- The other shots: the brief's chips, the consent step, and the draft checker's lock in the share composer.
+
 ### Built, lightly tested
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
@@ -187,9 +193,6 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
   - A provider's "last movement" is left out when the latest change has no date.
   - The client's treating injuries are listed first.
   - The consent wording names every service the audio and transcript reach (D27).
-- **Freeze fixes (b71b281, 1b5c369):**
-  - Every KPI figure fits its tile, and a range breaks after its dash.
-  - A provider's list is headed "Bills and liens", and says liens are not added to the total.
 - **Pipeline fixes (P2 to P7).** No sync or digest has run on the real matter's database since; its last digest run is from October 2.
   - A partly failed sync is pulled again.
   - A failed mapping call keeps the previous mapping.
