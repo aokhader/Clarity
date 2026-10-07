@@ -1,6 +1,8 @@
 {
   "about": "Which paths each role may edit during the kit trial, as globs relative to the repository root. '**' matches any depth, '*' one path segment. The lead (no role) may edit anything, and owns everything listed nowhere (PLAN.md, DECISIONS.md, CLAUDE.md, docs/*.md, .claude/). STATUS.md is shared: each role edits only its own row. A new file outside these globs needs the lead to add it here first.",
-  "shared": ["STATUS.md"],
+  "shared": [
+    "STATUS.md"
+  ],
   "roles": {
     "pipeline": [
       "backend/app/clio/**",
@@ -46,10 +48,15 @@
       "frontend/src/api/visits.ts",
       "frontend/src/App.tsx",
       "frontend/src/main.tsx",
-      "frontend/src/index.css"
+      "frontend/src/index.css",
+      "frontend/src/api/calls.ts"
     ],
-    "researcher": ["docs/briefs/**"],
-    "critic": ["docs/reviews/critic.md"],
+    "researcher": [
+      "docs/briefs/**"
+    ],
+    "critic": [
+      "docs/reviews/critic.md"
+    ],
     "reviewer": [
       "README.md",
       "docs/reviews/reviewer.md",
