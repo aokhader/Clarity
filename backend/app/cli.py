@@ -1,4 +1,4 @@
-"""Command-line entry point: `python -m app.cli {auth,sync,digest,seed-dev,reset}`."""
+"""Command-line entry point: `python -m app.cli {auth,sync,digest,reextract,seed-dev,reset}`."""
 
 import argparse
 import json
@@ -119,6 +119,59 @@ def _digest(args: argparse.Namespace) -> int:
         return 0
 
 
+def _reextract(args: argparse.Namespace) -> int:
+    from app.digest.reextract import NotRereadable, estimate, mark_unread, select_units
+    from app.digest.run import NoSyncedMatter, run_digest, synced_matter_id
+
+    init_db()
+    with get_sessionmaker()() as session:
+        try:
+            matter_id = synced_matter_id(session, args.matter_id)
+            selection = select_units(
+                session,
+                matter_id,
+                pages=[_page_key(value) for value in args.page],
+                records=args.record,
+                fact_ids=args.behind_fact,
+                kinds=args.behind_kind,
+            )
+        except (NoSyncedMatter, NotRereadable, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 1
+        cost = estimate(session, selection)
+        pages, records = len(selection.pages), len(selection.records)
+        print(
+            f"Selected {_count(pages, 'page')} and {_count(records, 'record')}, "
+            f"holding {_count(cost.facts_held, 'fact')}."
+        )
+        price = f"about ${cost.usd:.2f}" if cost.usd is not None else "cost unknown"
+        print(
+            f"At most {_count(cost.extraction_calls, 'extraction call')}, then scoring "
+            f"the new facts and one brief: {price}, at the average recorded per call."
+        )
+        if args.dry_run or not (pages or records):
+            return 0
+        mark_unread(selection)
+        session.commit()
+        run = run_digest(session, matter_id)
+        print(json.dumps(run.stats_json, indent=2))
+        if run.error:
+            print(f"Digest error: {run.error}", file=sys.stderr)
+            return 1
+        return 0
+
+
+def _page_key(value: str) -> tuple[int, int]:
+    source_id, _, page_no = value.partition(":")
+    if not (source_id.isdigit() and page_no.isdigit()):
+        raise ValueError(f"--page takes SOURCE_ID:PAGE_NO, not {value!r}")
+    return int(source_id), int(page_no)
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
 def _seed_dev(_args: argparse.Namespace) -> int:
     # Imported here so the application never depends on test code outside this command.
     from tests.fixtures.synthetic_matter import load_synthetic_matter
@@ -165,6 +218,40 @@ def main(argv: list[str] | None = None) -> int:
         help="ask the model again for inputs whose last call failed",
     )
     digest.set_defaults(run=_digest)
+    reextract = commands.add_parser(
+        "reextract",
+        help="read chosen pages and records again with the current prompts",
+    )
+    reextract.add_argument("--matter-id", type=int)
+    reextract.add_argument(
+        "--page", action="append", default=[], help="SOURCE_ID:PAGE_NO of a document"
+    )
+    reextract.add_argument(
+        "--record",
+        action="append",
+        type=int,
+        default=[],
+        help="a note or email source id",
+    )
+    reextract.add_argument(
+        "--behind-fact",
+        action="append",
+        type=int,
+        default=[],
+        help="the unit a fact came from",
+    )
+    reextract.add_argument(
+        "--behind-kind",
+        action="append",
+        default=[],
+        help="every unit with a fact of this kind",
+    )
+    reextract.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="list the selection and its cost; change nothing",
+    )
+    reextract.set_defaults(run=_reextract)
     commands.add_parser(
         "seed-dev", help="load the invented matter for development without Clio"
     ).set_defaults(run=_seed_dev)
