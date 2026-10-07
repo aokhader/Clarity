@@ -8,7 +8,6 @@ Every sentence, and the headline, must cite fact ids that exist.
 
 import json
 import re
-from datetime import date
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -17,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.digest import llm
-from app.digest.records import parse_date
+from app.digest.records import display_date, parse_date
 from app.models import Digest, DigestKind, Fact, FactKind, SourceType
 from app.schemas import BriefContent
 from app.services.bills import count_bills
@@ -25,20 +24,6 @@ from app.services.bills import count_bills
 BRIEF_FACT_LIMIT = 40
 # Figures the KPI tiles show; their facts are always in the brief's view.
 FIGURE_KINDS = {FactKind.CASE_VALUE, FactKind.MEDICAL_SPECIALS, FactKind.POLICY_LIMIT}
-MONTHS = (
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-)
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 Stage = Literal[
     "intake",
@@ -171,13 +156,6 @@ def key_figures(facts: list[Fact]) -> dict[str, Any]:
 def dollars(cents: int) -> str:
     sign = "-" if cents < 0 else ""
     return f"{sign}${Decimal(abs(cents)) / 100:,.2f}"
-
-
-def display_date(day: date | None) -> str | None:
-    """Mar 4, 2021: the way the app writes a date, so the brief matches the page."""
-    if day is None:
-        return None
-    return f"{MONTHS[day.month - 1]} {day.day}, {day.year}"
 
 
 def _row(fact: Fact) -> dict[str, Any]:

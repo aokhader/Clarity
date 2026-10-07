@@ -85,6 +85,29 @@ def mark_processed(source: Source) -> None:
     source.content_hash = record_hash(source)
 
 
+MONTHS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def display_date(day: date | None) -> str | None:
+    """Mar 4, 2021: the way the app writes a date, so text from code matches the page."""
+    if day is None:
+        return None
+    return f"{MONTHS[day.month - 1]} {day.day}, {day.year}"
+
+
 def parse_date(value: Any) -> date | None:
     if not value:
         return None

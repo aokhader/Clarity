@@ -29,7 +29,13 @@ from sqlalchemy.orm import Session
 
 from app.digest import llm
 from app.digest.payloads import build_payload, to_cents
-from app.digest.records import name_of, parse_date, replace_facts, sources_of
+from app.digest.records import (
+    display_date,
+    name_of,
+    parse_date,
+    replace_facts,
+    sources_of,
+)
 from app.digest.verify import resolve_provider
 from app.models import (
     Confidence,
@@ -345,11 +351,12 @@ def _code_fact(kind: FactKind, title: str, quote: str, **values: Any) -> Fact:
 
 
 def _stage_facts(matter: Source, stage: CaseStage | None) -> list[Fact]:
-    label = name_of(matter.raw_json.get("matter_stage"))
+    # Clio keeps whatever whitespace the firm typed around a stage name.
+    label = (name_of(matter.raw_json.get("matter_stage")) or "").strip()
     status = matter.raw_json.get("status")
     if stage is None and not label:
         return []
-    quote = label or str(status or "")
+    quote = label or str(status or "").strip()
     return [
         _code_fact(
             FactKind.CASE_STAGE,
@@ -516,8 +523,18 @@ def _ledger_fact(
     raw = activity.raw_json
     category = name_of(raw.get("expense_category"))
     note = str(raw.get("note") or "")
-    label = category or note.split(";")[0].strip() or "Expense"
     is_medical = bool(decision and decision.is_medical_charge)
+    # Never the entry's own text as a title: firms type anything there, and a provider
+    # reads this title as the name of its bill. The text stays as the quote.
+    if is_medical:
+        day = display_date(parse_date(raw.get("date")))
+        label = (
+            f"Charges on the firm's ledger, {day}"
+            if day
+            else "Charges on the firm's ledger"
+        )
+    else:
+        label = category or "Firm expense"
     kind = FactKind.MEDICAL_BILL if is_medical else FactKind.EXPENSE
     provider_id = None
     if is_medical and decision:
