@@ -74,8 +74,10 @@ class AmountRange:
 # --- Numbers written in digits -------------------------------------------------------
 
 _DOLLAR = "$\uff04\ufe69"  # dollar sign, full-width, small
-# Thousands grouped by commas, thin or no-break spaces, or dots; or plain digits.
-_GROUPED = r"\d{1,3}(?:(?:,|[\u2009\u202f\u00a0]|\.)\d{3})+(?!\d)(?!,\d)"
+# Thousands grouped by commas, thin or no-break spaces, dots, plain spaces or
+# apostrophes; or plain digits. A plain space or an apostrophe groups thousands
+# only beside a money marker (`_numeric`): "12 345 visits" is two numbers.
+_GROUPED = r"\d{1,3}(?:(?:,|[\u2009\u202f\u00a0 '\u2019]|\.)\d{3})+(?!\d)(?!,\d)"
 _NUMERIC = re.compile(
     rf"(?P<prefix>US[{_DOLLAR}]|[{_DOLLAR}]|\bUSD)?\s?"
     rf"(?<![\w.,/:+#])(?P<num>{_GROUPED}|\d+)(?:\.(?P<frac>\d+))?(?![\d/:])"
@@ -83,6 +85,7 @@ _NUMERIC = re.compile(
     rf"(?:\s?(?P<suffix>[{_DOLLAR}]|USD\b|dollars?\b|bucks\b))?",
     re.IGNORECASE,
 )
+_LOOSE_SEPARATOR = re.compile("[ '\u2019]")
 _SCALES = {
     "k": 1_000,
     "thousand": 1_000,
@@ -110,6 +113,8 @@ def _numeric(match: re.Match[str]) -> AmountMention | None:
     marked = bool(match["prefix"] or match["suffix"] or scale_word in _MONEY_SCALES)
     if not marked and len(digits) < 4 and scale == 1:
         return None  # a bare "3" or "250" is not money
+    if not marked and _LOOSE_SEPARATOR.search(num):
+        return None  # "12 345 visits": two numbers, not a figure
     hyphened = text[match.start("num") - 1 : match.start("num")] == "-" or (
         text[match.end() : match.end() + 1] == "-"
     )

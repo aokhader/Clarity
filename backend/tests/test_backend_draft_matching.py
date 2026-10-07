@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.models import Confidence, Fact, FactKind, Source, SourceType, User
 from app.services.draft_check import check_text
 from app.services.known_values import KnownValue
+from app.services.text_mentions import find_amounts as marked_amounts
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID
 
 NEVER = "Kept internal: never shared with providers"
@@ -119,6 +120,10 @@ BYPASSES = [
     ("range with one scale", "It is $110–130k."),
     ("split across sentences", "We hold $100,000 now. Another $23,456 follows."),
     ("three-decimal millions", "The limit is $2.125 million."),
+    ("plain-space thousands before dollars", "The figure is 123 456 dollars."),
+    ("apostrophe thousands before dollars", "The figure is 123'456 dollars."),
+    ("typographic apostrophe before USD", "The figure is 123\u2019456 USD."),
+    ("plain-space thousands after a dollar sign", "The figure is $123 456."),
 ]
 
 # What the critic saw locked that must not be.
@@ -160,6 +165,11 @@ NOT_LOCKED = [
         "not_in_file",
     ),
     ("a year", "We will know more in 2031.", "unchecked"),
+    (
+        "digits split by a space, with no money marker",
+        "We counted 123 456 visits.",
+        "unchecked",
+    ),
     ("a phone number", "Call 555-0100 with questions.", "unchecked"),
     ("the link's own total", "Your bills total $2,480.", "supported"),
     ("a wrong total of the link's own", "Your bills total $2,500.", "differs"),
@@ -189,6 +199,14 @@ def test_the_date_of_a_sensitive_fact_locks() -> None:
 @pytest.mark.parametrize("day", [STATUTE_DAY, ANSWER_DAY], ids=["statute", "answer"])
 def test_the_day_of_a_legal_deadline_locks(day: date) -> None:
     assert _verdict(f"Everything must be ready by {_day(day)}.") == "do_not_send"
+
+
+@pytest.mark.parametrize(
+    "written", ["1 250 dollars", "1'250 dollars", "$1 250", "1\u2019250 USD"]
+)
+def test_the_call_notes_reader_groups_thousands_beside_a_marker(written: str) -> None:
+    # The call-notes check reads amounts through text_mentions (D28: one reader).
+    assert [a.cents for a in marked_amounts(written)] == [125_000]
 
 
 def test_a_lock_cites_the_internal_fact() -> None:
