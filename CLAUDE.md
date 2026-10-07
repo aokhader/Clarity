@@ -11,7 +11,7 @@ Swans screens every repository before judging: does it run, does it work on the 
 3. **Every displayed fact has a source.** A fact with no `source_id` (plus `page_no` and `quote` for documents) is not rendered. Attorneys told the organizers: "If a date is on screen, I need to see where it came from."
 4. **The provider boundary is enforced in the API.** Provider endpoints return only allowlisted, shared facts. Never send internal facts to the browser and hide them in the UI.
 5. **No model calls when a page loads.** Digest once, store the result, serve from the database. Re-digest only what changed.
-6. **Time.** Feature freeze at 3:15 PM PT. Repository, clip, and form are submitted before 4:00 PM PT. The close is hard, with no grace window.
+6. **Time.** The hackathon closed on October 2. The trial's feature freeze is the time in `PLAN.md`; after it, only fixes, checks and the README.
 
 ## Stack
 
@@ -39,6 +39,9 @@ pytest -q
 npm install
 npm run dev                 # Vite on 5173, proxies /api to 8000
 npm run typecheck
+
+# checks a screener would run (from the repository root)
+bash scripts/check.sh
 ```
 
 ## Layout
@@ -60,15 +63,27 @@ data/        gitignored: app.db, files/, pages/
 docs/
 ```
 
-## Parallel tracks
+## Team (kit trial)
 
-After M0 the work runs as three tracks with separate owners: A (pipeline), B (firm view), C (provider side). A session works one track and edits only the paths that track owns. The track comes from `CLAUDE.local.md` or from the first message; if neither says, ask before editing anything. The split, the frozen contract files, and the sync points are in `docs/parallel.md`.
+The hackathon's three tracks are closed; their history is in `docs/parallel.md`, `docs/progress.md` and `docs/tracks/`. Work now runs as a team of agent roles from the hackathon kit.
+
+The human is the **Manager** and makes product calls. The **lead** session (no role) keeps PLAN.md and DECISIONS.md, integrates, and decides what to bring to the Manager. Every other session has one role, defined in `.claude/agents/<role>.md`, and edits only the paths `.claude/ownership.json` gives it. A PreToolUse hook enforces this when the session was started with `KIT_ROLE` set. Start a worker with `/kickoff <role>`, and update with `/status`.
+
+| File | Written by | Holds |
+|---|---|---|
+| `PLAN.md` | lead | goal, demo moments, backlog with owners, milestones, cut order |
+| `STATUS.md` | every role, its own row only | now, next, blocked on, needs decision, updated at; the stubs list |
+| `DECISIONS.md` | lead only | numbered decisions (D1, D2, ...) with time and reason |
+| `HANDOFF.md` | a session about to clear its context (gitignored) | done, in progress, next, gotchas |
+| `docs/briefs/`, `docs/reviews/` | researcher; critic and reviewer | sourced briefs; ranked findings |
+
+A role that needs a change in a path it does not own writes it under "Blocked on" in its STATUS row and tells the user. Commit only your own paths: `git commit -m "..." -- <paths>`. The contract (`schemas.py` and `types.ts`) belongs to backend and changes in one commit.
 
 ## Context files
 
 Always loaded:
 
-@docs/progress.md
+@PLAN.md
 @docs/workflow.md
 @docs/code-standards.md
 
@@ -76,7 +91,8 @@ Read the matching file before starting work in that area:
 
 | Working on | Read first |
 |---|---|
-| Any work after M0 | `docs/parallel.md` and your track file in `docs/tracks/` |
+| Any work in the kit trial | `STATUS.md`, `DECISIONS.md`, and your role file in `.claude/agents/` |
+| Known issues, past decisions, the Track A review | `docs/progress.md` and `docs/tracks/` |
 | Scope, users, flows, what to cut | `docs/project.md` |
 | Data model, API routes, visibility rules | `docs/architecture.md` |
 | Anything that calls Clio | `docs/clio-api.md` |

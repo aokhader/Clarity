@@ -13,3 +13,8 @@ CLAUDE.local.md
 data-snapshot.zip
 .claude/launch.json
 *.mp4
+
+# Kit trial: session hand-offs can quote case data; local Claude settings and worktrees stay local
+HANDOFF.md
+.claude/settings.local.json
+.claude/worktrees/

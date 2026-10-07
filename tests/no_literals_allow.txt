@@ -1,0 +1,6 @@
+# Generic terms that match labels in the real matter but are ordinary legal vocabulary or a team member, allowed by D7.
+# One per line. Never add case data here; a term that steers a model is renamed, not allowed.
+policy limits
+date of incident
+personal injury
+charles cheng
