@@ -21,7 +21,18 @@ export function useDigestCost(matterId: number) {
   })
 }
 
-type Job = 'sync' | 'digest'
+export type Job = 'sync' | 'digest'
+
+/**
+ * A job's state on the server, including a failure before its run began (no Clio token,
+ * no matching matter), which leaves no run row to report it.
+ */
+export function useJobStatus(job: Job) {
+  return useQuery({
+    queryKey: ['ops', job, 'status'],
+    queryFn: () => apiGet<RunStatusOut>(`/ops/${job}/status`),
+  })
+}
 
 /** Start a background job, or join the one already running (409), and wait for it to end. */
 async function runJob(job: Job): Promise<RunStatusOut> {
@@ -34,6 +45,7 @@ async function runJob(job: Job): Promise<RunStatusOut> {
     await new Promise((resolve) => setTimeout(resolve, POLL_MS))
     const status = await apiGet<RunStatusOut>(`/ops/${job}/status`)
     if (!status.running) {
+      if (status.start_failure) throw new Error(`The ${job} could not start: ${status.start_failure.error}`)
       if (status.last_run?.error) throw new Error(`The ${job} failed: ${status.last_run.error}`)
       return status
     }

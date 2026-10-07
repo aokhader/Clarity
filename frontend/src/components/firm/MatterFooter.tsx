@@ -1,7 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 
-import { useDigestCost, useResync, type ResyncPhase } from '@/api/ops'
-import type { MatterHeaderOut, RunOut } from '@/api/types'
+import { useDigestCost, useJobStatus, useResync, type ResyncPhase } from '@/api/ops'
+import type { MatterHeaderOut, RunOut, RunStatusOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { formatDateTime, formatMicroDollars } from '@/lib/format'
 
@@ -30,13 +30,23 @@ function failureText(label: string, run: RunOut | null): string | null {
   return `The last ${label} skipped ${items}: ${skipped[0]}${skipped.length > 1 ? '; …' : ''}`
 }
 
+/** A failure before the job's run began, which no run row records. */
+function startFailureText(label: string, status: RunStatusOut | undefined): string | null {
+  const failure = status?.start_failure
+  return failure ? `The last ${label} could not start: ${failure.error}` : null
+}
+
 /** Proof the page is a live read of Clio: when it was synced, what the digest cost, and a re-sync. */
 export function MatterFooter({ header }: { header: MatterHeaderOut }) {
   const cost = useDigestCost(header.matter_id)
+  const syncStatus = useJobStatus('sync')
+  const digestStatus = useJobStatus('digest')
   const resync = useResync()
   const sync = header.last_sync
   const failures = [
+    { text: startFailureText('sync', syncStatus.data), detail: [] },
     { text: failureText('sync', header.last_sync), detail: itemErrors(header.last_sync) },
+    { text: startFailureText('digest', digestStatus.data), detail: [] },
     { text: failureText('digest', header.last_digest), detail: itemErrors(header.last_digest) },
   ].filter((failure) => failure.text !== null)
 
