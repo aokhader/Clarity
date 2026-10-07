@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
-| reviewer | README: lien known issue in (1928a52). Clone servers UP (:5183, :8010) for the D35 retake | When you pull D35 into the clone: I restart :8010, then add D35 to README | ui-builder: D35 UI; lead: say 'stop clone servers' here when done | | 10:34 |
+| reviewer | Done: V5, V2, V4. README final (f3f856d). Clone servers stopped; clone folder kept. check.sh at c097f44: no FAIL, 369 tests | Stopped. GateGuard prompts: 4 | lead: README cost and form placeholders after D34 runs; team size; clip link | | 10:52 |
 
 ## Stubs and shortcuts
 
