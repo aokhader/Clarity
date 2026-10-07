@@ -92,6 +92,31 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [ ] U5 Loading, empty and error states on the screens of the demo moments. 20 min
 - [ ] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
 
+**From the critic's first pass** (`docs/reviews/critic.md`, Pass 1; the numbers are its finding numbers)
+- [ ] P11 pipeline, brief input: 40 min, applied at the re-digest
+  - computed totals reach the brief model with the fact ids behind them (#1);
+  - each row carries its source title and date, so two exams are not merged (#3);
+  - no open question that the page already answers (#6);
+  - one date format (#16).
+- [ ] P12 pipeline: a neutral title for ledger facts (#10); no trailing space in the stage label (#16). 15 min
+- [ ] B5 backend, repairing `049da3d`: 30 min
+  - the specials tile must not say "disagree" and "matches" at once (#2);
+  - a one-ended valuation must not become a point value;
+  - per-occurrence limits come back.
+- [ ] B6 backend: the header's incident-date chip opens a source that contains the date (#7). 20 min
+- [ ] B7 backend with pipeline: a record request closes when a later records-received fact answers it, and restatements collapse to one (#8). 45 min
+- [ ] B8 backend:
+  - one row per fact in the ranked feed, citing every record that states it, like the injuries list (#9);
+  - "last movement" comes from the latest dated case event (#12);
+  - a document's own date in the drawer (#13);
+  - no duplicate limits on the provider page (#16). 40 min
+- [ ] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
+- [ ] U8 ui-builder:
+  - loading, empty and error states (U5);
+  - chips in the share preview open their sources;
+  - "Uploaded" when a document has no date of its own (#13);
+  - "No bills on file" once B9 lands. 40 min
+
 **Researcher**
 - [x] R0 A brief for the chosen feature: how comparable tools present it, and the rules for the builders. 30 min
 - [ ] R1 A brief for Calls (A). 30 min Covering:
