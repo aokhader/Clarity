@@ -68,14 +68,14 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 
 **Pipeline** (prefer `/ecc:orch-fix-defect`: failing test first)
 - [x] P1 `balance_cents` and `high_cents` may be stored 100 times too small: the prompt names them in cents but says only `amount` is in dollars (`digest/prompts/extract_page.txt`, `digest/payloads.py`). 30 min
-- [ ] P2 A partly failed sync counts as clean, so records missed once are never pulled again; a failed download of an updated document keeps the old file because its new ETag is saved first (`clio/sync.py`). 40 min
+- [x] P2 A partly failed sync counts as clean, so records missed once are never pulled again; a failed download of an updated document keeps the old file because its new ETag is saved first (`clio/sync.py`). 40 min
 - [x] P3 A sync stopped by anything but `ClioError` stays unfinished (`clio/sync.py`). Pairs with B3. 20 min
 - [ ] P4 A failed mapping call wipes KPI, stage and ledger facts; pages extracted without providers never get attribution later (`digest/mapping.py`, `digest/extract.py`). 40 min
-- [ ] P5 The policy-limit cross-check is missing: `digest/merge.py` checks specials only. 30 min
-- [ ] P6 A second digest can still call the model (after an errored call, dropped score ids, or a dedup-removed custom-field fact) (`digest/extract.py`). 30 min
+- [x] P5 The policy-limit cross-check is missing: `digest/merge.py` checks specials only. 30 min
+- [x] P6 A second digest can still call the model (after an errored call, dropped score ids, or a dedup-removed custom-field fact) (`digest/extract.py`). 30 min
 - [x] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
-- [ ] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
-- [ ] P10 D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
+- [x] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
+- [ ] P10 (estimate done: (a) re-digest 4 to 6 calls, about $0.20; (b) targeted re-read of 9 records, about $0.19; waiting for the Manager and the model settings) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
 - [ ] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
@@ -88,17 +88,17 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] U1 D3: restore the brief's sentences with a chip on each. Keep the chip rendering in one place so a later switch to "the section is clickable and opens its documents" is a small change. 40 min
 - [x] U2 Check the source drawer, brief, KPI strip and injuries list on the real matter and fix what breaks (`docs/tracks/b-firm.md`, B3 and B4). 40 min
 - [x] U3 Check the provider page on the real matter and fix what breaks (`docs/tracks/c-provider.md`). 30 min
-- [ ] U4 UI of the new feature (D2). 90 min
+- [x] U4 UI of the new feature (D2). 90 min
 - [ ] U5 Loading, empty and error states on the screens of the demo moments. 20 min
-- [ ] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
+- [x] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
 
 **From the critic's first pass** (`docs/reviews/critic.md`, Pass 1; the numbers are its finding numbers)
-- [ ] P11 pipeline, brief input: 40 min, applied at the re-digest
+- [x] P11 pipeline, brief input: 40 min, applied at the re-digest
   - computed totals reach the brief model with the fact ids behind them (#1);
   - each row carries its source title and date, so two exams are not merged (#3);
   - no open question that the page already answers (#6);
   - one date format (#16).
-- [ ] P12 pipeline: a neutral title for ledger facts (#10); no trailing space in the stage label (#16). 15 min
+- [x] P12 pipeline: a neutral title for ledger facts (#10); no trailing space in the stage label (#16). 15 min
 - [ ] B5 backend, repairing `049da3d`: 30 min
   - the specials tile must not say "disagree" and "matches" at once (#2);
   - a one-ended valuation must not become a point value;
