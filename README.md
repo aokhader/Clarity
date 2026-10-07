@@ -183,6 +183,12 @@ By the lead, in the browser, on the clean clone's invented matter, while taking 
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
 
+- **Bill or lien on each provider item (D35):**
+  - The provider payload marks each item in the bills list as a bill or a lien (`01d6e41`). The clean clone's API was seen serving both kinds on a live link.
+  - The provider page and the firm's preview label each lien row "Lien" and set its amount apart from the bills. The "Bills and liens" heading, with its caption that liens are not in the total, appears only when a lien is listed (`cfc121b`).
+  - The provider update counts and totals bills only, and lists liens under their own heading (`612945b`).
+  - On the real matter no lien reaches a provider; see Known issues.
+
 - **Draft-checker matching (D25, D28):**
   - It reads amounts written with k, grand, bucks, USD, a trailing or full-width dollar sign, or in words, plus bare figures of four or more digits.
   - It catches ranges, rounding, and an internal figure split across two amounts.
