@@ -34,6 +34,7 @@ CallTargetOut
   reason: str | None             # the open item that makes this call due, in a few words
   reason_fact: FactRef | None    # that item's source, for its chip
   last_contact_days: int | None  # None means no contact found, never zero
+  last_contact_fact: FactRef | None  # the communication behind last_contact_days, for its chip (rule 3, D23)
 
 CallNumberIn
   name: str                      # who the number belongs to, as the attorney types it

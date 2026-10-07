@@ -209,3 +209,7 @@ The lead fills these in at the end; each role notes its own in its STATUS row as
     - Uvicorn reloads on every backend edit, so the browser saw transient 502s while agents worked.
     - Ruff ran from the repository root reported import-order errors that a missing `src` setting caused; the fix was config, not code.
     - Restoring the brief exposed a stored sentence written before the bill fix. Catching a stale model output early is a job for the critic.
+  - **Second hour:**
+    - Vite needed a restart after parallel edits left a stale module, and the API needed restarts because uvicorn reload missed changes on Windows. The lead runs the servers, so this falls to the lead; a watcher would help.
+    - A contract change by one role broke another role build: the contract owner must run the other side typecheck.
+    - The lead wrote decision times from estimates rather than the clock; corrected. Take times from `date` or the commits.
