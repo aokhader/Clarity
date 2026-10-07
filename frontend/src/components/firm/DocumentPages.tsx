@@ -18,6 +18,7 @@ export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps)
     pages.findIndex((page) => page.page_no === citedPageNo),
   )
   const [index, setIndex] = useState(citedIndex)
+  const [unloaded, setUnloaded] = useState<ReadonlySet<number>>(new Set())
   const page = pages[index]
   if (!page) return <p className="text-sm text-muted-foreground">This document has no rendered pages.</p>
 
@@ -54,7 +55,19 @@ export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps)
           <ChevronRight aria-hidden />
         </Button>
       </div>
-      <img src={page.image_url} alt={`Page ${page.page_no}`} className="w-full rounded-sm border bg-white" />
+      {unloaded.has(page.page_id) ? (
+        <p className="rounded-sm border border-dashed px-4 py-12 text-center text-sm text-muted-foreground">
+          The image of page {page.page_no} could not be loaded.
+        </p>
+      ) : (
+        <img
+          key={page.page_id}
+          src={page.image_url}
+          alt={`Page ${page.page_no}`}
+          onError={() => setUnloaded((previous) => new Set(previous).add(page.page_id))}
+          className="w-full rounded-sm border bg-white"
+        />
+      )}
     </div>
   )
 }
