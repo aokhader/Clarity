@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 /**
  * The story of the case: a headline, then sentences that each end in the sources they
  * rest on, then what the file does not answer. The server drops any sentence that cites
- * a fact that cannot be shown.
+ * a fact that cannot be shown, and checks every amount and date against today's file.
  */
 export function Brief({ matterId }: { matterId: number }) {
   const brief = useMatterBrief(matterId)
@@ -42,14 +42,17 @@ export function Brief({ matterId }: { matterId: number }) {
     )
   }
 
-  const { headline, sentences, open_questions: openQuestions } = brief.data
+  const { headline, headline_facts: headlineFacts, headline_mentions: headlineMentions, sentences } = brief.data
+  const openQuestions = brief.data.open_questions
   return (
     <Panel title="Brief" icon={<ScrollText />}>
-      <p className="text-xl leading-snug font-bold text-pretty">{headline}</p>
+      <p className="text-xl leading-snug font-bold text-pretty">
+        <BriefSentence text={headline} facts={headlineFacts} mentions={headlineMentions} />
+      </p>
       {sentences.length > 0 ? (
         <p className="mt-3 font-serif text-brief text-pretty">
           {sentences.map((sentence, index) => (
-            <BriefSentence key={index} sentence={sentence} />
+            <BriefSentence key={index} text={sentence.text} facts={sentence.facts} mentions={sentence.mentions} />
           ))}
         </p>
       ) : (
