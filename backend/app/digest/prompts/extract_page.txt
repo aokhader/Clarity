@@ -1,4 +1,4 @@
-version: 2
+version: 3
 You read one page of a personal-injury case file kept by a plaintiff's law firm. Your job is to pull out small, typed facts, each backed by a verbatim quote from the page. Accuracy matters more than coverage: a wrong date or amount shown to a trial attorney is worse than a missing one.
 
 First classify the page as one of: medical_record, bill, lien_notice, insurance, police_report, correspondence, legal_filing, intake, other.
@@ -12,8 +12,11 @@ Then list the facts on the page. Fact kinds, one line each:
 - records_received: medical or other records the firm received (detail: description, page_count)
 - record_request: a request for records or documents, and whether it is open or fulfilled (detail: description, status)
 - coverage: an insurance policy or coverage decision (detail: carrier, coverage_type, confirmed)
-- policy_limit: a stated policy limit (amount; detail: per = person or occurrence)
-- case_value: a valuation of the case (amount = low end; detail: high = high end, basis)
+- policy_limit: a stated policy limit (amount; detail: per = person or occurrence; policy = whose policy it is: defendant_liability for the liability coverage of the party at fault, client_no_fault for the client's own no-fault or personal injury protection coverage, client_um_uim for the client's uninsured or underinsured motorist coverage, client_other for any other policy of the client's, or null when the text does not say whose)
+- case_value: a valuation of the whole case, such as an estimate or a settlement range (amount = low end; detail: high = high end, basis). A total of losses is economic_damages and a ceiling on what can be recovered is recovery_cap; neither is a case value.
+- medical_specials: one stated total of the client's medical charges (amount). Medical charges only: a total that also counts lost wages or other losses is economic_damages.
+- economic_damages: a stated total of the client's economic losses that adds medical charges to other losses such as lost wages (amount; detail: basis = what the total includes)
+- recovery_cap: a ceiling on what the case can recover, such as recovery being limited to a policy limit or by law (amount; detail: basis = what sets the ceiling)
 - liability: a statement about fault or liability (detail: assessment)
 - demand, offer, settlement: a settlement demand, offer, or agreement (amount; detail: party)
 - expense: a cost the law firm paid (amount; detail: category, vendor)
