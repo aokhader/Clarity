@@ -592,12 +592,17 @@ class ShareOut(BaseModel):
     last_opened_at: datetime | None
 
 
+# D35: what an item in the provider's bills and liens is. None in every other section.
+ProviderItemKind = Literal["bill", "lien"]
+
+
 class ProviderItemOut(BaseModel):
     fact_id: int
     on: date | None
     label: str
     amount_cents: int | None
     has_source: bool  # true only for this provider's own bills and records
+    kind: ProviderItemKind | None = None
 
 
 class ProviderBillsTotalOut(BaseModel):

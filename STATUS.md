@@ -6,7 +6,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 |---|---|---|---|---|---|
 | lead | 6 of 6 screenshots (8a5d23d); D34 runs wait for the free-tier retry; D35 lien kind with backend | Retake provider shots after D35; model runs later (D34) | backend: D35 kind, then ui-builder | Manager: push kit-trial; test call (C-T) | 10:25 |
 | pipeline | cli auth fix e4c7db8 (names the missing CLIO_CLIENT_ID/SECRET, exits 1, no URL). Pacing and wait cap 71a9be6. Trial stopped; copy kept | Retry of (a), (b) and the trial waits on D34; the lead starts it | | | 10:15 |
-| backend | K7 dde2e3c; D29 6b044aa: digest retry_failed body, RunStatusOut.cached_failed_calls. Standing by | Freeze fixes only | lead: restart :8000 for D29 fields | | 02:30 |
+| backend | D35 contract: ProviderItemOut.kind 'bill' or 'lien' on bills items, else null; types.ts mirrored | Freeze fixes only; ui-builder can label lien rows | lead: restart :8000 so kind is served | | 10:32 |
 | ui-builder | KPI figures fit b71b281; "Bills and liens" heading 1b5c369; checked 1440, 1280 | Per-row "Lien" label once payload carries kind | backend: kind on ProviderItemOut (additive) | lead: add kind to the provider payload? | 10:19 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |

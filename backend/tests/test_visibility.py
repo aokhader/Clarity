@@ -17,7 +17,14 @@ from app.models import (
     SourceType,
     Visibility,
 )
-from app.schemas import ShareSetting, ShareSettings, validate_payload
+from app.schemas import (
+    ProviderItemOut,
+    ProviderPayload,
+    ShareSetting,
+    ShareSettings,
+    validate_payload,
+)
+from app.services.provider_view import ITEM_KIND_BY_FACT_KIND, provider_payload
 from app.services.visibility import (
     KINDS_BY_SETTING,
     PROVIDER_SCOPED_SETTINGS,
@@ -267,3 +274,73 @@ def test_call_notes_never_reach_a_provider(seeded: Session) -> None:
     seeded.flush()
 
     assert note not in _visible(seeded, _share(provider=ORTHO_ID))
+
+
+# --- D35: an item's kind names only a bill or lien the link already shows ------------
+
+
+def _items(payload: ProviderPayload) -> list[ProviderItemOut]:
+    limits = payload.coverage.limits if payload.coverage else None
+    sections = (payload.requests, payload.bills, payload.records, limits)
+    return [item for section in sections for item in section or []]
+
+
+def test_only_the_kinds_the_bills_setting_releases_are_named() -> None:
+    assert set(ITEM_KIND_BY_FACT_KIND) == KINDS_BY_SETTING["own_bills"]
+    assert NEVER_SHARED.isdisjoint(ITEM_KIND_BY_FACT_KIND)
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID])
+def test_an_items_kind_is_set_only_on_a_released_bill_or_lien(
+    seeded: Session, provider: int
+) -> None:
+    share = _share(provider=provider)
+    released = {r.fact.id: r for r in visible_facts_for_share(seeded, share, NOW)}
+
+    payload = provider_payload(seeded, share, NOW)
+
+    labelled = [item for item in _items(payload) if item.kind is not None]
+    assert labelled
+    assert [item.fact_id for item in labelled] == [
+        b.fact_id for b in payload.bills or []
+    ]
+    for item in labelled:
+        assert item.fact_id in released
+        assert released[item.fact_id].setting == "own_bills"
+        assert item.kind == ITEM_KIND_BY_FACT_KIND[released[item.fact_id].fact.kind]
+
+
+@pytest.mark.parametrize("withheld", ["hidden", "internal", "strategy", "bills_off"])
+def test_a_withheld_lien_leaves_no_lien_kind(seeded: Session, withheld: str) -> None:
+    lien = _fact(seeded, FactKind.LIEN, ORTHO_ID)
+    share = _share()
+    if withheld == "hidden":
+        share = _share(hidden=[lien.id])
+    elif withheld == "internal":
+        lien.visibility = Visibility.INTERNAL
+    elif withheld == "strategy":
+        lien.mentions_strategy = True
+    else:
+        share = _share(settings=ALL_ON.model_copy(update={"own_bills": False}))
+    seeded.flush()
+
+    items = _items(provider_payload(seeded, share, NOW))
+
+    assert lien.id not in {item.fact_id for item in items}
+    assert "lien" not in {item.kind for item in items}
+
+
+def test_an_internal_fact_never_becomes_a_labelled_item(seeded: Session) -> None:
+    # Every never-shared fact, mis-tagged shareable and about the share's own provider.
+    internal = list(seeded.scalars(select(Fact).where(Fact.kind.in_(NEVER_SHARED))))
+    assert {fact.kind for fact in internal} == NEVER_SHARED
+    for fact in internal:
+        fact.visibility = Visibility.SHAREABLE
+        fact.mentions_strategy = False
+        fact.provider_contact_id = ORTHO_ID
+    seeded.flush()
+
+    items = _items(provider_payload(seeded, _share(), NOW))
+
+    assert items
+    assert {fact.id for fact in internal}.isdisjoint(item.fact_id for item in items)

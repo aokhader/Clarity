@@ -452,12 +452,16 @@ export type ShareOut = {
   last_opened_at: IsoDateTime | null
 }
 
+/** D35: what an item in the provider's bills and liens is. Null in every other section. */
+export type ProviderItemKind = 'bill' | 'lien'
+
 export type ProviderItemOut = {
   fact_id: number
   on: IsoDate | null
   label: string
   amount_cents: number | null
   has_source: boolean
+  kind: ProviderItemKind | null
 }
 
 /** The provider's own bills added up, each charge counted once. */

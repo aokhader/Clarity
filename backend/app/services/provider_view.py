@@ -22,6 +22,7 @@ from app.schemas import (
     PolicyLimitPayload,
     ProviderBillsTotalOut,
     ProviderCoverageOut,
+    ProviderItemKind,
     ProviderItemOut,
     ProviderPayload,
     ProviderStatusOut,
@@ -46,6 +47,12 @@ from app.services.visibility import (
 )
 
 _ENDED_STAGES = {CaseStage.SETTLED, CaseStage.CLOSED}
+# D35: a bills-and-liens item names its kind, read only from the two kinds that
+# setting releases. Any other kind gets no name, so an internal fact never lends one.
+ITEM_KIND_BY_FACT_KIND: dict[FactKind, ProviderItemKind] = {
+    FactKind.MEDICAL_BILL: "bill",
+    FactKind.LIEN: "lien",
+}
 _LIMIT_LABELS = {
     "person": "Policy limit per person",
     "occurrence": "Policy limit per occurrence",
@@ -181,7 +188,11 @@ def _coverage(
 
 
 def _own_item(
-    fact: Fact, *, amount_cents: int | None = None, has_source: bool = False
+    fact: Fact,
+    *,
+    amount_cents: int | None = None,
+    has_source: bool = False,
+    kind: ProviderItemKind | None = None,
 ) -> ProviderItemOut:
     """A bill, record, or request concerning the share's own provider, so its title may show."""
     return ProviderItemOut(
@@ -190,6 +201,7 @@ def _own_item(
         label=fact.title,
         amount_cents=amount_cents,
         has_source=has_source,
+        kind=kind,
     )
 
 
@@ -215,6 +227,7 @@ def _bills(facts: list[Fact]) -> list[ProviderItemOut]:
             f,
             amount_cents=BillPayload.model_validate(f.value_json).amount_cents,
             has_source=has_cited_page(f),
+            kind=ITEM_KIND_BY_FACT_KIND.get(f.kind),
         )
         for f in _chronological(listed)
     ]
