@@ -131,7 +131,7 @@ T+0:00 is 2026-10-07 00:30 PDT. The clock times are targets: agents run faster t
 
 | T+ | Clock | Milestone | Done |
 |---|---|---|---|
-| 0:00 | 00:30 | D2, D3, D7 to D11 decided; setup committed; servers up; workers started | [ ] |
+| 0:00 | 00:30 | D2, D3, D7 to D11 decided; setup committed; servers up; workers started | [x] |
 | 0:30 | 01:00 | P8 done; first defect has a failing test; lint fixed by its owners | [ ] |
 | 1:00 | 01:30 | First critic pass (C1); P1 and P3 fixed | [ ] |
 | 2:00 | 02:30 | Demo moments 1 and 2 on real data; draft checker server side (B1) done | [ ] |
