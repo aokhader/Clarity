@@ -66,7 +66,7 @@ If PowerShell refuses to run `Activate.ps1`, skip activation and call the enviro
 
 Open `http://localhost:5173/`. It lists the matters; the invented one is at `/matters/1`. The views are in the left rail. To make a provider link, open **For Attorney** and use **Share** in the Providers panel. The link opens at `/p/<token>`.
 
-**Measured on a clean clone** on Windows 11 (Git Bash), with Python 3.14.8 and Node 22.23.1, on 2026-10-07.
+**Measured on a clean clone** of commit `189e7ec` on Windows 11 (Git Bash), with Python 3.14.8 and Node 22.23.1, on 2026-10-07.
 - PowerShell was used only to check that `Activate.ps1` works.
 - pip and npm had packages cached from earlier installs on that machine, so a first install elsewhere will take longer.
 - The clone came from a local disk, not GitHub.
@@ -91,10 +91,10 @@ Fill `.env` at the repository root. Every setting, with its default, is in `back
 
 - **Clio:** a developer application with read permissions (`CLIO_CLIENT_ID`, `CLIO_CLIENT_SECRET`). Register `http://127.0.0.1:8000/oauth/callback` as its redirect URI. `CLIO_MATTER_QUERY` is the search string that finds the matter.
 - **Models:**
-  - `LLM_PROVIDER` is `anthropic`, `openai` or `gemini`. `.env.example` does not list `gemini` yet.
+  - `LLM_PROVIDER` is `anthropic`, `openai` or `gemini`.
   - `LLM_API_KEY`, `EXTRACT_MODEL` (vision-capable, one call per page or record) and `MERGE_MODEL` (mapping, significance and the brief).
   - The four `*_PRICE_*` settings, in USD per million tokens, so the cost can be computed.
-  - `EXTRACT_RPM` and `MERGE_RPM` cap the requests per minute to each model (D31).
+  - `EXTRACT_RPM` and `MERGE_RPM` cap and space the requests per minute to each model (D31). `LLM_MAX_RETRY_WAIT_SECONDS` fails a call at once when the API asks for a longer wait; retry it later.
 
 Then, from `backend/` with the environment active:
 
@@ -113,9 +113,10 @@ uvicorn app.main:app --port 8000
   - `cli reextract --dry-run` prices a re-read of chosen pages before running it.
   - `cli reset` deletes the database and every downloaded file.
 
-Without credentials:
-- `sync` stops with "No Clio token stored".
-- `digest` builds the facts that need no model, then stops with "Set EXTRACT_MODEL and MERGE_MODEL in .env". Both were seen in the clean clone.
+Without credentials, each command stops with a message, as seen in the clean clone:
+- `auth` names the missing `CLIO_CLIENT_ID` and `CLIO_CLIENT_SECRET`.
+- `sync` says "No Clio token stored".
+- `digest` builds the facts that need no model, then says "Set EXTRACT_MODEL and MERGE_MODEL in .env".
 
 ### Checks
 
@@ -160,7 +161,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed.
+- `pytest`: 341 passed at `189e7ec`; 350 pass at `0a41916`, in the main checkout.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - Sharing:
   - A created link returns exactly what the preview showed.
@@ -186,6 +187,9 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
   - A provider's "last movement" is left out when the latest change has no date.
   - The client's treating injuries are listed first.
   - The consent wording names every service the audio and transcript reach (D27).
+- **Freeze fixes (b71b281, 1b5c369):**
+  - Every KPI figure fits its tile, and a range breaks after its dash.
+  - A provider's list is headed "Bills and liens", and says liens are not added to the total.
 - **Pipeline fixes (P2 to P7).** No sync or digest has run on the real matter's database since; its last digest run is from October 2.
   - A partly failed sync is pulled again.
   - A failed mapping call keeps the previous mapping.
@@ -197,7 +201,7 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
   - Separate kinds for economic damages and recovery caps, and which policy a limit belongs to.
   - These take effect only at the pending re-digest.
 - **Model access:**
-  - The Gemini provider (D30) and the per-model request limit (D31). Pipeline's diagnostic calls to Gemini returned 200; no digest of the real matter has run on Gemini yet.
+  - The Gemini provider (D30) and the per-model request limit (D31). Pipeline's diagnostic calls to Gemini returned 200. The lead's trial run on a copy of the database got no successful answer in 12 attempts (503s, and a 429 quota), so no digest of the real matter has run on Gemini.
   - The "Retry failed calls" control (D29), which had not been clicked by the freeze.
 - **Call notes from a transcript (C-P):** every note's quote is checked against the transcript. The real matter's database holds no notes made by a live model, and the Manager's test call (C-T) has not happened.
 
@@ -258,7 +262,6 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - `npm install` reports 7 high-severity advisories, all in the dependency tree of `shadcn`, whose stylesheet the app imports. They have not been triaged.
   - On Windows, `uvicorn --reload` sometimes keeps serving old code; restart it if a new route returns 404.
   - The Vite proxy target is fixed at port 8000 (`frontend/vite.config.ts`).
-  - With no `CLIO_CLIENT_ID` set, `cli auth` still starts and prints a sign-in URL with `client_id=None`, where it should stop with a message.
   - `cli reset` refuses to delete a data directory that holds anything it does not expect, including the backups that `upgrade_schema` makes.
 
 ## Cost per case
@@ -275,7 +278,7 @@ That is 1,728,515 input and 329,989 output tokens, at the prices then set in `.e
 - **Reopening the matter costs nothing,** because no page load calls a model.
 - **A second digest over unchanged inputs makes no model call,** because results are cached by input hash (`backend/tests/test_pipeline_second_digest.py`).
 
-**Gemini runs: PENDING.** The trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). The re-digest (a) and the targeted re-read (b) have not run yet. They re-run only the calls whose prompts changed, so they will price an update, not a whole case.
+**Gemini runs: PENDING.** The trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). The re-digest (a) and the targeted re-read (b) have not run. The trial run before them got no successful answer in 12 attempts (503s, and a 429 quota), and the Manager decides whether to run them. They re-run only the calls whose prompts changed, so they will price an update, not a whole case.
 
 > **[LEAD, after runs (a) and (b): fill from `GET /api/ops/cost` and `llm_calls`: calls, tokens and dollars for each run, by model. A full-case Gemini figure needs a full digest on a fresh database.]**
 
@@ -324,7 +327,7 @@ backend/app/
     brief_check.py           brief figures checked against today's facts when served (D12)
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               341 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               350 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
