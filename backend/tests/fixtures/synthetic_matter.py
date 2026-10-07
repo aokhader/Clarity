@@ -85,7 +85,8 @@ _NOTE = (
     "Mutual Insurance, and the adjuster confirmed bodily injury coverage is in place. "
     "Adjuster mentioned a $50,000 per person limit. Police report places fault on the "
     "other driver. Client prefers text messages over calls. Client authorized "
-    "settlement at no less than $90,000."
+    "settlement at no less than $90,000. Economic damages come to $8,440 with lost "
+    "wages. Recovery is capped at the $100,000 limit."
 )
 
 
@@ -408,6 +409,24 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             "3440.00",
             75,
             origin=code,
+        ),
+        "damages": f(
+            FactKind.ECONOMIC_DAMAGES,
+            "Economic damages $8,440",
+            "note",
+            {"amount_cents": 844_000, "basis": "specials plus $5,000 in lost wages"},
+            "Economic damages come to $8,440 with lost wages",
+            70,
+            on(-198),
+        ),
+        "cap": f(
+            FactKind.RECOVERY_CAP,
+            "Recovery capped at the policy limit",
+            "note",
+            {"amount_cents": 10_000_000, "basis": "the other driver's limit"},
+            "Recovery is capped at the $100,000 limit",
+            80,
+            on(-198),
         ),
         "coverage": f(
             FactKind.COVERAGE,
