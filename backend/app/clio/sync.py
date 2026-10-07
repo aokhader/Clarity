@@ -273,8 +273,11 @@ def _sync(
     for document in documents:
         changed = _upsert(session, matter_id, SourceType.DOCUMENT, document, stats)
         source = _find(session, matter_id, SourceType.DOCUMENT, str(document["id"]))
-        if source is not None and (changed or not _file_present(source)):
-            _download(client, source, document, stats)
+        if source is None:
+            continue
+        wanted = changed or not _file_present(source)
+        if wanted and _download(client, source, document, stats):
+            source.etag = document.get("etag")
         session.commit()
 
 
@@ -298,21 +301,22 @@ def _upsert(
         stats.counts[f"{source_type.value}_new"] += 1
     else:
         stats.counts[f"{source_type.value}_updated"] += 1
-    source.etag = etag
     source.raw_json = record
     source.clio_created_at = _parse_datetime(record.get("created_at"))
     source.clio_updated_at = _parse_datetime(record.get("updated_at"))
     source.synced_at = datetime.now(UTC)
     if source_type is not SourceType.DOCUMENT:
-        # Documents are hashed over the file bytes once downloaded.
+        source.etag = etag
         source.content_hash = None
+    # A document's ETag is stored once its file is down, and its hash is taken over
+    # the file bytes, so a failed download is retried on the next sync.
     session.flush()
     return True
 
 
 def _download(
     client: ClioClient, source: Source, record: dict[str, Any], stats: SyncStats
-) -> None:
+) -> bool:
     settings = get_settings()
     relative = Path("files") / f"{source.clio_id}{_extension(record)}"
     destination = settings.data_dir / relative
@@ -320,11 +324,12 @@ def _download(
         client.download(f"documents/{source.clio_id}/download.json", destination)
     except ClioError as error:
         stats.errors.append(f"document {source.clio_id} download: {error.status}")
-        return
+        return False
     # Relative to DATA_DIR, so a zipped data/ snapshot works on another machine.
     source.file_path = relative.as_posix()
     source.content_hash = hashlib.sha256(destination.read_bytes()).hexdigest()
     stats.counts["document_downloaded"] += 1
+    return True
 
 
 def _list_with_fallback(
@@ -382,7 +387,12 @@ def _find(
 
 
 def _last_successful_sync(session: Session, matter_id: int) -> datetime | None:
-    run = session.scalars(
+    """Start of the last run that pulled everything, the baseline for `updated_since`.
+
+    A run that recorded per-item errors missed something, so it is no baseline: the
+    next run reaches back to the last clean one and pulls what was missed again.
+    """
+    runs = session.scalars(
         select(SyncRun)
         .where(
             SyncRun.matter_id == matter_id,
@@ -390,8 +400,11 @@ def _last_successful_sync(session: Session, matter_id: int) -> datetime | None:
             SyncRun.error.is_(None),
         )
         .order_by(SyncRun.id.desc())
-    ).first()
-    return run.started_at if run else None
+    )
+    for run in runs:
+        if not (run.stats_json or {}).get("errors"):
+            return run.started_at
+    return None
 
 
 def _file_present(source: Source) -> bool:
