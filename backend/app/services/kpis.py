@@ -11,7 +11,7 @@ misread line cannot become the headline over a figure the file states again and 
 from dataclasses import dataclass
 from itertools import combinations
 
-from app.models import Fact, FactKind
+from app.models import Fact, FactKind, Origin
 from app.schemas import (
     CaseValuePayload,
     ExpensePayload,
@@ -89,6 +89,12 @@ def _plural(count: int, noun: str) -> str:
 
 
 def _case_value(facts: list[Fact]) -> KpiOut:
+    """The firm's own valuation leads: the Clio case-value field, mapped in code.
+
+    Model reads of other figures (a recovery cap, a damages total) can be misfiled as
+    case value and score higher, so significance must not pick the lead. Values that
+    agree with the valuation ("at least" a lower figure) follow it, then the rest.
+    """
     statements: list[_Statement] = []
     for fact in _most_significant_first(facts):
         payload = CaseValuePayload.model_validate(fact.value_json)
@@ -98,23 +104,63 @@ def _case_value(facts: list[Fact]) -> KpiOut:
             continue
         statements.append(_stated((None, low, high), fact))
     groups = _grouped(statements)
-    # The basis line explains the figure the tile leads with.
-    basis = None
-    if groups:
-        basis = next(
-            (
-                b
-                for s in groups[0]
-                if (b := CaseValuePayload.model_validate(s.facts[0].value_json).basis)
-            ),
-            None,
+    field = next(
+        (g for g in groups if any(f.origin is Origin.CODE for s in g for f in s.facts)),
+        None,
+    )
+    if field is not None:
+        # The field, then reads of its own figure, then figures that agree with it.
+        groups.sort(
+            key=lambda g: (
+                g is not field,
+                g[0].amounts[1] != field[0].amounts[1],
+                not _agree(g[0].amounts, field[0].amounts),
+            )
         )
-    values = [_value(g) for g in groups]
     return KpiOut(
         name="case_value",
-        values=values,
-        basis=basis,
-        sources_disagree=len(values) > 1,
+        values=[_value(g) for g in groups],
+        basis=_valuation_basis(groups, facts),
+        sources_disagree=any(
+            not _agree(a[0].amounts, b[0].amounts) for a, b in combinations(groups, 2)
+        ),
+    )
+
+
+def _agree(one: _Amounts, other: _Amounts) -> bool:
+    """Whether two valuations can both be true: a figure lies in the other's range."""
+    low_a, high_a = _bounds(one)
+    low_b, high_b = _bounds(other)
+    return low_a <= high_b and low_b <= high_a
+
+
+def _bounds(amounts: _Amounts) -> tuple[float, float]:
+    _, low, high = amounts
+    return (
+        float(low) if low is not None else float("-inf"),
+        float(high) if high is not None else float("inf"),
+    )
+
+
+def _valuation_basis(groups: list[list[_Statement]], facts: list[Fact]) -> str | None:
+    """Why the lead figure: a model read stating that figure explains it best; the
+    field's own basis is only its label."""
+    if not groups:
+        return None
+    lead_low = groups[0][0].amounts[1]
+    stating = [
+        f
+        for f in _most_significant_first(facts)
+        if CaseValuePayload.model_validate(f.value_json).low_cents == lead_low
+    ]
+    stating.sort(key=lambda f: f.origin is Origin.CODE)
+    return next(
+        (
+            b
+            for f in [*stating, *(f for s in groups[0] for f in s.facts)]
+            if (b := CaseValuePayload.model_validate(f.value_json).basis)
+        ),
+        None,
     )
 
 

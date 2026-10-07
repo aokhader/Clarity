@@ -320,3 +320,69 @@ def test_other_tiles_disagree_when_they_hold_two_figures(session: Session) -> No
 
     assert _tile([one], "firm_spend").sources_disagree is False
     assert _tile(specials, "medical_specials").sources_disagree is True
+
+
+# --- K1: the valuation leads the Case value tile ---------------------------------------
+
+
+def test_the_firms_valuation_field_leads_over_a_more_significant_cap(
+    session: Session,
+) -> None:
+    cap = _fact(
+        session,
+        FactKind.CASE_VALUE,
+        {"low_cents": 100_000_00, "high_cents": 100_000_00, "basis": "policy limit"},
+        significance=99,
+    )
+    damages = _fact(
+        session,
+        FactKind.CASE_VALUE,
+        {"low_cents": 300_000_00, "high_cents": None, "basis": "losses so far"},
+        significance=95,
+    )
+    note = _fact(
+        session,
+        FactKind.CASE_VALUE,
+        {"low_cents": 400_000_00, "high_cents": None, "basis": "the valuation memo"},
+        significance=90,
+    )
+    field = _fact(
+        session,
+        FactKind.CASE_VALUE,
+        {"low_cents": 400_000_00, "high_cents": 400_000_00, "basis": "Value field"},
+        SourceType.MATTER,
+        significance=50,
+    )
+    field.origin = Origin.CODE
+    session.flush()
+
+    tile = _tile([cap, damages, note, field], "case_value")
+
+    assert [(v.low_cents, v.high_cents) for v in tile.values][:2] == [
+        (400_000_00, 400_000_00),
+        (400_000_00, None),
+    ]
+    assert _ids(tile, 0) == {field.id}
+    assert (tile.values[-1].low_cents, tile.values[-1].high_cents) == (
+        100_000_00,
+        100_000_00,
+    )
+    # The basis explains the valuation, from the note that states the same figure.
+    assert tile.basis == "the valuation memo"
+    assert tile.sources_disagree is True  # the cap still contradicts the valuation
+
+
+def test_at_least_a_figure_agrees_with_that_figure(session: Session) -> None:
+    point = _fact(
+        session,
+        FactKind.CASE_VALUE,
+        {"low_cents": 400_000_00, "high_cents": 400_000_00},
+    )
+    at_least = _fact(
+        session, FactKind.CASE_VALUE, {"low_cents": 300_000_00, "high_cents": None}
+    )
+
+    tile = _tile([point, at_least], "case_value")
+
+    assert len(tile.values) == 2
+    assert tile.sources_disagree is False
