@@ -10,7 +10,9 @@
 #
 # The no-case-data step derives its forbidden terms from the synced matter:
 # scripts/export_raw.py writes every Clio record and page text in data/app.db to
-# data/raw-export.json (gitignored), unless KIT_EXPORT names another export.
+# data/raw-export.json (gitignored, deleted after the step), unless KIT_EXPORT
+# names another export. The synthetic matter from seed-dev is left out, so a
+# database holding only that matter makes the step SKIPPED.
 # PYTHON overrides the interpreter (default: the backend's .venv).
 
 set -uo pipefail
@@ -104,7 +106,7 @@ skip_reason="no synced matter in data/app.db and no KIT_EXPORT"
 if [ -z "$export_file" ] && [ $have_python -eq 1 ] && [ -f data/app.db ]; then
   "$PYTHON" scripts/export_raw.py >"$LOG" 2>&1
   case $? in
-    0) export_file=data/raw-export.json ;;
+    0) export_file=data/raw-export.json; own_export=$export_file ;;
     # export_raw.py's NOTHING_SYNCED: the invented matter's text is committed on purpose.
     3) skip_reason="data/app.db holds only the synthetic matter from seed-dev; sync a real matter or set KIT_EXPORT" ;;
     *) skip_reason="scripts/export_raw.py failed: $(tail -n 1 "$LOG")" ;;
@@ -115,6 +117,9 @@ if [ -z "$export_file" ] || [ ! -e "$export_file" ]; then
 else
   KIT_EXPORT="$export_file" node_tests "No case data in the repository" tests/no_literals.test.mjs
 fi
+# The export is a full copy of the case text, and `cli reset` refuses a data
+# directory holding it, so the one this script wrote goes as soon as it is read.
+rm -f ${own_export:+"$own_export"}
 
 # 4. Nothing private is committed
 node_tests "Nothing private is committed" tests/repo_hygiene.test.mjs
