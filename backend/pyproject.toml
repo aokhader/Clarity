@@ -1,3 +1,8 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+# First-party packages (app, tests) live here, so imports sort the same whether
+# ruff runs from backend/ or from the repository root, as scripts/check.sh does.
+src = ["."]
