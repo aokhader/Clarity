@@ -4,7 +4,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | D35 done, shots retaken (c097f44); check.sh clean (369); kit-trial pushed | 00:37 PDT Oct 8: retry trial, then (a), (b) if clean (D34) | | Manager: clip link; test call (C-T) | 10:55 |
+| lead | D35 done, shots retaken (c097f44); check.sh clean (369); kit-trial pushed | Gemini retry (D34) when the Manager prompts, after midnight PT | | Manager: clip link; test call (C-T) | 11:01 |
 | pipeline | cli auth fix e4c7db8 (names the missing CLIO_CLIENT_ID/SECRET, exits 1, no URL). Pacing and wait cap 71a9be6. Trial stopped; copy kept | Retry of (a), (b) and the trial waits on D34; the lead starts it | | | 10:15 |
 | backend | D35 contract: ProviderItemOut.kind 'bill' or 'lien' on bills items, else null; types.ts mirrored | Freeze fixes only; ui-builder can label lien rows (01d6e41, :8000 serves it) | | | 10:35 |
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
