@@ -1,6 +1,7 @@
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, RotateCcw } from 'lucide-react'
+import { useId } from 'react'
 
-import { useDigestCost, useJobStatus, useResync, type ResyncPhase } from '@/api/ops'
+import { useDigestCost, useJobStatus, useResync, useRetryFailedCalls, type ResyncPhase } from '@/api/ops'
 import type { MatterHeaderOut, RunOut, RunStatusOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { formatDateTime, formatMicroDollars } from '@/lib/format'
@@ -42,6 +43,11 @@ export function MatterFooter({ header }: { header: MatterHeaderOut }) {
   const syncStatus = useJobStatus('sync')
   const digestStatus = useJobStatus('digest')
   const resync = useResync()
+  const retry = useRetryFailedCalls()
+  const costNoteId = useId()
+  // The server counts the calls a digest would answer from the cache as failed (D29).
+  const failedCalls = digestStatus.data?.cached_failed_calls ?? 0
+  const busy = resync.isPending || retry.isPending
   const sync = header.last_sync
   const failures = [
     { text: startFailureText('sync', syncStatus.data), detail: [] },
@@ -80,7 +86,31 @@ export function MatterFooter({ header }: { header: MatterHeaderOut }) {
             {resync.error.message}
           </span>
         )}
-        <Button variant="outline" size="sm" onClick={() => resync.mutate()} disabled={resync.isPending}>
+        {retry.isError && (
+          <span role="alert" className="text-danger">
+            {retry.error.message}
+          </span>
+        )}
+        {(failedCalls > 0 || retry.isPending) && (
+          <>
+            <span id={costNoteId} className="text-xs">
+              Retrying asks the model again, which costs money.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => retry.mutate()}
+              disabled={busy}
+              aria-describedby={costNoteId}
+            >
+              <RotateCcw aria-hidden />
+              {retry.isPending
+                ? BUTTON_TEXT.digesting
+                : `Retry ${failedCalls} failed ${failedCalls === 1 ? 'call' : 'calls'}`}
+            </Button>
+          </>
+        )}
+        <Button variant="outline" size="sm" onClick={() => resync.mutate()} disabled={busy}>
           <RefreshCw aria-hidden />
           {BUTTON_TEXT[resync.phase]}
         </Button>
