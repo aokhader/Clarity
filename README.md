@@ -250,6 +250,8 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - One pleading's PDF and its page images are missing on disk, so its chips cannot show the scan.
   - Documents are dated by upload until Clio's received date is synced.
 - **Pages read before a provider was known never get that provider.** Two fixes are written up in `STATUS.md`; neither is built.
+  - None of the real matter's 8 lien facts has a provider attached, as found during D35 and confirmed in the database.
+  - A link's bills-and-liens setting releases only its own provider's facts, so no provider's link shows a lien on the real matter.
 - **On the provider page and in the firm's lists:**
   - The "shared on" and "expires" dates are UTC days, so a link made in the evening, Pacific time, reads as made the next day (`backend/app/services/provider_view.py`).
   - A stored call records the consent wording but not which firm user confirmed it.
