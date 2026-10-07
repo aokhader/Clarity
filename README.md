@@ -8,9 +8,9 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 |---|---|
 | ![Case Overview: the brief, with a source chip on each sentence](docs/screenshots/overview.png) | ![For Attorney: KPI tiles, action board, ranked facts, providers](docs/screenshots/attorney.png) |
 | **For Service Provider (the firm's preview)** | **Calls** |
-| ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![Calls: who to call next, consent, live transcript](docs/screenshots/calls.png) |
-| **The provider's own page** | |
-| ![The provider page at /p/token](docs/screenshots/provider-page.png) | |
+| ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
+| **The provider's own page** | **The draft checker, in the share composer** |
+| ![The provider page at /p/token](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
 The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
 
