@@ -26,6 +26,10 @@ from app.services.fact_views import fact_out, fact_ref, renderable_facts
 from app.services.incident import incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.record_requests import outstanding_record_requests
+from app.services.restatements import group_restatements
+
+# How many candidates the feed reads per row it returns, to find restatements.
+FEED_CANDIDATES_PER_ROW = 10
 
 
 class MatterNotFound(LookupError):
@@ -237,14 +241,26 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
 
 
 def matter_feed(session: Session, matter_id: int, limit: int) -> list[FactOut]:
-    facts = session.scalars(
-        renderable_facts(matter_id)
-        .order_by(
-            Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
+    """The most significant facts, each once, citing the records that restate it.
+
+    Restatements are looked for among the leading candidates only, which is where a
+    fact restated across many records lands.
+    """
+    candidates = list(
+        session.scalars(
+            renderable_facts(matter_id)
+            .order_by(
+                Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
+            )
+            .limit(limit * FEED_CANDIDATES_PER_ROW)
         )
-        .limit(limit)
     )
-    return [fact_out(f) for f in facts]
+    return [
+        fact_out(group[0]).model_copy(
+            update={"restated_by": [fact_ref(f) for f in group[1:]]}
+        )
+        for group in group_restatements(candidates)[:limit]
+    ]
 
 
 def matter_timeline(

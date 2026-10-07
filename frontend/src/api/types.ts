@@ -196,6 +196,11 @@ type FactBase = {
   verified: boolean
   origin: Origin
   created_at: IsoDateTime
+  /**
+   * Other facts that state the same thing from other records. Filled by the ranked feed,
+   * which lists each fact once; empty elsewhere.
+   */
+  restated_by: FactRef[]
 }
 
 /** A fact as the firm sees it. Narrowing on `kind` types `value`. */

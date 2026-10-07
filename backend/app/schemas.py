@@ -289,6 +289,9 @@ class FactOut(BaseModel):
     verified: bool
     origin: Origin
     created_at: datetime
+    # Other facts that state the same thing from other records. Filled by the ranked
+    # feed, which lists each fact once (services/restatements.py); empty elsewhere.
+    restated_by: list[FactRef] = Field(default_factory=list)
 
 
 class PageRef(BaseModel):
