@@ -122,26 +122,11 @@ def parse_date(value: Any) -> date | None:
         return None
 
 
-def custom_field_value(raw: dict[str, Any]) -> str:
-    option = raw.get("picklist_option")
-    if isinstance(option, dict) and option.get("option"):
-        return str(option["option"])
-    value = raw.get("value")
-    if isinstance(value, dict):
-        return name_of(value) or json.dumps(value)
-    return "" if value is None else str(value)
-
-
-def custom_field_name(raw: dict[str, Any]) -> str:
-    return str(
-        raw.get("field_name")
-        or name_of(raw.get("custom_field"))
-        or f"Field {raw.get('id')}"
-    )
-
-
 def record_text(source: Source) -> str:
-    """The text a model reads for one note, communication, or custom field."""
+    """The text a model reads for one note or communication.
+
+    Custom fields are read as one record that the mapping builds (`mapping.py`).
+    """
     raw = source.raw_json
     if source.clio_type is SourceType.NOTE:
         return "\n".join(
@@ -167,14 +152,6 @@ def record_text(source: Source) -> str:
                 f"Subject: {raw.get('subject') or ''}",
                 "Body:",
                 clean_text(raw.get("body")),
-            ]
-        )
-    if source.clio_type is SourceType.CUSTOM_FIELD:
-        return "\n".join(
-            [
-                "Type: matter custom field",
-                f"Field: {custom_field_name(raw)}",
-                f"Value: {custom_field_value(raw)}",
             ]
         )
     return clean_text(json.dumps(raw, default=str))

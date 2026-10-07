@@ -13,7 +13,6 @@ from pydantic import ValidationError
 from app.models import FactKind
 from app.schemas import PAYLOAD_BY_KIND, validate_payload
 
-CLIENT_CONTACT_CHANNELS = {"email", "phone", "text", "meeting", "letter", "other"}
 # The extraction prompts ask for every sum in dollars. These detail keys carry one,
 # and code stores it in the cents field beside it.
 MODEL_DOLLAR_KEYS = {"balance": "balance_cents", "high": "high_cents"}
