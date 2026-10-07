@@ -79,15 +79,15 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [ ] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
-- [ ] B1 Server side of the new feature (D2), with tests on the real matter. 90 min
-- [ ] B2 Check the four KPI tiles and every provider's bills total against the real matter, with the critic. 20 min
+- [x] B1 Server side of the new feature (D2), with tests on the real matter. 90 min
+- [x] B2 Check the four KPI tiles and every provider's bills total against the real matter, with the critic. 20 min
 - [ ] B4 D12 and D14: when the brief is served (`services/brief_view.py`), run each sentence's amounts and dates through the draft checker's matcher against today's facts and computed totals. A sentence that disagrees gets a "differs" mark with today's figure and its fact ref. Check the headline's citations like a sentence's. Additive contract change. 40 min, after B1
-- [ ] B3 Report sync failures that happen before the run row exists (no token, no matching matter) instead of only logging them (`api/ops.py`). Pairs with P3. 20 min
+- [x] B3 Report sync failures that happen before the run row exists (no token, no matching matter) instead of only logging them (`api/ops.py`). Pairs with P3. 20 min
 
 **UI**
 - [x] U1 D3: restore the brief's sentences with a chip on each. Keep the chip rendering in one place so a later switch to "the section is clickable and opens its documents" is a small change. 40 min
-- [ ] U2 Check the source drawer, brief, KPI strip and injuries list on the real matter and fix what breaks (`docs/tracks/b-firm.md`, B3 and B4). 40 min
-- [ ] U3 Check the provider page on the real matter and fix what breaks (`docs/tracks/c-provider.md`). 30 min
+- [x] U2 Check the source drawer, brief, KPI strip and injuries list on the real matter and fix what breaks (`docs/tracks/b-firm.md`, B3 and B4). 40 min
+- [x] U3 Check the provider page on the real matter and fix what breaks (`docs/tracks/c-provider.md`). 30 min
 - [ ] U4 UI of the new feature (D2). 90 min
 - [ ] U5 Loading, empty and error states on the screens of the demo moments. 20 min
 - [ ] U7 D12 and D14: show a brief sentence's "differs from the file" mark with today's figure and its chip, and show the headline's chips once the brief carries them. Also show B3's `start_failure` in the footer. 30 min, after B4
@@ -122,7 +122,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 
 **Researcher**
 - [x] R0 A brief for the chosen feature: how comparable tools present it, and the rules for the builders. 30 min
-- [ ] R1 A brief for Calls (A). 30 min Covering:
+- [x] R1 A brief for Calls (A). 30 min Covering:
   - the browser speech recognition API: support, limits, and where the audio goes;
   - how `tel:` links behave on Windows and macOS;
   - consent wording for a call that is transcribed;
@@ -147,7 +147,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [ ] C-T The test call is the Manager's: call your own phone or a teammate's, never anyone in the matter. The lead watches it in the browser.
 
 **Reviewer**
-- [ ] V1 Triage the first `check.sh` run to the owners. The lead's setup run on 2026-10-06 (before any trial commit):
+- [x] V1 Triage the first `check.sh` run to the owners. The lead's setup run on 2026-10-06 (before any trial commit):
   - **Lint:** 13 import-order errors (ruff I001), all in `backend/tests/`, all fixable with `ruff check --fix`. 10 belong to backend; pipeline owns `test_clio_client.py`, `test_llm.py` and `test_merge.py`.
   - **No case data:** 22 hits, which need decision 3.
   - **Passing:** Clio read-only (8 passed), hygiene (4 passed), backend tests (98 passed), frontend types.
@@ -159,7 +159,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [ ] V5 Clean-clone run, timed, following the README exactly. 30 min
 
 **Critic** (each hour)
-- [ ] C1 First pass: trace three numbers on screen to their sources on the real matter; walk demo moments 1 to 4.
+- [x] C1 First pass: trace three numbers on screen to their sources on the real matter; walk demo moments 1 to 4.
 - [ ] C2 Second pass after the new feature lands, including `/ecc:orch-review` on the branch's diff.
 
 ## Milestones
