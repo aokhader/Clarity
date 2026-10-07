@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRevokeShare } from '@/api/shares'
 import type { ProviderOut } from '@/api/types'
 import { CopyLinkButton } from '@/components/share/CopyLinkButton'
-import { SendUpdateMenu } from '@/components/share/SendUpdateMenu'
+import { SendUpdateDialog } from '@/components/share/SendUpdateDialog'
 import { ShareStatus } from '@/components/share/ShareStatus'
 import { Button } from '@/components/ui/button'
 import { formatMoney } from '@/lib/format'
@@ -43,7 +43,7 @@ export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: Provi
         </div>
         {liveUrl !== null && shareId !== undefined ? (
           <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <SendUpdateMenu shareId={shareId} url={liveUrl} />
+            <SendUpdateDialog shareId={shareId} url={liveUrl} providerName={provider.name} />
             <CopyLinkButton url={liveUrl} />
             <Button
               variant={confirming ? 'destructive' : 'ghost'}

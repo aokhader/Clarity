@@ -1,7 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, apiGet } from './client'
-import type { ProviderOut, ShareCreate, ShareOut, SharePreviewOut } from './types'
+import type {
+  DraftCheckIn,
+  DraftCheckOut,
+  DraftShareCheckIn,
+  ProviderOut,
+  ShareCreate,
+  ShareOut,
+  SharePreviewOut,
+} from './types'
 
 /** POST or PATCH JSON under /api, as a firm user. */
 async function send<T>(method: 'POST' | 'PATCH', path: string, body?: unknown, userId?: number): Promise<T> {
@@ -73,5 +81,35 @@ export function useRevokeShare(matterId: number) {
   return useMutation({
     mutationFn: (shareId: number) => send<ShareOut>('POST', `/shares/${shareId}/revoke`),
     onSuccess: invalidate,
+  })
+}
+
+/** Where a draft will go: a live share, or one the composer has not created yet. */
+export type DraftTarget = { shareId: number } | { matterId: number; share: ShareCreate }
+
+/** A draft check with the exact text it ran on, so its offsets are never applied to newer text. */
+export type CheckedDraft = { text: string; check: DraftCheckOut }
+
+function checkDraft(target: DraftTarget, text: string): Promise<DraftCheckOut> {
+  if ('shareId' in target) {
+    const body: DraftCheckIn = { text }
+    return send<DraftCheckOut>('POST', `/shares/${target.shareId}/draft-check`, body)
+  }
+  const body: DraftShareCheckIn = { share: target.share, text }
+  return send<DraftCheckOut>('POST', `/matters/${target.matterId}/shares/draft-check`, body)
+}
+
+/**
+ * Each amount and date in a draft, checked on the server against what the link shows and
+ * withholds. The check runs in code, with no model call. Every new text is a request, so
+ * pass text that has settled.
+ */
+export function useDraftCheck(target: DraftTarget, text: string) {
+  return useQuery({
+    queryKey: ['draft-check', target, text],
+    queryFn: async (): Promise<CheckedDraft> => ({ text, check: await checkDraft(target, text) }),
+    enabled: text.trim() !== '',
+    // Keep the last marks on screen while the next check runs.
+    placeholderData: keepPreviousData,
   })
 }

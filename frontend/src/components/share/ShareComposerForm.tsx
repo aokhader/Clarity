@@ -2,9 +2,10 @@ import { X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useMemo, useState } from 'react'
 
-import { useCreateShare, useDraftPreview } from '@/api/shares'
+import { useCreateShare, useDraftPreview, type DraftTarget } from '@/api/shares'
 import type { ProviderOut, ShareCreate, ShareOut, ShareSettings } from '@/api/types'
 import { CopyLinkButton } from '@/components/share/CopyLinkButton'
+import { DraftCheckView } from '@/components/share/DraftCheckView'
 import { ProviderView } from '@/components/share/ProviderView'
 import { ProviderViewSkeleton } from '@/components/share/ProviderViewSkeleton'
 import { SettingToggles } from '@/components/share/SettingToggles'
@@ -12,6 +13,7 @@ import { ShareItemsList } from '@/components/share/ShareItemsList'
 import { DEFAULT_SHARE_SETTINGS } from '@/components/share/shareSettings'
 import { LoadError } from '@/components/shared/LoadError'
 import { Button } from '@/components/ui/button'
+import { useCheckedDraft } from '@/lib/useCheckedDraft'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 
@@ -51,6 +53,25 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
   const preview = useDraftPreview(matterId, draft)
   const create = useCreateShare(matterId)
   const drawer = useSourceDrawer()
+
+  // The note is checked against what the link would release, without the note itself,
+  // so it cannot vouch for its own figures.
+  const noteTarget = useMemo<DraftTarget>(
+    () => ({
+      matterId,
+      share: {
+        provider_contact_id: provider.contact_id,
+        settings,
+        hidden_fact_ids: hidden,
+        note: null,
+        expires_in_days: expiryDays,
+      },
+    }),
+    [matterId, provider.contact_id, settings, hidden, expiryDays],
+  )
+  const noteCheck = useCheckedDraft(noteTarget, note)
+  // An empty note sends nothing, so only a written note can hold the link back.
+  const noteBlocked = note.trim() === '' ? null : noteCheck.blocked
 
   function toggleHidden(factId: number, hide: boolean) {
     setHidden((current) => (hide ? [...current, factId] : current.filter((id) => id !== factId)))
@@ -99,6 +120,7 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
               placeholder="Optional"
             />
           </label>
+          {note.trim() !== '' && <DraftCheckView state={noteCheck} onChange={setNote} />}
           <fieldset>
             <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Link expires after
@@ -142,6 +164,9 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
             Could not create the link. {create.error.message}
           </p>
         )}
+        {!created && noteBlocked && !create.isError && (
+          <p className="mr-auto text-sm text-muted-foreground">Note: {noteBlocked}</p>
+        )}
         {created ? (
           <>
             <code className="mr-auto truncate text-xs text-muted-foreground">{created.url}</code>
@@ -151,7 +176,7 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
             </Dialog.Close>
           </>
         ) : (
-          <Button size="sm" onClick={createLink} disabled={create.isPending}>
+          <Button size="sm" onClick={createLink} disabled={create.isPending || noteBlocked !== null}>
             {create.isPending ? 'Creating…' : 'Create link'}
           </Button>
         )}
