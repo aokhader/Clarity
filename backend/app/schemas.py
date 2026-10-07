@@ -688,6 +688,16 @@ class DraftShareCheckIn(BaseModel):
     text: str
 
 
+class NoteLockedOut(BaseModel):
+    """The 422 body when a share's note would disclose what the link withholds (D25).
+
+    Rule 4: the server refuses the note, so no client can send it by skipping the lock.
+    """
+
+    message: str
+    locked: list[DraftMentionOut]  # offsets into the note
+
+
 class DraftSentenceOut(BaseModel):
     start: int
     end: int

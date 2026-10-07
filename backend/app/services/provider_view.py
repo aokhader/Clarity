@@ -9,24 +9,21 @@ only the cited document page of their own bill or record.
 
 from collections import defaultdict
 from datetime import date, datetime
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, Page, Share, Source, SourceType
+from app.models import Fact, FactKind, Share, Source, SourceType
 from app.schemas import (
     BillPayload,
     CaseStage,
     CaseStagePayload,
     CoveragePayload,
-    PageRef,
     PolicyLimitPayload,
     ProviderBillsTotalOut,
     ProviderCoverageOut,
     ProviderItemOut,
     ProviderPayload,
-    ProviderSourceOut,
     ProviderStatusOut,
     ProviderTreatmentOut,
     ProviderUpdateOut,
@@ -39,10 +36,10 @@ from app.schemas import (
 from app.services import shares
 from app.services.bills import CountedBills, count_bills
 from app.services.clio_records import RawMatter
+from app.services.draft_check import check_text
 from app.services.providers import distinct_requests
-from app.services.source_views import page_image_path
+from app.services.share_values import shown_values, withheld_values
 from app.services.visibility import (
-    SOURCE_SETTINGS,
     released_facts,
     share_is_live,
     visible_facts_for_share,
@@ -59,10 +56,6 @@ class ShareGone(Exception):
     """The share is expired or revoked: the provider gets a plain message and no data."""
 
 
-class NotVisible(LookupError):
-    """The share does not release this fact or page."""
-
-
 def _chronological(facts: list[Fact]) -> list[Fact]:
     return sorted(facts, key=lambda f: (f.event_date or date.min, f.id))
 
@@ -75,7 +68,7 @@ def _latest(facts: list[Fact]) -> Fact | None:
     )
 
 
-def _has_cited_page(fact: Fact) -> bool:
+def has_cited_page(fact: Fact) -> bool:
     return fact.source.clio_type is SourceType.DOCUMENT and fact.page_no is not None
 
 
@@ -197,7 +190,7 @@ def _bills(facts: list[Fact]) -> list[ProviderItemOut]:
         _own_item(
             f,
             amount_cents=BillPayload.model_validate(f.value_json).amount_cents,
-            has_source=_has_cited_page(f),
+            has_source=has_cited_page(f),
         )
         for f in _chronological(listed)
     ]
@@ -213,7 +206,7 @@ def _bills_total(facts: list[Fact]) -> ProviderBillsTotalOut | None:
 
 
 def _records(facts: list[Fact]) -> list[ProviderItemOut]:
-    return [_own_item(f, has_source=_has_cited_page(f)) for f in _chronological(facts)]
+    return [_own_item(f, has_source=has_cited_page(f)) for f in _chronological(facts)]
 
 
 def _treatment(facts: list[Fact]) -> ProviderTreatmentOut | None:
@@ -233,7 +226,7 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         by_setting[released.setting].append(released.fact)
     matter = _matter(session, share.matter_id)
     stage_facts = by_setting["case_stage"]
-    return ProviderPayload(
+    payload = ProviderPayload(
         provider_name=shares.contact_name(
             session, share.matter_id, share.provider_contact_id
         )
@@ -258,6 +251,32 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         if settings.treatment_activity
         else None,
     )
+    released = {f.id: f for facts in by_setting.values() for f in facts}
+    if payload.note and _note_locked(session, share, payload, released, now):
+        # Rule 4: a note that states what this link withholds is never served, even
+        # on a share stored before the note was checked (D25).
+        payload = payload.model_copy(update={"note": None})
+    return payload
+
+
+def visible_by_id(session: Session, share: Share, now: datetime) -> dict[int, Fact]:
+    """The facts the link releases, by id."""
+    return {r.fact.id: r.fact for r in visible_facts_for_share(session, share, now)}
+
+
+def _note_locked(
+    session: Session,
+    share: Share,
+    payload: ProviderPayload,
+    released: dict[int, Fact],
+    now: datetime,
+) -> bool:
+    checked = check_text(
+        payload.note or "",
+        shown_values(payload, released),
+        withheld_values(session, share, now),
+    )
+    return checked.verdict == "do_not_send"
 
 
 def share_preview(session: Session, share: Share, now: datetime) -> SharePreviewOut:
@@ -283,54 +302,3 @@ def open_link(session: Session, token: str, now: datetime) -> ProviderPayload:
     payload = provider_payload(session, share, now)
     shares.record_opened(session, share, now)
     return payload
-
-
-def _sourced_facts(session: Session, share: Share, now: datetime) -> list[Fact]:
-    """Visible own bills and records that cite a document page the provider may open."""
-    if not share_is_live(share, now):
-        raise ShareGone(f"share {share.id} is expired or revoked")
-    return [
-        r.fact
-        for r in visible_facts_for_share(session, share, now)
-        if r.setting in SOURCE_SETTINGS and _has_cited_page(r.fact)
-    ]
-
-
-def provider_source(
-    session: Session, token: str, fact_id: int, now: datetime
-) -> ProviderSourceOut:
-    share = shares.share_for_token(session, token)
-    fact = next(
-        (f for f in _sourced_facts(session, share, now) if f.id == fact_id), None
-    )
-    if fact is None:
-        raise NotVisible(f"fact {fact_id} has no source this link can open")
-    page = session.scalars(
-        select(Page).where(
-            Page.source_id == fact.source_id,
-            Page.page_no == fact.page_no,
-            Page.image_path.is_not(None),
-        )
-    ).first()
-    page_ref = None
-    if page is not None:
-        page_ref = PageRef(
-            page_id=page.id,
-            page_no=page.page_no,
-            image_url=f"/api/p/{token}/pages/{page.id}/image",
-        )
-    return ProviderSourceOut(
-        fact_id=fact.id, title=fact.title, quote=fact.quote, page=page_ref
-    )
-
-
-def provider_page_image(
-    session: Session, token: str, page_id: int, now: datetime
-) -> Path:
-    """The image of a page only if it is the cited page of a visible own bill or record."""
-    share = shares.share_for_token(session, token)
-    cited = {(f.source_id, f.page_no) for f in _sourced_facts(session, share, now)}
-    page = session.get(Page, page_id)
-    if page is None or (page.source_id, page.page_no) not in cited:
-        raise NotVisible(f"page {page_id} is not open to this link")
-    return page_image_path(session, page_id)

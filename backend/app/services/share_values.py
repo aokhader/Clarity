@@ -4,7 +4,7 @@
 means the provider already sees that figure or date. `withheld_values` is every amount
 and date in the file, each with the rule that keeps it off this link. The matcher
 tries shown values first, so a withheld value only decides a mention the link does not
-support. The reason names a rule, never the fact, so a check cannot leak what it guards.
+support. A withheld value's reason names the rule that keeps it off the link.
 """
 
 from datetime import date, datetime
@@ -22,12 +22,10 @@ from app.schemas import (
 from app.services.bills import count_bills
 from app.services.fact_views import renderable_facts
 from app.services.known_values import KnownValue, fact_values
-from app.services.provider_view import provider_payload
 from app.services.text_mentions import DatePrecision, find_amounts, find_dates
 from app.services.visibility import (
     PROVIDER_SCOPED_SETTINGS,
     SETTING_BY_KIND,
-    visible_facts_for_share,
 )
 
 _SETTING_WORDS: dict[ShareSetting, str] = {
@@ -47,10 +45,14 @@ _OTHER_PROVIDER = "Kept internal: about another provider"
 _RELEASED = 4
 
 
-def shown_values(session: Session, share: Share, now: datetime) -> list[KnownValue]:
-    """Every amount and date on the link. Raises ShareGone if the share is not live."""
-    payload = provider_payload(session, share, now)
-    visible = {r.fact.id: r.fact for r in visible_facts_for_share(session, share, now)}
+def shown_values(
+    payload: ProviderPayload, visible: dict[int, Fact]
+) -> list[KnownValue]:
+    """Every amount and date on the link, read from the payload it serves.
+
+    `visible` maps the ids of the facts the link releases to those facts, so each
+    value can cite them.
+    """
     limits = payload.coverage.limits if payload.coverage else None
     values: list[KnownValue] = []
     for items, what, cues in (

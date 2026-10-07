@@ -24,12 +24,9 @@ routes are firm-only; nothing here reaches a provider. No model is called.
 """
 
 from collections.abc import Iterable
-from datetime import datetime
 from itertools import combinations
 
-from sqlalchemy.orm import Session
-
-from app.models import Fact, FactKind, Share
+from app.models import Fact, FactKind
 from app.schemas import (
     DraftCheckOut,
     DraftMentionOut,
@@ -45,7 +42,6 @@ from app.services.money_mentions import (
     find_amounts,
     find_ranges,
 )
-from app.services.share_values import shown_values, withheld_values
 from app.services.subject_cues import contexts_around, same_subject
 from app.services.text_mentions import (
     DateMention,
@@ -113,15 +109,6 @@ def check_text(
         )
     return DraftCheckOut(
         verdict=worst_verdict(s.verdict for s in sentences), sentences=sentences
-    )
-
-
-def check_share_draft(
-    session: Session, share: Share, text: str, now: datetime
-) -> DraftCheckOut:
-    """Check text meant for the provider holding `share`. Raises ShareGone if it is not live."""
-    return check_text(
-        text, shown_values(session, share, now), withheld_values(session, share, now)
     )
 
 

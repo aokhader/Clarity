@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, User, Visibility
+from app.models import Fact, FactKind, Share, User, Visibility
 from app.services.visibility import SETTING_BY_KIND
 from tests.fixtures.synthetic_matter import (
     CLIENT_ID,
@@ -332,3 +332,92 @@ def test_draft_preview_matches_the_link_it_creates_and_saves_nothing(
     insurer = {"provider_contact_id": INSURER_ID}
     response = client.post(f"/api/matters/{MATTER_ID}/shares/preview", json=insurer)
     assert response.status_code == 422
+
+
+# --- The note lock, enforced by the server (rule 4, D25) ------------------------------
+
+
+def _offer_sentence(session: Session) -> str:
+    offer = _fact(session, FactKind.OFFER, None)
+    return f"The insurer offered ${offer.value_json['amount_cents'] // 100:,}."
+
+
+def _limit_sentence(session: Session) -> str:
+    limit = session.scalars(
+        select(Fact).where(Fact.kind == FactKind.POLICY_LIMIT, Fact.origin != "code")
+    ).first()
+    assert limit is not None
+    return (
+        f"The per-person policy limit is ${limit.value_json['amount_cents'] // 100:,}."
+    )
+
+
+def test_a_note_that_discloses_an_internal_figure_is_refused(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    response = client.post(
+        f"/api/matters/{MATTER_ID}/shares",
+        json={"provider_contact_id": ORTHO_ID, "note": _offer_sentence(seeded)},
+        headers={"X-User-Id": str(user_id)},
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    [locked] = detail["locked"]
+    assert locked["verdict"] == "do_not_send" and locked["text"].startswith("$")
+    assert client.get(f"/api/matters/{MATTER_ID}/shares").json() == []
+
+
+def test_changing_the_note_to_a_locked_one_changes_nothing(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    share = _create(client, user_id, note="Thank you for the records.")
+
+    response = client.patch(
+        f"/api/shares/{share['id']}", json={"note": _offer_sentence(seeded)}
+    )
+
+    assert response.status_code == 422
+    [stored] = client.get(f"/api/matters/{MATTER_ID}/shares").json()
+    assert stored["note"] == "Thank you for the records."
+
+
+def test_turning_off_what_a_note_relies_on_is_refused(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    on = {"coverage_limits": True}
+    share = _create(client, user_id, settings=on, note=_limit_sentence(seeded))
+
+    response = client.patch(
+        f"/api/shares/{share['id']}", json={"settings": {"coverage_limits": False}}
+    )
+
+    assert response.status_code == 422
+    [stored] = client.get(f"/api/matters/{MATTER_ID}/shares").json()
+    assert stored["settings"]["coverage_limits"] is True
+
+
+def test_a_stored_note_that_is_locked_is_never_served(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    share = _create(client, user_id, note="Thank you for the records.")
+    # A share stored before the server checked notes.
+    stored = seeded.get(Share, share["id"])
+    assert stored is not None
+    stored.note = _offer_sentence(seeded)
+    seeded.commit()
+
+    served = _ok(client.get(f"/api/p/{_token(share)}"))
+    preview = _ok(client.get(f"/api/shares/{share['id']}/preview"))["payload"]
+
+    assert served["note"] is None and preview["note"] is None
+
+
+def test_a_note_with_nothing_internal_is_served(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    share = _create(client, user_id, note="Thank you for the records.")
+
+    assert _ok(client.get(f"/api/p/{_token(share)}"))["note"] == (
+        "Thank you for the records."
+    )

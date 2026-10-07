@@ -12,6 +12,7 @@ from app.schemas import (
     DraftCheckIn,
     DraftCheckOut,
     DraftShareCheckIn,
+    NoteLockedOut,
     ProviderOut,
     ShareCreate,
     ShareOut,
@@ -19,10 +20,10 @@ from app.schemas import (
     ShareUpdate,
 )
 from app.services import (
-    draft_check,
     matter_queries,
     provider_view,
     providers,
+    share_check,
     shares,
 )
 
@@ -55,6 +56,12 @@ ExistingShare = Annotated[Share, Depends(_existing_share)]
 CurrentUser = Annotated[User, Depends(_current_user)]
 
 
+def _note_locked(error: share_check.NoteLocked) -> HTTPException:
+    """422 with the spans of the note that would disclose what the link withholds."""
+    body = NoteLockedOut(message=str(error), locked=error.locked)
+    return HTTPException(status_code=422, detail=body.model_dump(mode="json"))
+
+
 def _one(session: SessionDep, share: Share) -> ShareOut:
     return shares.shares_out(session, [share])[0]
 
@@ -74,9 +81,13 @@ def create_share(
     matter_id: MatterId, body: ShareCreate, user: CurrentUser, session: SessionDep
 ) -> ShareOut:
     try:
-        share = shares.create_share(session, matter_id, body, user, datetime.now(UTC))
+        share = share_check.create_share(
+            session, matter_id, body, user, datetime.now(UTC)
+        )
     except shares.NotAProvider as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    except share_check.NoteLocked as error:
+        raise _note_locked(error) from error
     return _one(session, share)
 
 
@@ -107,7 +118,7 @@ def check_share_draft(
 ) -> DraftCheckOut:
     """Each sentence's amounts and dates against what this link shows and withholds."""
     try:
-        return draft_check.check_share_draft(
+        return share_check.check_share_draft(
             session, share, body.text, datetime.now(UTC)
         )
     except provider_view.ShareGone as error:
@@ -124,7 +135,7 @@ def check_draft_share_draft(
         draft = shares.draft_share(session, matter_id, body.share, now)
     except shares.NotAProvider as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return draft_check.check_share_draft(session, draft, body.text, now)
+    return share_check.check_share_draft(session, draft, body.text, now)
 
 
 @router.patch("/shares/{share_id}")
@@ -132,11 +143,13 @@ def update_share(
     share: ExistingShare, body: ShareUpdate, session: SessionDep
 ) -> ShareOut:
     try:
-        shares.update_share(session, share, body)
+        share_check.update_share(session, share, body, datetime.now(UTC))
     except shares.ShareRevoked as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except shares.InvalidShareUpdate as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+    except share_check.NoteLocked as error:
+        raise _note_locked(error) from error
     return _one(session, share)
 
 

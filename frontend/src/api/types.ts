@@ -568,6 +568,15 @@ export type DraftMentionOut = {
   file_date: IsoDate | null
 }
 
+/**
+ * The `detail` of a 422 from creating or updating a share whose note would disclose what
+ * the link withholds (rule 4, D25). `locked` holds the spans, as offsets into the note.
+ */
+export type NoteLockedOut = {
+  message: string
+  locked: DraftMentionOut[]
+}
+
 export type DraftSentenceOut = {
   start: number
   end: number
