@@ -24,6 +24,8 @@ export const KIND_LABELS: Record<FactKind, string> = {
   party: 'Party',
   incident: 'Incident',
   medical_specials: 'Specials',
+  economic_damages: 'Economic damages',
+  recovery_cap: 'Recovery cap',
   other: 'Other',
 }
 
