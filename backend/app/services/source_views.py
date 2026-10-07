@@ -214,6 +214,9 @@ def source_out(session: Session, source: Source) -> SourceOut:
             for p in rendered
         ]
     created = source.clio_created_at.date() if source.clio_created_at else None
+    document_date = None
+    if source.clio_type is SourceType.DOCUMENT:
+        document_date = _day(RawDocument.model_validate(source.raw_json).received_at)
     return SourceOut(
         source_id=source.id,
         source_type=source.clio_type,
@@ -223,6 +226,7 @@ def source_out(session: Session, source: Source) -> SourceOut:
         text=readable.text,
         pages=pages,
         sections=list(readable.sections),
+        document_date=document_date,
     )
 
 

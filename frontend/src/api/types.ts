@@ -238,6 +238,11 @@ export type SourceOut = {
   pages: PageRef[]
   /** Matters and tasks, laid out by aspect for reading; empty for every other source. */
   sections: SourceSectionOut[]
+  /**
+   * A document's own date (its received date in Clio), when known. For a document,
+   * `occurred_on` is the day it was uploaded, so show "Uploaded" when this is null.
+   */
+  document_date: IsoDate | null
 }
 
 export type FactSourceOut = {

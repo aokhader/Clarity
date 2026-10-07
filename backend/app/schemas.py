@@ -327,6 +327,9 @@ class SourceOut(BaseModel):
     pages: list[PageRef]  # every page of a document, in order; empty otherwise
     # Matters and tasks, laid out by aspect for reading; empty for every other source.
     sections: list[SourceSectionOut] = []
+    # A document's own date (its received date in Clio), when known. For a document,
+    # `occurred_on` is the day it was uploaded.
+    document_date: date | None = None
 
 
 class FactSourceOut(BaseModel):

@@ -84,6 +84,9 @@ class RawActivity(BaseModel):
 class RawDocument(BaseModel):
     name: str | None = None
     filename: str | None = None
+    # The document's own date in Clio, as against `created_at`, the upload. Synced only
+    # once DOCUMENT_FIELDS asks for it.
+    received_at: dt.datetime | None = None
 
 
 class RawRelationship(BaseModel):
