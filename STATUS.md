@@ -5,8 +5,8 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | Verified Calls in the browser (targets, chips, typed line, no-model notes, consent gate), No bills on file, coverage tile | Critic Pass 2 findings; then freeze and the reviewer | Manager: .env model settings; the test call (C-T) | Approve (a), (b), a re-sync; retry-failed button | 02:05 |
-| pipeline | C-P done 9bd8566 113fdef. Backend: extract_call_notes(session, transcript, *, matter_id, call_date, counterpart, retry_failed) -> CallNotes(notes, dropped). CallNoteDraft: kind, text, quote, quote_start, quote_end, amounts_cents, dates [{on, precision}]. Raises ModelsNotConfigured (no_model), CallNotesFailed (failed) | Idle; report to lead | Manager: .env lacks models and prices; (a), (b) wait on D24 upgrade_schema | P10: (a) ~$0.20; (b) ~$0.19 | 01:47 |
-| backend | K1-K5 done: 2e557ff, 281b584, 35b1c1c, 6037c56, 5f9c578. Contract: NoteLockedOut | Next batch | | D25 deadlines: calendar entries are deadline kind, so their days lock | 02:19 |
+| pipeline | P14 6bda1e2 done; standing by for the freeze. C-P 9bd8566 113fdef: extract_call_notes(...) -> CallNotes(notes, dropped); raises ModelsNotConfigured, CallNotesFailed | Fixes only after the freeze | Manager: .env lacks models and prices; (a), (b) wait on D24 upgrade_schema | P10: (a) ~$0.20; (b) ~$0.19 | 02:23 |
+| backend | K6 59bdb3d (D28): only legal deadlines lock dates. K1-K6 done. Standing by for the freeze | Freeze fixes only | | | 02:23 |
 | ui-builder | Pass 2 done: 2ccb697, afa9c3b; consent wording (D27) f2faba0 | Stand by | | | 02:19 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
