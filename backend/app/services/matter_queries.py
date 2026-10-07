@@ -16,7 +16,6 @@ from app.schemas import (
     FactOut,
     MatterHeaderOut,
     MatterSummaryOut,
-    RecordRequestPayload,
     RunOut,
     StageOut,
     TaskPayload,
@@ -26,6 +25,7 @@ from app.services.clio_records import RawContact, RawMatter
 from app.services.fact_views import fact_out, fact_ref, renderable_facts
 from app.services.incident import incident_fact
 from app.services.kpis import kpi_tiles
+from app.services.record_requests import outstanding_record_requests
 
 
 class MatterNotFound(LookupError):
@@ -190,21 +190,29 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
     """Split open work into overdue, upcoming, and waiting on others.
 
     The groups do not overlap: overdue wins, then waiting, then upcoming. A record
-    request raised by a task already on the board is not listed twice. Past calendar
+    request raised by a task already on the board is not listed twice, and a request
+    the provider has answered is not listed (`record_requests.py`). Past calendar
     entries are not overdue; they happened.
     """
-    kinds = (FactKind.TASK, FactKind.DEADLINE, FactKind.RECORD_REQUEST)
-    facts = session.scalars(
-        renderable_facts(matter_id).where(Fact.kind.in_(kinds))
-    ).all()
+    kinds = (
+        FactKind.TASK,
+        FactKind.DEADLINE,
+        FactKind.RECORD_REQUEST,
+        FactKind.RECORDS_RECEIVED,  # to tell which requests are answered
+    )
+    facts = list(
+        session.scalars(renderable_facts(matter_id).where(Fact.kind.in_(kinds)))
+    )
     task_sources = {f.source_id for f in facts if f.kind is FactKind.TASK}
+    outstanding = {f.id for f in outstanding_record_requests(facts)}
     overdue: list[Fact] = []
     upcoming: list[Fact] = []
     waiting: list[Fact] = []
     for fact in facts:
+        if fact.kind is FactKind.RECORDS_RECEIVED:
+            continue
         if fact.kind is FactKind.RECORD_REQUEST:
-            request = RecordRequestPayload.model_validate(fact.value_json)
-            if request.status == "open" and fact.source_id not in task_sources:
+            if fact.id in outstanding and fact.source_id not in task_sources:
                 waiting.append(fact)
             continue
         due = _due_date(fact)

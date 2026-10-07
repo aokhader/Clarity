@@ -161,8 +161,10 @@ def _own_item(
     )
 
 
-def _requests(facts: list[Fact]) -> list[ProviderItemOut]:
-    return [_own_item(f) for f in _chronological(distinct_requests(facts))]
+def _requests(asks: list[Fact], received: list[Fact]) -> list[ProviderItemOut]:
+    """What the firm still needs. Only records this link releases can answer a request,
+    so the payload is still built from visible facts alone."""
+    return [_own_item(f) for f in _chronological(distinct_requests([*asks, *received]))]
 
 
 def _counted_bills(facts: list[Fact]) -> CountedBills | None:
@@ -229,7 +231,9 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         status=_status(stage_facts, matter) if settings.case_stage else None,
         updates=_updates(stage_facts) if settings.case_stage else None,
         coverage=_coverage(by_setting, settings),
-        requests=_requests(by_setting["requests"]) if settings.requests else None,
+        requests=_requests(by_setting["requests"], by_setting["own_records"])
+        if settings.requests
+        else None,
         bills=_bills(by_setting["own_bills"]) if settings.own_bills else None,
         bills_total=_bills_total(by_setting["own_bills"])
         if settings.own_bills

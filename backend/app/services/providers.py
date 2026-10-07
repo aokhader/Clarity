@@ -14,17 +14,21 @@ from app.services import shares
 from app.services.bills import billed_total_cents
 from app.services.clio_records import RawRelationship
 from app.services.fact_views import renderable_facts
+from app.services.record_requests import (
+    open_record_requests,
+    outstanding_record_requests,
+)
 from app.services.visibility import share_is_live
 
 
 def distinct_requests(facts: list[Fact]) -> list[Fact]:
-    """Open record requests and open tasks, with a task that raised a request counted once."""
-    requests = [
-        f
-        for f in facts
-        if f.kind is FactKind.RECORD_REQUEST and f.value_json.get("status") == "open"
-    ]
-    raised_by = {f.source_id for f in requests}
+    """Outstanding record requests and open tasks, each ask listed once.
+
+    A task that raised a request is the same ask, so it is left out even after the
+    request is answered. `facts` must include the records received that can answer a
+    request (`record_requests.py`).
+    """
+    raised_by = {f.source_id for f in open_record_requests(facts)}
     tasks = [
         f
         for f in facts
@@ -32,7 +36,7 @@ def distinct_requests(facts: list[Fact]) -> list[Fact]:
         and f.value_json.get("status") == "open"
         and f.source_id not in raised_by
     ]
-    return requests + tasks
+    return outstanding_record_requests(facts) + tasks
 
 
 def _role_labels(session: Session, matter_id: int) -> dict[int, str]:
