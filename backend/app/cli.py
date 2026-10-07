@@ -120,7 +120,13 @@ def _digest(args: argparse.Namespace) -> int:
 
 
 def _reextract(args: argparse.Namespace) -> int:
-    from app.digest.reextract import NotRereadable, estimate, mark_unread, select_units
+    from app.digest.reextract import (
+        NotRereadable,
+        describe,
+        estimate,
+        mark_unread,
+        select_units,
+    )
     from app.digest.run import NoSyncedMatter, run_digest, synced_matter_id
 
     init_db()
@@ -142,8 +148,10 @@ def _reextract(args: argparse.Namespace) -> int:
         pages, records = len(selection.pages), len(selection.records)
         print(
             f"Selected {_count(pages, 'page')} and {_count(records, 'record')}, "
-            f"holding {_count(cost.facts_held, 'fact')}."
+            f"holding {_count(cost.facts_held, 'fact')}:"
         )
+        for line in describe(session, selection):
+            print(f"  {line}")
         price = f"about ${cost.usd:.2f}" if cost.usd is not None else "cost unknown"
         print(
             f"At most {_count(cost.extraction_calls, 'extraction call')}, then scoring "

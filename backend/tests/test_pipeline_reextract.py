@@ -45,7 +45,12 @@ def matter(session: Session) -> dict[str, Any]:
         matter_id=MATTER,
         clio_type=SourceType.NOTE,
         clio_id="n",
-        raw_json={"id": 1, "subject": "Invented", "detail": NOTE_TEXT},
+        raw_json={
+            "id": 1,
+            "subject": "Invented subject",
+            "detail": NOTE_TEXT,
+            "date": "2020-04-02",
+        },
     )
     session.add_all([document, note])
     session.flush()
@@ -138,3 +143,30 @@ def test_a_dry_run_changes_nothing(
     assert "1 page" in capsys.readouterr().out
     session.expire_all()
     assert all(p.extracted_at is not None for p in matter["document"].pages)
+
+
+def test_a_dry_run_lists_each_unit_by_id_and_date_without_its_text(
+    data_dir: Path,
+    session: Session,
+    matter: dict[str, Any],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    document, note = matter["document"], matter["note"]
+
+    main(
+        [
+            "reextract",
+            "--matter-id",
+            str(MATTER),
+            "--behind-kind",
+            "policy_limit",
+            "--behind-kind",
+            "case_value",
+            "--dry-run",
+        ]
+    )
+
+    out = capsys.readouterr().out
+    assert f"page 2 of document source {document.id}: 1 fact (policy_limit)" in out
+    assert f"note source {note.id}, Apr 2, 2020: 1 fact (case_value)" in out
+    assert "Invented subject" not in out and NOTE_TEXT not in out

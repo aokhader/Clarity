@@ -6,6 +6,7 @@ them again through `llm.py`, cached like any other call, replaces their facts, a
 scores the new ones. Nothing else is read again.
 """
 
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -13,6 +14,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.digest.records import display_date, parse_date
 from app.models import Fact, FactKind, LlmCall, Origin, Page, Source, SourceType
 
 # Records the extractor reads whole; the matter stands for its custom fields.
@@ -145,27 +147,55 @@ def _record(session: Session, matter_id: int, source_id: int) -> Source:
     return source
 
 
-def _facts_held(session: Session, selection: Selection) -> int:
-    count = 0
+def describe(session: Session, selection: Selection) -> list[str]:
+    """One line per unit, by id and date only: titles and text are case data."""
+    lines = []
     for page in selection.pages:
-        count += len(
-            session.scalars(
-                select(Fact.id).where(
-                    Fact.source_id == page.source_id,
-                    Fact.page_no == page.page_no,
-                    Fact.origin == Origin.MODEL,
-                )
-            ).all()
-        )
+        held = _held(_page_facts(session, page))
+        lines.append(f"page {page.page_no} of document source {page.source_id}: {held}")
     for record in selection.records:
-        count += len(
-            session.scalars(
-                select(Fact.id).where(
-                    Fact.source_id == record.id, Fact.origin == Origin.MODEL
-                )
-            ).all()
+        day = display_date(parse_date(record.raw_json.get("date")))
+        dated = f", {day}" if day else ""
+        held = _held(_record_facts(session, record))
+        lines.append(f"{record.clio_type.value} source {record.id}{dated}: {held}")
+    return lines
+
+
+def _held(facts: list[Fact]) -> str:
+    if not facts:
+        return "no facts"
+    kinds = Counter(f.kind.value for f in facts)
+    listed = ", ".join(
+        f"{kind} x{n}" if n > 1 else kind for kind, n in sorted(kinds.items())
+    )
+    noun = "fact" if len(facts) == 1 else "facts"
+    return f"{len(facts)} {noun} ({listed})"
+
+
+def _page_facts(session: Session, page: Page) -> list[Fact]:
+    return list(
+        session.scalars(
+            select(Fact).where(
+                Fact.source_id == page.source_id,
+                Fact.page_no == page.page_no,
+                Fact.origin == Origin.MODEL,
+            )
         )
-    return count
+    )
+
+
+def _record_facts(session: Session, record: Source) -> list[Fact]:
+    return list(
+        session.scalars(
+            select(Fact).where(Fact.source_id == record.id, Fact.origin == Origin.MODEL)
+        )
+    )
+
+
+def _facts_held(session: Session, selection: Selection) -> int:
+    return sum(len(_page_facts(session, p)) for p in selection.pages) + sum(
+        len(_record_facts(session, r)) for r in selection.records
+    )
 
 
 def _answered_calls(session: Session, purpose: str) -> list[LlmCall]:
