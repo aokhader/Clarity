@@ -1,9 +1,9 @@
 import { PiggyBank, ShieldCheck, Stethoscope, TrendingDown, TriangleAlert, type LucideIcon } from 'lucide-react'
 
-import type { KpiOut, KpiValueOut } from '@/api/types'
+import type { KpiOut } from '@/api/types'
+import { KpiFigure } from '@/components/firm/KpiFigure'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
-import { formatMoney, formatMoneyRange } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const KPI_LABELS: Record<KpiOut['name'], string> = {
@@ -19,11 +19,6 @@ const KPI_TONES: Record<KpiOut['name'], { tile: string; label: string; Icon: Luc
   coverage: { tile: 'border-blue-100 bg-blue-50 text-blue-950', label: 'text-blue-700', Icon: ShieldCheck },
   medical_specials: { tile: 'border-orange-100 bg-orange-50 text-orange-950', label: 'text-orange-700', Icon: Stethoscope },
   firm_spend: { tile: 'border-slate-200 bg-slate-100 text-slate-900', label: 'text-slate-700', Icon: TrendingDown },
-}
-
-function amountText(value: KpiValueOut): string {
-  if (value.amount_cents !== null) return formatMoney(value.amount_cents)
-  return formatMoneyRange(value.low_cents, value.high_cents) ?? 'Amount not stated'
 }
 
 /** One KPI: a sourced value, every value when sources disagree, or "Not found in file". */
@@ -44,21 +39,29 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
       )}
       {kpi.values.length === 0 && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
       {kpi.values.length === 1 && only && (
-        <p
-          className={cn(
-            'mt-2 flex h-10 items-center whitespace-nowrap font-semibold tabular-nums',
-            // A range is twice as long as an amount, so it steps down a size to stay on one line.
-            only.amount_cents === null ? 'text-2xl' : 'text-kpi',
-          )}
-        >
-          {amountText(only)}
-        </p>
+        <>
+          <p
+            className={cn(
+              'mt-2 flex h-10 items-baseline whitespace-nowrap font-semibold tabular-nums leading-10',
+              // A range is twice as long as an amount, so it steps down a size to stay on one line.
+              only.amount_cents === null ? 'text-2xl' : 'text-kpi',
+            )}
+          >
+            <KpiFigure value={only} />
+          </p>
+          {only.label && <p className={cn('text-xs', tone.label)}>{only.label}</p>}
+        </>
       )}
       {kpi.values.length > 1 && (
         <ul className="mt-2 space-y-1">
-          {kpi.values.map((value) => (
-            <li key={value.facts[0]?.id ?? amountText(value)} className="flex items-center justify-between gap-2">
-              <span className="whitespace-nowrap text-xl font-semibold tabular-nums">{amountText(value)}</span>
+          {kpi.values.map((value, index) => (
+            <li key={value.facts[0]?.id ?? index} className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="whitespace-nowrap text-xl font-semibold tabular-nums">
+                  <KpiFigure value={value} />
+                </p>
+                {value.label && <p className={cn('text-xs', tone.label)}>{value.label}</p>}
+              </div>
               <RevealOnHover>
                 <SourceChipList facts={value.facts} max={1} />
               </RevealOnHover>
