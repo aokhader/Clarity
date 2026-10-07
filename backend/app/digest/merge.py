@@ -3,7 +3,7 @@ a claim without a source.
 
 1. Deduplicate facts that say the same thing about the same date and provider.
 2. Score significance (0 to 100) and who each task is waiting on.
-3. Cross-check money totals against the firm's own figures.
+3. Cross-check the firm's own figures against the file (`cross_check.py`).
 4. Write the brief, where every sentence cites fact ids that exist.
 """
 
@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.digest import llm
+from app.digest.cross_check import cross_check
 from app.models import Confidence, Digest, DigestKind, Fact, FactKind, Origin
 from app.schemas import BriefContent
 from app.services.bills import billed_total_cents
@@ -174,32 +175,6 @@ def score(session: Session, matter_id: int) -> int:
             scored += 1
     session.flush()
     return scored
-
-
-def cross_check(session: Session, matter_id: int) -> int:
-    """Put the billed total beside the firm's own specials figure.
-
-    The billed total counts each provider's charges once (`services/bills.py`): a ledger
-    entry, a note, and the itemized bill for the same charges are one bill, not three.
-
-    A disagreement is stored as an `alt_values` entry on the specials fact, so the KPI
-    tile shows both numbers instead of silently picking one.
-    """
-    facts = _facts(session, matter_id)
-    bills = [f for f in facts if f.kind is FactKind.MEDICAL_BILL]
-    total = billed_total_cents(bills)
-    disagreements = 0
-    for specials in (f for f in facts if f.kind is FactKind.MEDICAL_SPECIALS):
-        value = dict(specials.value_json or {})
-        stated = value.get("amount_cents")
-        if bills and stated is not None and stated != total:
-            value["alt_values"] = [{"amount_cents": total}]
-            disagreements += 1
-        else:
-            value["alt_values"] = []
-        specials.value_json = value
-    session.flush()
-    return disagreements
 
 
 def key_figures(session: Session, matter_id: int) -> dict[str, Any]:
