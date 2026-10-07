@@ -113,8 +113,8 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
 - [x] P13 pipeline (D19, D20): the extraction prompt records which policy a limit belongs to, and gives economic damages and recovery caps kinds of their own. Add a command that re-extracts named pages only. Run it after the Manager approves the estimate (P10 b). Bump the prompt version. 45 min plus the run
 - [x] B10 backend (D19, D20): the contract changes to match P13 (new kinds, the policy field, both additive) with `types.ts`; the new kinds go into visibility as internal; the Coverage tile leads with the defendant limit and labels the others. 40 min
-- [ ] U9 ui-builder (D19): the Coverage tile shows the leading limit and the labelled client policies under it. 20 min, after B10
-- [ ] U8 ui-builder:
+- [x] U9 ui-builder (D19): the Coverage tile shows the leading limit and the labelled client policies under it. 20 min, after B10
+- [x] U8 ui-builder:
   - loading, empty and error states (U5);
   - chips in the share preview open their sources;
   - "Uploaded" when a document has no date of its own (#13);
@@ -139,7 +139,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] C-P pipeline: a versioned prompt in `digest/prompts/` turns a transcript into notes (a summary, commitments, dates and amounts mentioned, follow-ups), through `digest/llm.py`. 60 min
   - Every note carries a quote that code checks against the transcript (reuse `verify.py`); a note whose quote fails is dropped.
   - Dates and amounts are parsed in code.
-- [ ] C-U ui-builder: a Calls view in the sidebar (`?view=calls`). 90 min
+- [x] C-U ui-builder: a Calls view in the sidebar (`?view=calls`). 90 min
   - **The list:** who to call next, with the source chip of the item behind each call, the phone number and the days since the last contact.
   - **Placing the call:** a consent step, then the `tel:` hand-off.
   - **During the call:** a live transcript from the browser's speech recognition, which says plainly that only this microphone is heard.

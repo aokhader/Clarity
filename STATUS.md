@@ -4,12 +4,12 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | Ran D24 upgrade_schema on the real database: backup data/app.db.bak-20261007T084903Z, sources and facts rebuilt, all 14 tables kept their row counts, integrity ok | Verify Calls wiring and U9 in the browser; critic Pass 2 | Manager: .env model settings | Approve (a), (b), a re-sync; retry-failed button | 01:52 |
+| lead | Verified Calls in the browser (targets, chips, typed line, no-model notes, consent gate), No bills on file, coverage tile | Critic Pass 2 findings; then freeze and the reviewer | Manager: .env model settings; the test call (C-T) | Approve (a), (b), a re-sync; retry-failed button | 02:05 |
 | pipeline | C-P done 9bd8566 113fdef. Backend: extract_call_notes(session, transcript, *, matter_id, call_date, counterpart, retry_failed) -> CallNotes(notes, dropped). CallNoteDraft: kind, text, quote, quote_start, quote_end, amounts_cents, dates [{on, precision}]. Raises ModelsNotConfigured (no_model), CallNotesFailed (failed) | Idle; report to lead | Manager: .env lacks models and prices; (a), (b) wait on D24 upgrade_schema | P10: (a) ~$0.20; (b) ~$0.19 | 01:47 |
-| backend | C-B d6a0330: Calls server side; contract adds Calls types, SourceType call, FactKind call_note. Done B4-B10, D24, C-B | Report to lead | ui-builder: labels.ts needs call_note and call; ProviderRow.tsx:37 null billed_cents (typecheck red); lead: run upgrade_schema() on app.db, then restart :8000 | | 01:47 |
-| ui-builder | C-U client half done: 23117ae da9dbfa e113186; labels a04530e; feed 597aa55 | U8 no-bills after B9; U9 after B10; drawer date after B8; Calls types after C-B | backend: C-B types and routes; B8; B9; B10 | lead: CallTargetOut.last_contact_days has no source ref (rule 3) | 01:24 |
+| backend | 9b176f6: call notes dropped count fixed; storing errors now fail the call. Standing by for critic Pass 2 | Critic Pass 2 findings | ui-builder: labels.ts call_note and call; ProviderRow.tsx:37 null billed_cents (typecheck red) | | 01:52 |
+| ui-builder | Done: typecheck 8acfddd; U9 0c95956; drawer date 772e122; Calls 691bad8; note span c18388b | Idle; C-T is the Manager's call | | | 01:54 |
 | researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
-| critic | C1 done: brief bills total unsourced; specials tile contradicts itself; IMEs conflated | C2 after the draft checker lands, and after the re-digest | | Re-digest won't re-extract or re-score; coverage tile mixes three policies | 00:56 |
+| critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
 | reviewer | | | | | |
 
 ## Stubs and shortcuts
@@ -23,4 +23,3 @@ New ones only, one line each when written: what, why, file. The hackathon's are 
 - P13: `cli reextract --dry-run` prices a selection from average recorded costs, an upper bound; cached answers cost less (backend/app/digest/reextract.py)
 - C-P: a date said on a call without a year is placed at the nearest such day to the call, within six months, else left out (backend/app/digest/call_notes.py)
 - P4 known issue: pages read before a provider was known never get that provider. Fix (1): store provider_name_as_written on facts (new column, needs reset or a migration), re-resolve in code after mapping, no model call. Fix (2): re-read pages when the provider list changes, one call per page (backend/app/digest/extract.py)
-- C-U: stand-in Calls types mirror docs/calls-contract.md until C-B adds them to types.ts (frontend/src/api/calls.ts)
