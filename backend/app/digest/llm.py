@@ -241,12 +241,14 @@ def _record(
         )
     )
     if outcome.error:
+        # Only the kind of error: its text can quote the model's input or output, which
+        # is case text. The full error is in the llm_calls row.
         log.warning(
-            "%s failed (source %s page %s): %s",
+            "%s failed (source %s page %s): %s; details in llm_calls",
             request.purpose,
             request.source_id,
             request.page_no,
-            outcome.error[:200],
+            outcome.error.split(":", 1)[0][:60],
         )
     return parsed
 

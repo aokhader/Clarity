@@ -1,16 +1,20 @@
-"""What `llm.py` sends: each image with its own media type."""
+"""What `llm.py` sends and logs: each image with its own media type, and no case text
+in the warning log."""
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.digest import llm
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+CASE_TEXT = "Invented case words that must stay out of the log"
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 8
 
 
@@ -91,3 +95,26 @@ def test_each_image_goes_to_openai_with_its_own_media_type(
     ]
     assert urls[0].startswith("data:image/png;base64,")
     assert urls[1].startswith("data:image/jpeg;base64,")
+
+
+def test_a_failed_call_logs_no_case_text(
+    data_dir: Path,
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("EXTRACT_MODEL", "test-model")
+    get_settings.cache_clear()
+
+    def failing(_request: llm.ModelRequest) -> llm.ModelResult:
+        # A schema failure message quotes the model's input back, case text included.
+        return llm.ModelResult(
+            None, 1, 1, f"no valid output: input_value='{CASE_TEXT}'"
+        )
+
+    monkeypatch.setattr(llm, "_execute", failing)
+    with caplog.at_level(logging.INFO, logger="app.digest.llm"):
+        llm.run_batch(session, [_request([])])
+
+    assert caplog.records, "the failure is still logged"
+    assert CASE_TEXT not in caplog.text
