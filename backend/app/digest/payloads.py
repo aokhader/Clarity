@@ -14,6 +14,32 @@ from app.models import FactKind
 from app.schemas import PAYLOAD_BY_KIND, validate_payload
 
 CLIENT_CONTACT_CHANNELS = {"email", "phone", "text", "meeting", "letter", "other"}
+# The extraction prompts ask for every sum in dollars. These detail keys carry one,
+# and code stores it in the cents field beside it.
+MODEL_DOLLAR_KEYS = {"balance": "balance_cents", "high": "high_cents"}
+
+
+def model_payload(
+    kind: FactKind,
+    amount: Any,
+    detail: dict[str, Any],
+    fallback_label: str | None = None,
+) -> dict[str, Any]:
+    """Build a payload from extraction output, whose sums are all in dollars.
+
+    The model is never asked for a `*_cents` key, so one it volunteers has an unknown
+    unit and is dropped rather than guessed; the dollar keys are converted here.
+    """
+    values = {
+        k: v
+        for k, v in detail.items()
+        if not k.endswith("_cents") and k not in MODEL_DOLLAR_KEYS
+    }
+    for key, field in MODEL_DOLLAR_KEYS.items():
+        cents = to_cents(detail.get(key))
+        if cents is not None:
+            values[field] = cents
+    return build_payload(kind, amount, values, fallback_label)
 
 
 def build_payload(

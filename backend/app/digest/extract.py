@@ -20,7 +20,7 @@ from app.config import get_settings
 from app.digest import llm
 from app.digest.mapping import MatterMapping
 from app.digest.pages import mark_extracted
-from app.digest.payloads import build_payload
+from app.digest.payloads import model_payload
 from app.digest.records import (
     is_processed,
     mark_processed,
@@ -246,7 +246,7 @@ def _to_facts(
             counts["dropped_quote"] += 1
             continue
         try:
-            payload = build_payload(kind, item.amount, item.detail, item.title)
+            payload = model_payload(kind, item.amount, item.detail, item.title)
         except ValidationError:
             counts["dropped_payload"] += 1
             continue
