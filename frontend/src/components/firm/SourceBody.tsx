@@ -15,10 +15,12 @@ type SourceBodyProps = {
 }
 
 /**
- * The source's date as the header shows it. A document carries only the day it was
- * uploaded to Clio, which can be years after the document was written, so it says so.
+ * The source's date as the header shows it. A document shows its own date when Clio has
+ * one; otherwise only the day it was uploaded is known, which can be years after it was
+ * written, so it says so.
  */
 function dateLabel(source: SourceOut): string | null {
+  if (source.source_type === 'document' && source.document_date) return formatDate(source.document_date)
   if (!source.occurred_on) return null
   const day = formatDate(source.occurred_on)
   return source.source_type === 'document' ? `Uploaded ${day}` : day
