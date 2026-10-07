@@ -1,10 +1,23 @@
 export class ApiError extends Error {
   readonly status: number
+  /** The error body's `detail`, when it sent one; a structured refusal carries its reasons here. */
+  readonly detail: unknown
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail: unknown = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
+  }
+}
+
+/** The `detail` of an error response, if its body is JSON that has one. */
+export async function errorDetail(response: Response): Promise<unknown> {
+  try {
+    const body: unknown = await response.json()
+    return typeof body === 'object' && body !== null && 'detail' in body ? body.detail : null
+  } catch {
+    return null
   }
 }
 
@@ -21,7 +34,7 @@ function headersFor({ userId }: RequestOptions): Record<string, string> {
 
 async function readJson<T>(response: Response, url: string): Promise<T> {
   if (!response.ok) {
-    throw new ApiError(response.status, `${response.status} ${response.statusText} from ${url}`)
+    throw new ApiError(response.status, `${response.status} ${response.statusText} from ${url}`, await errorDetail(response))
   }
   const body: unknown = await response.json()
   // The shape is guaranteed by the backend's response schemas, which types.ts mirrors.

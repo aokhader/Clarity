@@ -1,10 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { ApiError, apiGet } from './client'
+import { ApiError, apiGet, errorDetail } from './client'
 import type {
   DraftCheckIn,
   DraftCheckOut,
   DraftShareCheckIn,
+  NoteLockedOut,
   ProviderOut,
   ShareCreate,
   ShareOut,
@@ -18,7 +19,7 @@ async function send<T>(method: 'POST' | 'PATCH', path: string, body?: unknown, u
   if (userId !== undefined) headers['X-User-Id'] = String(userId)
   const response = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   if (!response.ok) {
-    throw new ApiError(response.status, `${response.status} ${response.statusText} from ${url}`)
+    throw new ApiError(response.status, `${response.status} ${response.statusText} from ${url}`, await errorDetail(response))
   }
   const parsed: unknown = await response.json()
   // The shape is guaranteed by the backend's response schemas, which types.ts mirrors.
@@ -112,4 +113,18 @@ export function useDraftCheck(target: DraftTarget, text: string) {
     // Keep the last marks on screen while the next check runs.
     placeholderData: keepPreviousData,
   })
+}
+
+/**
+ * The server's refusal of a share whose note discloses what the link withholds (D25): a
+ * 422 whose detail names the locked spans. Any other failure gives null.
+ */
+export function noteLockOf(error: unknown): NoteLockedOut | null {
+  if (!(error instanceof ApiError) || error.status !== 422) return null
+  const { detail } = error
+  if (typeof detail !== 'object' || detail === null || !('locked' in detail) || !Array.isArray(detail.locked)) {
+    return null
+  }
+  // The shape is guaranteed by the backend's NoteLockedOut, which types.ts mirrors.
+  return detail as NoteLockedOut
 }

@@ -1,6 +1,6 @@
 import type { DraftMentionOut, FactRef } from '@/api/types'
 import { BriefCitations } from '@/components/firm/BriefCitations'
-import { BriefMarkedText } from '@/components/firm/BriefMarkedText'
+import { MarkedText } from '@/components/shared/MarkedText'
 
 /**
  * Where the text's last word starts: the point after which the last word and the
@@ -34,9 +34,9 @@ export function BriefSentence({ text, facts, mentions }: BriefSentenceProps) {
   const marks = { text, mentions, markSupported: facts.length === 0 }
   return (
     <span>
-      <BriefMarkedText {...marks} from={start} to={point} />
+      <MarkedText {...marks} from={start} to={point} />
       <span className="whitespace-nowrap">
-        <BriefMarkedText {...marks} from={point} to={end} />
+        <MarkedText {...marks} from={point} to={end} />
         {facts.length > 0 && (
           <>
             {' '}

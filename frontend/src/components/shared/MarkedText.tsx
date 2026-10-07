@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { DraftMentionOut } from '@/api/types'
 import { DraftMentionMark } from '@/components/share/DraftMentionMark'
 
-type BriefMarkedTextProps = {
+type MarkedTextProps = {
   text: string
   /** The server's check of the text's amounts and dates; offsets are within `text`. */
   mentions: DraftMentionOut[]
@@ -15,11 +15,12 @@ type BriefMarkedTextProps = {
 }
 
 /**
- * Brief text with each figure that differs from today's file, or is not in it, marked in
- * place with what the file says (D12). Figures that match are left plain, since the
- * sentence's own chips already open their sources.
+ * Text with each checked figure that is not plainly supported marked in place: one that
+ * differs from today's file, one not in it, or one the provider must not see. Figures
+ * that match are left plain unless asked for, since their text usually cites its own
+ * sources: the brief's sentences (D12), and a share note the server refused (D25).
  */
-export function BriefMarkedText({ text, mentions, from, to, markSupported }: BriefMarkedTextProps) {
+export function MarkedText({ text, mentions, from, to, markSupported }: MarkedTextProps) {
   const parts: ReactNode[] = []
   let cursor = from
   for (const mention of mentions) {

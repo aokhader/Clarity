@@ -2,10 +2,11 @@ import { X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { useMemo, useState } from 'react'
 
-import { useCreateShare, useDraftPreview, type DraftTarget } from '@/api/shares'
-import type { ProviderOut, ShareCreate, ShareOut, ShareSettings } from '@/api/types'
+import { noteLockOf, useCreateShare, useDraftPreview, type DraftTarget } from '@/api/shares'
+import type { NoteLockedOut, ProviderOut, ShareCreate, ShareOut, ShareSettings } from '@/api/types'
 import { CopyLinkButton } from '@/components/share/CopyLinkButton'
 import { DraftCheckView } from '@/components/share/DraftCheckView'
+import { NoteRefusal } from '@/components/share/NoteRefusal'
 import { ProviderView } from '@/components/share/ProviderView'
 import { ProviderViewSkeleton } from '@/components/share/ProviderViewSkeleton'
 import { SettingToggles } from '@/components/share/SettingToggles'
@@ -38,6 +39,7 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
   const [note, setNote] = useState('')
   const [expiryDays, setExpiryDays] = useState<number | null>(null)
   const [created, setCreated] = useState<ShareOut | null>(null)
+  const [refusal, setRefusal] = useState<{ note: string; lock: NoteLockedOut } | null>(null)
   const settledNote = useDebouncedValue(note, NOTE_DEBOUNCE_MS)
 
   const draft = useMemo<ShareCreate>(
@@ -70,16 +72,33 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
     [matterId, provider.contact_id, settings, hidden, expiryDays],
   )
   const noteCheck = useCheckedDraft(noteTarget, note)
+  const sentNote = note.trim()
+  // The server's refusal holds for the note it was given and wins over the check above;
+  // editing the note lifts it until the next attempt.
+  const refused = refusal !== null && refusal.note === sentNote ? refusal : null
   // An empty note sends nothing, so only a written note can hold the link back.
-  const noteBlocked = note.trim() === '' ? null : noteCheck.blocked
+  let noteBlocked: string | null = null
+  if (refused) noteBlocked = "Edit the figures marked Don't send."
+  else if (sentNote !== '') noteBlocked = noteCheck.blocked
+  // A refused note is shown beside the note, not as a failure to create the link.
+  const createFailure = create.isError && noteLockOf(create.error) === null ? create.error : null
 
   function toggleHidden(factId: number, hide: boolean) {
     setHidden((current) => (hide ? [...current, factId] : current.filter((id) => id !== factId)))
   }
 
   function createLink() {
-    const body = { ...draft, note: note.trim() || null }
-    create.mutate({ userId, body }, { onSuccess: setCreated })
+    const body = { ...draft, note: sentNote || null }
+    create.mutate(
+      { userId, body },
+      {
+        onSuccess: setCreated,
+        onError: (error) => {
+          const lock = noteLockOf(error)
+          if (lock && body.note) setRefusal({ note: body.note, lock })
+        },
+      },
+    )
   }
 
   return (
@@ -120,7 +139,11 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
               placeholder="Optional"
             />
           </label>
-          {note.trim() !== '' && <DraftCheckView state={noteCheck} onChange={setNote} />}
+          {refused ? (
+            <NoteRefusal note={refused.note} lock={refused.lock} />
+          ) : (
+            sentNote !== '' && <DraftCheckView state={noteCheck} onChange={setNote} />
+          )}
           <fieldset>
             <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Link expires after
@@ -159,12 +182,12 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
       </div>
 
       <footer className="flex items-center justify-end gap-3 border-t px-6 py-3">
-        {create.isError && (
+        {createFailure && (
           <p role="alert" className="mr-auto text-sm text-danger">
-            Could not create the link. {create.error.message}
+            Could not create the link. {createFailure.message}
           </p>
         )}
-        {!created && noteBlocked && !create.isError && (
+        {!created && noteBlocked && !createFailure && (
           <p className="mr-auto text-sm text-muted-foreground">Note: {noteBlocked}</p>
         )}
         {created ? (
