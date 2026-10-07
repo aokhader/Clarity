@@ -14,13 +14,17 @@ export function formatMoney(cents: number): string {
   return (cents % 100 === 0 ? wholeDollars : dollarsAndCents).format(cents / 100)
 }
 
+/**
+ * A two-ended range as its ends, the dash kept with the first: "$75,000 –" and "$150,000".
+ * A figure too wide for its box breaks between them, never inside an amount.
+ */
+export function formatMoneyRangeEnds(lowCents: number, highCents: number): string[] {
+  return lowCents === highCents ? [formatMoney(lowCents)] : [`${formatMoney(lowCents)} –`, formatMoney(highCents)]
+}
+
 /** $75,000 – $150,000; "at least $75,000" or "up to $150,000" when only one end is known. */
 export function formatMoneyRange(lowCents: number | null, highCents: number | null): string | null {
-  if (lowCents !== null && highCents !== null) {
-    return lowCents === highCents
-      ? formatMoney(lowCents)
-      : `${formatMoney(lowCents)} – ${formatMoney(highCents)}`
-  }
+  if (lowCents !== null && highCents !== null) return formatMoneyRangeEnds(lowCents, highCents).join(' ')
   if (lowCents !== null) return `at least ${formatMoney(lowCents)}`
   if (highCents !== null) return `up to ${formatMoney(highCents)}`
   return null

@@ -1,7 +1,7 @@
 import { PiggyBank, ShieldCheck, Stethoscope, TrendingDown, TriangleAlert, type LucideIcon } from 'lucide-react'
 
 import type { KpiOut } from '@/api/types'
-import { KpiFigure } from '@/components/firm/KpiFigure'
+import { KpiLeadFigure } from '@/components/firm/KpiLeadFigure'
 import { KpiValueRow } from '@/components/firm/KpiValueRow'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
@@ -45,15 +45,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
               <SourceChipList facts={lead.facts} max={2} />
             </RevealOnHover>
           </div>
-          <p
-            className={cn(
-              'mt-2 flex h-10 items-baseline whitespace-nowrap font-semibold tabular-nums leading-10',
-              // A range is twice as long as an amount, so it steps down a size to stay on one line.
-              lead.amount_cents === null ? 'text-2xl' : 'text-kpi',
-            )}
-          >
-            <KpiFigure value={lead} />
-          </p>
+          <KpiLeadFigure value={lead} />
           {lead.label && <p className={cn('text-xs', tone.label)}>{lead.label}</p>}
           {others.length > 0 && (
             <ul aria-label="Also on file" className="mt-3 space-y-1.5 border-t border-foreground/10 pt-2">
