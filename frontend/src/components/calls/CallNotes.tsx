@@ -1,9 +1,10 @@
-import { useCallDetail, type CallNoteOut, type NotesStatus } from '@/api/calls'
+import { useCallDetail } from '@/api/calls'
+import type { CallNoteKind, NotesStatus } from '@/api/types'
 import { LoadError } from '@/components/shared/LoadError'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { Skeleton } from '@/components/ui/skeleton'
 
-const KIND_LABELS: Record<CallNoteOut['kind'], string> = {
+const KIND_LABELS: Record<CallNoteKind, string> = {
   summary: 'Summary',
   commitment: 'Commitment',
   date: 'Date',

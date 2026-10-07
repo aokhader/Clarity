@@ -1,8 +1,9 @@
 import { PhoneForwarded } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
-import { useAddCallNumber, type CallTargetOut } from '@/api/calls'
+import { useAddCallNumber } from '@/api/calls'
 import { ApiError } from '@/api/client'
+import type { CallTargetOut } from '@/api/types'
 import { Panel } from '@/components/shared/Panel'
 import { Button } from '@/components/ui/button'
 import { telHref } from '@/lib/phone'

@@ -1,7 +1,8 @@
 import { ListChecks } from 'lucide-react'
 
-import { useCallTargets, type CallTargetOut } from '@/api/calls'
+import { useCallTargets } from '@/api/calls'
 import { ApiError } from '@/api/client'
+import type { CallTargetOut } from '@/api/types'
 import { CallTargetRow } from '@/components/calls/CallTargetRow'
 import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'

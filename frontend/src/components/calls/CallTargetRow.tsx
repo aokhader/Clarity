@@ -1,4 +1,4 @@
-import type { CallRole, CallTargetOut } from '@/api/calls'
+import type { CallRole, CallTargetOut } from '@/api/types'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { Button } from '@/components/ui/button'
 
@@ -35,7 +35,13 @@ export function CallTargetRow({ target, chosen, onChoose }: CallTargetRowProps) 
             {target.reason} {target.reason_fact && <SourceChip fact={target.reason_fact} />}
           </p>
         )}
-        <p className="text-xs text-muted-foreground">{lastContactText(target.last_contact_days)}</p>
+        {/* A day count is shown only with the record behind it (rule 3, D23). */}
+        {(target.last_contact_days === null || target.last_contact_fact) && (
+          <p className="text-xs text-muted-foreground">
+            {lastContactText(target.last_contact_days)}{' '}
+            {target.last_contact_fact && <SourceChip fact={target.last_contact_fact} />}
+          </p>
+        )}
         <p className="text-xs">
           {target.phone ? (
             <>

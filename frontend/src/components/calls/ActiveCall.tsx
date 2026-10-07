@@ -1,8 +1,9 @@
 import { PhoneCall, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { saveTranscript, useEndCall, useStartCall, type CallTargetOut } from '@/api/calls'
+import { saveTranscript, useEndCall, useStartCall } from '@/api/calls'
 import { ApiError } from '@/api/client'
+import type { CallTargetOut } from '@/api/types'
 import { useFirmUser } from '@/api/users'
 import { CallNotes } from '@/components/calls/CallNotes'
 import { ConsentDialog } from '@/components/calls/ConsentDialog'

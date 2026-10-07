@@ -1,57 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { apiGet, apiPost, apiPut } from './client'
-import type { FactRef, IsoDateTime } from './types'
-
-// --- Stand-in types -----------------------------------------------------------------
-// The Calls contract (docs/calls-contract.md) is fixed, but backend adds its types to
-// types.ts in C-B. Until then these mirror the contract field for field. Replace them with
-// imports from types.ts when C-B lands (listed in STATUS.md under stubs).
-
-export type CallRole = 'client' | 'provider' | 'insurer' | 'other'
-export type NotesStatus = 'not_started' | 'running' | 'done' | 'failed' | 'no_model'
-
-export type CallTargetOut = {
-  /** "contact:<clio id>" or "entered:<id>" */
-  target_id: string
-  name: string | null
-  role: CallRole
-  /** Null: no number on file, so the UI offers to type one. */
-  phone: string | null
-  phone_source: 'clio' | 'entered' | null
-  /** The open item that makes this call due, in a few words. */
-  reason: string | null
-  reason_fact: FactRef | null
-  /** Null means no contact found, never zero. */
-  last_contact_days: number | null
-}
-
-export type CallNumberIn = { name: string; phone: string }
-
-export type CallStartIn = { target_id: string; consent_confirmed: boolean; consent_text: string }
-
-export type CallTranscriptIn = { text: string; final: boolean }
-
-export type CallOut = {
-  call_id: number
-  target: CallTargetOut
-  started_at: IsoDateTime
-  ended_at: IsoDateTime | null
-  consent_text: string
-  notes_status: NotesStatus
-}
-
-export type CallNoteOut = {
-  fact: FactRef
-  kind: 'summary' | 'commitment' | 'date' | 'amount' | 'follow_up'
-  text: string
-  quote_start: number
-  quote_end: number
-}
-
-export type CallDetailOut = { call: CallOut; transcript: string; notes: CallNoteOut[] }
-
-// --- Hooks ----------------------------------------------------------------------------
+import type { CallDetailOut, CallNumberIn, CallOut, CallStartIn, CallTargetOut, CallTranscriptIn } from './types'
 
 /** How often a call's notes are checked while the server writes them. */
 const NOTES_POLL_MS = 2_000
@@ -83,9 +33,11 @@ export function useAddCallNumber(matterId: number) {
 
 /** Open a call on the server. It refuses without consent, and stores the wording shown. */
 export function useStartCall(matterId: number) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ userId, body }: { userId: number; body: CallStartIn }) =>
       apiPost<CallOut>(`/matters/${matterId}/calls`, { userId }, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['matters', matterId, 'calls'], exact: true }),
   })
 }
 
