@@ -2,6 +2,7 @@ import { PiggyBank, ShieldCheck, Stethoscope, TrendingDown, TriangleAlert, type 
 
 import type { KpiOut } from '@/api/types'
 import { KpiFigure } from '@/components/firm/KpiFigure'
+import { KpiValueRow } from '@/components/firm/KpiValueRow'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
 import { cn } from '@/lib/utils'
@@ -21,51 +22,52 @@ const KPI_TONES: Record<KpiOut['name'], { tile: string; label: string; Icon: Luc
   firm_spend: { tile: 'border-slate-200 bg-slate-100 text-slate-900', label: 'text-slate-700', Icon: TrendingDown },
 }
 
-/** One KPI: a sourced value, every value it lists (disagreeing, or labelled apart), or "Not found in file". */
+/**
+ * One KPI. With no values: "Not found in file". When the values are figures for the same
+ * thing that disagree, all are listed as equals under a warning. Otherwise the first leads,
+ * and the rest are separate entries beneath it, labelled: on the Coverage tile, the
+ * server puts the defendant's liability limit first and the client's own policies after (D19).
+ */
 export function KpiTile({ kpi }: { kpi: KpiOut }) {
-  const [only] = kpi.values
+  const [lead, ...others] = kpi.values
   const tone = KPI_TONES[kpi.name]
+  const leads = lead !== undefined && !kpi.sources_disagree
   return (
     <div className={cn('group/src relative flex min-w-0 flex-col overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
       <tone.Icon aria-hidden className={cn('absolute -right-1.5 -bottom-3 size-18 opacity-10', tone.label)} />
       <h3 className={cn('text-xs font-semibold uppercase tracking-wider', tone.label)}>{KPI_LABELS[kpi.name]}</h3>
-      {/* A single value's chips sit in the corner, so however many there are, every figure starts on the same line. */}
-      {kpi.values.length === 1 && only && (
-        <div className="absolute top-3 right-3 whitespace-nowrap">
-          <RevealOnHover>
-            <SourceChipList facts={only.facts} max={2} />
-          </RevealOnHover>
-        </div>
-      )}
-      {kpi.values.length === 0 && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
-      {kpi.values.length === 1 && only && (
+      {lead === undefined && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
+      {leads && (
         <>
+          {/* The lead's chips sit in the corner, so however many there are, every figure starts on the same line. */}
+          <div className="absolute top-3 right-3 whitespace-nowrap">
+            <RevealOnHover>
+              <SourceChipList facts={lead.facts} max={2} />
+            </RevealOnHover>
+          </div>
           <p
             className={cn(
               'mt-2 flex h-10 items-baseline whitespace-nowrap font-semibold tabular-nums leading-10',
               // A range is twice as long as an amount, so it steps down a size to stay on one line.
-              only.amount_cents === null ? 'text-2xl' : 'text-kpi',
+              lead.amount_cents === null ? 'text-2xl' : 'text-kpi',
             )}
           >
-            <KpiFigure value={only} />
+            <KpiFigure value={lead} />
           </p>
-          {only.label && <p className={cn('text-xs', tone.label)}>{only.label}</p>}
+          {lead.label && <p className={cn('text-xs', tone.label)}>{lead.label}</p>}
+          {others.length > 0 && (
+            <ul aria-label="Also on file" className="mt-3 space-y-1.5 border-t border-foreground/10 pt-2">
+              {others.map((value, index) => (
+                <KpiValueRow key={value.facts[0]?.id ?? index} value={value} size="small" labelClass={tone.label} />
+              ))}
+            </ul>
+          )}
         </>
       )}
-      {kpi.values.length > 1 && (
+      {lead !== undefined && !leads && (
         <ul className="mt-2 space-y-1">
           {kpi.values.map((value, index) => (
-            <li key={value.facts[0]?.id ?? index} className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="whitespace-nowrap text-xl font-semibold tabular-nums">
-                  <KpiFigure value={value} />
-                </p>
-                {value.label && <p className={cn('text-xs', tone.label)}>{value.label}</p>}
-              </div>
-              <RevealOnHover>
-                <SourceChipList facts={value.facts} max={1} />
-              </RevealOnHover>
-            </li>
+            <KpiValueRow key={value.facts[0]?.id ?? index} value={value} size="large" labelClass={tone.label} />
           ))}
         </ul>
       )}
