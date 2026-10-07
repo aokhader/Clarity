@@ -220,6 +220,8 @@ class BriefContent(BaseModel):
     """The brief as the merge step stores it (kind `brief`)."""
 
     headline: str
+    # The facts the headline rests on (D14). Briefs stored before D14 have none.
+    headline_fact_ids: list[int] = Field(default_factory=list)
     stage: CaseStage
     stage_fact_ids: list[int]
     sentences: list[BriefSentence]
@@ -307,6 +309,40 @@ class FactSourceOut(BaseModel):
     corroborating: list[SourceOut]
 
 
+# --- API: checked text -------------------------------------------------------------
+# Amounts and dates in text, each checked against the file: a provider update or the
+# share note (the draft checker), and the stored brief when it is served (D12).
+
+# supported: the link already shows it. differs: the file has another value for the
+# same subject. not_in_file: nothing in the file states it. do_not_send: only facts
+# this link withholds state it.
+MentionVerdict = Literal["supported", "differs", "not_in_file", "do_not_send"]
+# A sentence takes its worst mention's verdict; with no amount or date it is unchecked.
+SentenceVerdict = Literal[
+    "supported", "differs", "not_in_file", "do_not_send", "unchecked"
+]
+
+
+class DraftMentionOut(BaseModel):
+    """One amount or date in the text, with its verdict.
+
+    Offsets count UTF-16 code units, as JavaScript strings do, so the UI can slice the
+    text it sent (for the brief, the sentence). `facts` cites the facts that state the value (supported, do_not_send)
+    or the file's value (differs). A do_not_send mention carries no file value; its
+    reason names the rule that withholds it (D17: firm routes only).
+    """
+
+    start: int
+    end: int
+    text: str
+    kind: Literal["amount", "date"]
+    verdict: MentionVerdict
+    reason: str
+    facts: list[FactRef]
+    file_amount_cents: int | None  # differs only
+    file_date: date | None  # differs only
+
+
 # --- API: firm view ----------------------------------------------------------------
 
 
@@ -384,10 +420,19 @@ class MatterHeaderOut(BaseModel):
 class BriefSentenceOut(BaseModel):
     text: str
     facts: list[FactRef]
+    # D12: the sentence's amounts and dates against today's file. A differs mention
+    # carries today's value and the facts that state it.
+    verdict: SentenceVerdict
+    mentions: list[DraftMentionOut]
 
 
 class BriefOut(BaseModel):
     headline: str
+    # D14: the facts the headline cites, and its amounts and dates checked like a
+    # sentence's. No facts for a brief stored before D14.
+    headline_facts: list[FactRef]
+    headline_verdict: SentenceVerdict
+    headline_mentions: list[DraftMentionOut]
     stage: CaseStage
     stage_facts: list[FactRef]
     sentences: list[BriefSentenceOut]
@@ -575,15 +620,6 @@ class ProviderSourceOut(BaseModel):
 
 # --- API: the draft checker ---------------------------------------------------------
 
-# supported: the link already shows it. differs: the file has another value for the
-# same subject. not_in_file: nothing in the file states it. do_not_send: only facts
-# this link withholds state it.
-MentionVerdict = Literal["supported", "differs", "not_in_file", "do_not_send"]
-# A sentence takes its worst mention's verdict; with no amount or date it is unchecked.
-SentenceVerdict = Literal[
-    "supported", "differs", "not_in_file", "do_not_send", "unchecked"
-]
-
 
 class DraftCheckIn(BaseModel):
     """Text a firm user means to send to a provider: an update, or the share's note."""
@@ -596,26 +632,6 @@ class DraftShareCheckIn(BaseModel):
 
     share: ShareCreate
     text: str
-
-
-class DraftMentionOut(BaseModel):
-    """One amount or date in the text, with its verdict.
-
-    Offsets count UTF-16 code units, as JavaScript strings do, so the UI can slice the
-    text it sent. `facts` cites the facts that state the value (supported, do_not_send)
-    or the file's value (differs). A do_not_send mention carries no file value; its
-    reason names the rule that withholds it (D17: firm routes only).
-    """
-
-    start: int
-    end: int
-    text: str
-    kind: Literal["amount", "date"]
-    verdict: MentionVerdict
-    reason: str
-    facts: list[FactRef]
-    file_amount_cents: int | None  # differs only
-    file_date: date | None  # differs only
 
 
 class DraftSentenceOut(BaseModel):

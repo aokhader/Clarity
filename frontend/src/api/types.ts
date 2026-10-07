@@ -305,10 +305,20 @@ export type MatterHeaderOut = {
 export type BriefSentenceOut = {
   text: string
   facts: FactRef[]
+  /**
+   * D12: the sentence's amounts and dates against today's file. A differs mention carries
+   * today's value and the facts that state it. Offsets are within `text`.
+   */
+  verdict: SentenceVerdict
+  mentions: DraftMentionOut[]
 }
 
 export type BriefOut = {
   headline: string
+  /** D14: the facts the headline cites; empty for a brief stored before D14. */
+  headline_facts: FactRef[]
+  headline_verdict: SentenceVerdict
+  headline_mentions: DraftMentionOut[]
   stage: CaseStage
   stage_facts: FactRef[]
   sentences: BriefSentenceOut[]
@@ -493,8 +503,9 @@ export type DraftShareCheckIn = {
 }
 
 /**
- * One amount or date in the text. Offsets count UTF-16 code units, so `text.slice(start, end)`
- * is the mention. `facts` cites what states the value (supported, do_not_send) or the
+ * One amount or date in checked text (a draft, or a brief sentence). Offsets count UTF-16
+ * code units, so `text.slice(start, end)` is the mention.
+ * `facts` cites what states the value (supported, do_not_send) or the
  * file's value (differs). A do_not_send mention carries no file value (D17).
  */
 export type DraftMentionOut = {
