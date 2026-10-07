@@ -20,6 +20,8 @@ export type SourceType =
   | 'calendar_entry'
   | 'activity'
   | 'document'
+  /** Not a Clio record: a call placed from Clarity, whose transcript its notes cite. */
+  | 'call'
 
 export type FactKind =
   | 'case_stage'
@@ -47,6 +49,8 @@ export type FactKind =
   | 'medical_specials'
   | 'economic_damages'
   | 'recovery_cap'
+  /** A note from a call's transcript. Internal by default-deny. */
+  | 'call_note'
   | 'other'
 
 export type Visibility = 'internal' | 'shareable'
@@ -139,6 +143,15 @@ export type MedicalSpecialsPayload = PayloadBase & { amount_cents: number | null
 export type EconomicDamagesPayload = PayloadBase & { amount_cents: number | null; basis: string | null }
 /** A ceiling on what the case can recover. `basis` says what sets it. */
 export type RecoveryCapPayload = PayloadBase & { amount_cents: number | null; basis: string | null }
+export type CallNoteKind = 'summary' | 'commitment' | 'date' | 'amount' | 'follow_up'
+/** A note from a call. The quote is `transcript.slice(quote_start, quote_end)`. */
+export type CallNotePayload = PayloadBase & {
+  note_kind: CallNoteKind | null
+  quote_start: number | null
+  quote_end: number | null
+  amounts_cents: number[]
+  dates: { on: IsoDate; precision: 'day' | 'month' }[]
+}
 export type OtherPayload = PayloadBase & { detail: string | null }
 
 /** PAYLOAD_BY_KIND in schemas.py. */
@@ -168,6 +181,7 @@ export type FactPayloads = {
   medical_specials: MedicalSpecialsPayload
   economic_damages: EconomicDamagesPayload
   recovery_cap: RecoveryCapPayload
+  call_note: CallNotePayload
   other: OtherPayload
 }
 
@@ -566,6 +580,75 @@ export type DraftCheckOut = {
   /** The worst verdict of any sentence; unchecked when nothing could be checked. */
   verdict: SentenceVerdict
   sentences: DraftSentenceOut[]
+}
+
+// --- Calls (docs/calls-contract.md; D8, D15, D22, D23) -------------------------------
+
+export type CallRole = 'client' | 'provider' | 'insurer' | 'other'
+export type NotesStatus = 'not_started' | 'running' | 'done' | 'failed' | 'no_model'
+
+export type CallTargetOut = {
+  /** "contact:<clio id>" or "entered:<id>" */
+  target_id: string
+  name: string | null
+  role: CallRole
+  /** null: no number on file; the UI offers to type one. */
+  phone: string | null
+  phone_source: 'clio' | 'entered' | null
+  /** The open item that makes this call due, in a few words. */
+  reason: string | null
+  /** That item's source, for its chip. */
+  reason_fact: FactRef | null
+  /** null means no contact found, never zero. */
+  last_contact_days: number | null
+  /** The record behind last_contact_days, for its chip (rule 3, D23). */
+  last_contact_fact: FactRef | null
+}
+
+/** A typed name and number, stored in Clarity only (D15). */
+export type CallNumberIn = {
+  name: string
+  phone: string
+}
+
+export type CallStartIn = {
+  target_id: string
+  /** Must be true; the server answers 422 otherwise. */
+  consent_confirmed: boolean
+  /** The wording the attorney confirmed. */
+  consent_text: string
+}
+
+export type CallTranscriptIn = {
+  /** The whole transcript so far. */
+  text: string
+  /** True once the call has ended. */
+  final: boolean
+}
+
+export type CallOut = {
+  call_id: number
+  target: CallTargetOut
+  started_at: IsoDateTime
+  ended_at: IsoDateTime | null
+  consent_text: string
+  notes_status: NotesStatus
+}
+
+export type CallNoteOut = {
+  /** The stored fact; its source is the transcript. */
+  fact: FactRef
+  kind: CallNoteKind
+  text: string
+  /** Offsets into the transcript. */
+  quote_start: number
+  quote_end: number
+}
+
+export type CallDetailOut = {
+  call: CallOut
+  transcript: string
+  notes: CallNoteOut[]
 }
 
 // --- Ops -------------------------------------------------------------------------------

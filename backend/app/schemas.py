@@ -192,6 +192,24 @@ class RecoveryCapPayload(FactPayload):
     basis: str | None = None
 
 
+CallNoteKind = Literal["summary", "commitment", "date", "amount", "follow_up"]
+
+
+class CallNoteDate(BaseModel):
+    on: date
+    precision: Literal["day", "month"]
+
+
+class CallNotePayload(FactPayload):
+    """A note from a call. The quote is `transcript[quote_start:quote_end]`."""
+
+    note_kind: CallNoteKind | None = None
+    quote_start: int | None = None
+    quote_end: int | None = None
+    amounts_cents: list[int] = Field(default_factory=list)
+    dates: list[CallNoteDate] = Field(default_factory=list)
+
+
 class OtherPayload(FactPayload):
     detail: str | None = None
 
@@ -222,6 +240,7 @@ PAYLOAD_BY_KIND: dict[FactKind, type[FactPayload]] = {
     FactKind.MEDICAL_SPECIALS: MedicalSpecialsPayload,
     FactKind.ECONOMIC_DAMAGES: EconomicDamagesPayload,
     FactKind.RECOVERY_CAP: RecoveryCapPayload,
+    FactKind.CALL_NOTE: CallNotePayload,
     FactKind.OTHER: OtherPayload,
 }
 
@@ -681,6 +700,64 @@ class DraftCheckOut(BaseModel):
     # The worst verdict of any sentence; unchecked when nothing could be checked.
     verdict: SentenceVerdict
     sentences: list[DraftSentenceOut]
+
+
+# --- API: calls (docs/calls-contract.md; D8, D15, D22, D23) -------------------------
+
+CallRole = Literal["client", "provider", "insurer", "other"]
+NotesStatusOut = Literal["not_started", "running", "done", "failed", "no_model"]
+
+
+class CallTargetOut(BaseModel):
+    target_id: str  # "contact:<clio id>" or "entered:<id>"
+    name: str | None
+    role: CallRole
+    phone: str | None  # None: no number on file; the UI offers to type one
+    phone_source: Literal["clio", "entered"] | None
+    reason: str | None  # the open item that makes this call due, in a few words
+    reason_fact: FactRef | None  # that item's source, for its chip
+    last_contact_days: int | None  # None means no contact found, never zero
+    # The record behind last_contact_days, for its chip (rule 3, D23).
+    last_contact_fact: FactRef | None
+
+
+class CallNumberIn(BaseModel):
+    name: str = Field(min_length=1)  # who the number belongs to, as typed
+    phone: str = Field(min_length=1)
+
+
+class CallStartIn(BaseModel):
+    target_id: str
+    consent_confirmed: bool  # must be true; 422 otherwise
+    consent_text: str = Field(min_length=1)  # the wording the attorney confirmed
+
+
+class CallTranscriptIn(BaseModel):
+    text: str  # the whole transcript so far; the client saves every few seconds
+    final: bool  # true once the call has ended
+
+
+class CallOut(BaseModel):
+    call_id: int
+    target: CallTargetOut
+    started_at: datetime
+    ended_at: datetime | None
+    consent_text: str
+    notes_status: NotesStatusOut
+
+
+class CallNoteOut(BaseModel):
+    fact: FactRef  # the stored fact; its source is the transcript
+    kind: CallNoteKind
+    text: str
+    quote_start: int  # character offsets into the transcript
+    quote_end: int
+
+
+class CallDetailOut(BaseModel):
+    call: CallOut
+    transcript: str
+    notes: list[CallNoteOut]
 
 
 # --- API: ops ------------------------------------------------------------------------

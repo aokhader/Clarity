@@ -38,9 +38,16 @@ class RawMatter(BaseModel):
     custom_field_values: list[CustomFieldValue] = []
 
 
+class RawPhoneNumber(BaseModel):
+    number: str | None = None
+    name: str | None = None  # Work, Personal or Other
+
+
 class RawContact(BaseModel):
     name: str | None = None
     avatar: Url | None = None
+    # Absent when the sync fell back to its short field list.
+    phone_numbers: list[RawPhoneNumber] = []
 
 
 class RawNote(BaseModel):

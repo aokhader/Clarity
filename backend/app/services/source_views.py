@@ -189,6 +189,11 @@ def _readable(source: Source) -> _Readable:
         case SourceType.DOCUMENT:
             document = RawDocument.model_validate(raw)
             return _Readable(document.name or document.filename, None, None, None)
+        case SourceType.CALL:
+            # A call placed from Clarity: its notes quote this transcript.
+            name = raw.get("name") or "a contact"
+            started = source.clio_created_at.date() if source.clio_created_at else None
+            return _Readable(f"Call with {name}", started, None, raw.get("transcript"))
         case SourceType.RELATIONSHIP:
             relationship = RawRelationship.model_validate(raw)
             contact = _name(relationship.contact)

@@ -251,3 +251,19 @@ def test_a_limits_policy_does_not_change_whether_it_is_released(
 
     assert limit in _visible(seeded, _share())
     assert limit not in _visible(seeded, _share(settings=limits_off))
+
+
+# --- Calls: notes from a call's transcript are internal (default-deny) ----------------
+
+
+def test_call_notes_never_reach_a_provider(seeded: Session) -> None:
+    assert FactKind.CALL_NOTE not in SETTING_BY_KIND
+    assert fact_visibility(FactKind.CALL_NOTE, mentions_strategy=False) is (
+        Visibility.INTERNAL
+    )
+    note = _fact(seeded, FactKind.CALL_NOTE, ORTHO_ID)
+    # Even mis-tagged shareable, about the share's own provider, its kind keeps it in.
+    note.visibility = Visibility.SHAREABLE
+    seeded.flush()
+
+    assert note not in _visible(seeded, _share(provider=ORTHO_ID))

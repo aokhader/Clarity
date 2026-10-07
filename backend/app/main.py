@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import facts, matters, ops, provider, shares
+from app.api import calls, facts, matters, ops, provider, shares
 from app.db import init_db
 
 
@@ -20,5 +20,5 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Clarity", lifespan=lifespan)
-for module in (ops, matters, facts, shares, provider):
+for module in (ops, matters, facts, shares, provider, calls):
     app.include_router(module.router)

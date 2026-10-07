@@ -74,6 +74,8 @@ class SourceType(StrEnum):
     CALENDAR_ENTRY = "calendar_entry"
     ACTIVITY = "activity"
     DOCUMENT = "document"
+    # Not a Clio record: a call placed from Clarity, whose transcript its notes cite.
+    CALL = "call"
 
 
 class FactKind(StrEnum):
@@ -107,6 +109,8 @@ class FactKind(StrEnum):
     # example); a recovery cap is a ceiling on what the case can collect.
     ECONOMIC_DAMAGES = "economic_damages"
     RECOVERY_CAP = "recovery_cap"
+    # A note taken from a call's transcript (Calls, D8). Internal by default-deny.
+    CALL_NOTE = "call_note"
     OTHER = "other"
 
 
@@ -339,3 +343,48 @@ class OAuthToken(Base):
     access_token: Mapped[str]
     refresh_token: Mapped[str]
     expires_at: Mapped[datetime]
+
+
+class NotesStatus(StrEnum):
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    NO_MODEL = "no_model"  # the model settings are missing; the transcript stands alone
+
+
+class CallNumber(Base):
+    """A name and number typed into Clarity to call (D15). Stored here, never in Clio."""
+
+    __tablename__ = "call_numbers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    name: Mapped[str]
+    phone: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class Call(Base):
+    """A call placed from Clarity: whom, the consent wording confirmed, the transcript.
+
+    Lives only in Clarity's database (rule 1). When its notes are written, the
+    transcript becomes a `call` source, so each note cites it like any other record.
+    """
+
+    __tablename__ = "calls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    # The target as it stood when the call started (schemas.CallTargetOut).
+    target_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    consent_text: Mapped[str] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    ended_at: Mapped[datetime | None]
+    transcript: Mapped[str] = mapped_column(Text, default="")
+    transcript_final: Mapped[bool] = mapped_column(default=False)
+    notes_status: Mapped[NotesStatus] = mapped_column(
+        _enum_column(NotesStatus), default=NotesStatus.NOT_STARTED
+    )
+    notes_error: Mapped[str | None] = mapped_column(Text)
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"))

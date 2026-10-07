@@ -80,6 +80,13 @@ Balance due                      $2,480.00
 MRI impression: disc herniation at L4-L5.
 This office asserts a lien on any recovery for the balance due."""
 
+# A call placed from Clarity to the first provider, and the span its note quotes.
+_CALL_TRANSCRIPT = (
+    "Thanks for calling. The office said the updated records will go out by Friday."
+)
+_CALL_QUOTE = "the updated records will go out by Friday"
+_CALL_QUOTE_START = _CALL_TRANSCRIPT.index(_CALL_QUOTE)
+
 _NOTE = (
     "Client was rear-ended at a stoplight. The other driver's carrier is Example "
     "Mutual Insurance, and the adjuster confirmed bodily injury coverage is in place. "
@@ -319,6 +326,14 @@ def _sources(today: date) -> dict[str, _SourceSpec]:
             | {"name": "Orthopedic visit note and bill", "filename": "ortho-visit.pdf"},
             45,
         ),
+        (
+            "call",
+            SourceType.CALL,
+            "call-1",
+            {"call_id": 1, "name": "Northside Orthopedics (Demo)", "role": "provider"}
+            | {"transcript": _CALL_TRANSCRIPT},
+            2,
+        ),
     ]
     return {
         key: _SourceSpec(t, str(cid), raw, days) for key, t, cid, raw, days in specs
@@ -427,6 +442,20 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             "Recovery is capped at the $100,000 limit",
             80,
             on(-198),
+        ),
+        "call_note": f(
+            FactKind.CALL_NOTE,
+            "The office will send updated records by Friday",
+            "call",
+            {
+                "note_kind": "commitment",
+                "quote_start": _CALL_QUOTE_START,
+                "quote_end": _CALL_QUOTE_START + len(_CALL_QUOTE),
+            },
+            _CALL_QUOTE,
+            80,
+            on(-2),
+            provider=ORTHO_ID,
         ),
         "coverage": f(
             FactKind.COVERAGE,
