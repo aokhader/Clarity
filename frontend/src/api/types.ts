@@ -266,8 +266,12 @@ export type DatedFactOut = {
 
 export type KpiValueOut = {
   amount_cents: number | null
+  /** A low end alone means "at least". */
   low_cents: number | null
+  /** A high end alone means "up to". */
   high_cents: number | null
+  /** What this value is, when one tile lists different kinds ("Per occurrence"). */
+  label: string | null
   facts: FactRef[]
 }
 

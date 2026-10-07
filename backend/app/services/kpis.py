@@ -28,6 +28,12 @@ _Amounts = tuple[int | None, int | None, int | None]
 # The record key of the bill sum: however many bills add up to it, it is one figure.
 _BILL_SUM = "bills"
 
+_PER_LABELS: dict[str | None, str] = {
+    "person": "Per person",
+    "occurrence": "Per occurrence",
+}
+_LABEL_ORDER: list[str | None] = ["Per person", "Per occurrence", None]
+
 
 @dataclass(frozen=True)
 class _Statement:
@@ -36,10 +42,15 @@ class _Statement:
     amounts: _Amounts
     facts: list[Fact]
     record: int | str  # a source id, or _BILL_SUM
+    label: str | None = None  # what the figure is, when the tile mixes kinds
 
 
-def _stated(amounts: _Amounts, fact: Fact) -> _Statement:
-    return _Statement(amounts, [fact], fact.source_id)
+def _stated(amounts: _Amounts, fact: Fact, label: str | None = None) -> _Statement:
+    return _Statement(amounts, [fact], fact.source_id, label)
+
+
+def _records(group: list[_Statement]) -> set[int | str]:
+    return {s.record for s in group}
 
 
 def _grouped(statements: list[_Statement]) -> list[list[_Statement]]:
@@ -47,10 +58,10 @@ def _grouped(statements: list[_Statement]) -> list[list[_Statement]]:
 
     Ties keep the order given, which is most significant first.
     """
-    groups: dict[_Amounts, list[_Statement]] = {}
+    groups: dict[tuple[_Amounts, str | None], list[_Statement]] = {}
     for statement in statements:
-        groups.setdefault(statement.amounts, []).append(statement)
-    return sorted(groups.values(), key=lambda group: -len({s.record for s in group}))
+        groups.setdefault((statement.amounts, statement.label), []).append(statement)
+    return sorted(groups.values(), key=lambda group: -len(_records(group)))
 
 
 def _value(group: list[_Statement]) -> KpiValueOut:
@@ -59,6 +70,7 @@ def _value(group: list[_Statement]) -> KpiValueOut:
         amount_cents=amount,
         low_cents=low,
         high_cents=high,
+        label=group[0].label,
         facts=[fact_ref(f) for s in group for f in s.facts],
     )
 
@@ -76,12 +88,9 @@ def _case_value(facts: list[Fact]) -> KpiOut:
     for fact in _most_significant_first(facts):
         payload = CaseValuePayload.model_validate(fact.value_json)
         low, high = payload.low_cents, payload.high_cents
+        # A one-ended value ("at least X") stays one-ended: it is not the point value X.
         if low is None and high is None:
             continue
-        if low is None or high is None:
-            # One figure written as either end is the same value as a range of one: the
-            # tile shows both as that single figure.
-            low = high = low if low is not None else high
         statements.append(_stated((None, low, high), fact))
     groups = _grouped(statements)
     # The basis line explains the figure the tile leads with.
@@ -99,29 +108,23 @@ def _case_value(facts: list[Fact]) -> KpiOut:
 
 
 def _coverage(facts: list[Fact]) -> KpiOut:
-    """Limits of one kind: per person when the file states any, else per occurrence.
+    """Every stated limit, each labelled per person or per occurrence.
 
-    A per-occurrence limit is not a per-person limit, and the tile has one basis line,
-    so it shows one kind. A limit whose kind is not stated shows only when no limit
-    states one.
+    A per-occurrence limit is not a per-person one, so each value carries its own label,
+    per-person limits first, and the basis names the kind only when every value shares it.
     """
-    priced = [
-        (fact, payload)
+    statements = [
+        _stated((payload.amount_cents, None, None), fact, _PER_LABELS.get(payload.per))
         for fact in _most_significant_first(facts)
         if (payload := PolicyLimitPayload.model_validate(fact.value_json)).amount_cents
         is not None
     ]
-    stated_kinds = {payload.per for _, payload in priced}
-    per = next((k for k in ("person", "occurrence") if k in stated_kinds), None)
-    statements = [
-        _stated((payload.amount_cents, None, None), fact)
-        for fact, payload in priced
-        if per is None or payload.per == per
-    ]
+    groups = sorted(_grouped(statements), key=lambda g: _LABEL_ORDER.index(g[0].label))
+    labels = {g[0].label for g in groups}
     return KpiOut(
         name="coverage",
-        values=[_value(g) for g in _grouped(statements)],
-        basis=f"Per {per}" if per else None,
+        values=[_value(g) for g in groups],
+        basis=labels.pop() if len(labels) == 1 else None,
     )
 
 
@@ -139,19 +142,26 @@ def _medical_specials(specials: list[Fact], bills: list[Fact]) -> KpiOut:
     total = sum(c.total_cents for c in counted)
     if billed_facts:
         statements.append(_Statement((total, None, None), billed_facts, _BILL_SUM))
+    # A figure the bills confirm leads: the file states it and also adds up to it.
+    groups = sorted(
+        _grouped(statements),
+        key=lambda g: not (_BILL_SUM in _records(g) and len(_records(g)) > 1),
+    )
     bill_count = _plural(len(billed_facts), "bill")
     if not billed_facts:
         basis = None
     elif not stated_amounts:
         basis = f"Sum of {bill_count}"
-    elif total in stated_amounts:
+    elif total not in stated_amounts:
+        basis = f"Differs from the sum of {bill_count}"
+    elif len(groups) == 1:
         basis = f"Matches the sum of {bill_count}"
     else:
-        basis = f"Differs from the sum of {bill_count}"
+        # Another figure disagrees, so the tile warns; the basis says which one the
+        # bills confirm rather than that the tile "matches".
+        basis = f"The first figure is the sum of {bill_count}"
     return KpiOut(
-        name="medical_specials",
-        values=[_value(g) for g in _grouped(statements)],
-        basis=basis,
+        name="medical_specials", values=[_value(g) for g in groups], basis=basis
     )
 
 

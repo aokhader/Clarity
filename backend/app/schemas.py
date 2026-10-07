@@ -380,8 +380,10 @@ class DatedFactOut(BaseModel):
 
 class KpiValueOut(BaseModel):
     amount_cents: int | None = None
-    low_cents: int | None = None
-    high_cents: int | None = None
+    low_cents: int | None = None  # a low end alone means "at least"
+    high_cents: int | None = None  # a high end alone means "up to"
+    # What this value is, when one tile lists different kinds ("Per occurrence").
+    label: str | None = None
     facts: list[FactRef]
 
 

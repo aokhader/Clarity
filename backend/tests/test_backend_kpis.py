@@ -56,23 +56,23 @@ def _ids(tile: KpiOut, index: int) -> set[int]:
     return {ref.id for ref in tile.values[index].facts}
 
 
-def test_one_valuation_stated_as_a_figure_and_as_a_range_of_one_is_one_value(
-    session: Session,
-) -> None:
-    as_range = _fact(
+def test_a_one_ended_valuation_stays_one_ended(session: Session) -> None:
+    point = _fact(
         session,
         FactKind.CASE_VALUE,
         {"low_cents": 900_00, "high_cents": 900_00},
         SourceType.MATTER,
     )
-    as_figure = _fact(
+    at_least = _fact(
         session, FactKind.CASE_VALUE, {"low_cents": 900_00, "high_cents": None}
     )
 
-    tile = _tile([as_range, as_figure], "case_value")
+    tile = _tile([point, at_least], "case_value")
 
-    assert len(tile.values) == 1
-    assert _ids(tile, 0) == {as_range.id, as_figure.id}
+    assert {(v.low_cents, v.high_cents) for v in tile.values} == {
+        (900_00, 900_00),
+        (900_00, None),
+    }
 
 
 def test_the_figure_more_records_state_comes_first(session: Session) -> None:
@@ -97,7 +97,7 @@ def test_the_figure_more_records_state_comes_first(session: Session) -> None:
     assert [v.low_cents for v in tile.values] == [700_00, 100_00]
 
 
-def test_coverage_shows_per_person_limits_when_the_file_states_them(
+def test_coverage_lists_every_limit_labelled_per_person_first(
     session: Session,
 ) -> None:
     per_person = _fact(
@@ -113,11 +113,29 @@ def test_coverage_shows_per_person_limits_when_the_file_states_them(
 
     tile = _tile([per_person, per_occurrence, unstated], "coverage")
 
-    assert [v.amount_cents for v in tile.values] == [1_000_00]
-    assert tile.basis == "Per person"
+    assert [(v.amount_cents, v.label) for v in tile.values] == [
+        (1_000_00, "Per person"),
+        (3_000_00, "Per occurrence"),
+        (2_000_00, None),
+    ]
+    # The values are of different kinds, so no one basis describes them all.
+    assert tile.basis is None
 
 
-def test_coverage_with_only_per_occurrence_limits_says_so(session: Session) -> None:
+def test_one_amount_stated_per_person_and_per_occurrence_is_two_values(
+    session: Session,
+) -> None:
+    limits = [
+        _fact(session, FactKind.POLICY_LIMIT, {"amount_cents": 500_00, "per": per})
+        for per in ("person", "occurrence")
+    ]
+
+    tile = _tile(limits, "coverage")
+
+    assert [v.label for v in tile.values] == ["Per person", "Per occurrence"]
+
+
+def test_coverage_of_one_kind_names_it_in_the_basis(session: Session) -> None:
     limit = _fact(
         session,
         FactKind.POLICY_LIMIT,
@@ -158,7 +176,50 @@ def test_specials_the_bills_confirm_lead_a_figure_only_one_record_states(
 
     assert [v.amount_cents for v in tile.values] == [300_00, 900_00]
     assert _ids(tile, 0) == {stated.id, *(b.id for b in bills)}
-    assert tile.basis == "Matches the sum of 2 bills"
+    # Two figures, so the tile warns that sources disagree; the basis must not also
+    # say the tile "matches".
+    assert tile.basis == "The first figure is the sum of 2 bills"
+
+
+def test_specials_the_bills_confirm_lead_even_when_restated_less(
+    session: Session,
+) -> None:
+    misread = [
+        _fact(session, FactKind.MEDICAL_SPECIALS, {"amount_cents": 900_00})
+        for _ in range(3)
+    ]
+    stated = _fact(
+        session, FactKind.MEDICAL_SPECIALS, {"amount_cents": 300_00}, SourceType.MATTER
+    )
+    bill = _fact(
+        session,
+        FactKind.MEDICAL_BILL,
+        {"amount_cents": 300_00},
+        SourceType.DOCUMENT,
+        provider=PROVIDER,
+    )
+
+    tile = _tile([*misread, stated, bill], "medical_specials")
+
+    assert [v.amount_cents for v in tile.values] == [300_00, 900_00]
+
+
+def test_specials_one_figure_the_bills_confirm_matches(session: Session) -> None:
+    stated = _fact(
+        session, FactKind.MEDICAL_SPECIALS, {"amount_cents": 300_00}, SourceType.MATTER
+    )
+    bill = _fact(
+        session,
+        FactKind.MEDICAL_BILL,
+        {"amount_cents": 300_00},
+        SourceType.DOCUMENT,
+        provider=PROVIDER,
+    )
+
+    tile = _tile([stated, bill], "medical_specials")
+
+    assert len(tile.values) == 1
+    assert tile.basis == "Matches the sum of 1 bill"
 
 
 def test_specials_no_bill_sum_confirms_keep_the_stated_figure_first(
