@@ -50,6 +50,8 @@ def run_digest(session: Session, matter_id: int) -> DigestRun:
         stats["structured"] = dict(build_structured_facts(session, matter_id))
         stats["pages"] = dict(build_pages(session, matter_id))
         mapping = build_mapping(session, matter_id)
+        # The previous mapping stood in for a failed call; the run says so.
+        errors.extend(mapping.errors)
         stats["extract"] = dict(extract_all(session, matter_id, mapping))
         stats["merge"] = dict(merge(session, matter_id))
     except ModelsNotConfigured as error:

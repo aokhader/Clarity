@@ -18,7 +18,7 @@ import json
 import logging
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Any, Literal
@@ -125,6 +125,8 @@ class MatterMapping:
     matter: Source | None
     # Custom fields the record extractor reads, as one text, with the matter as source.
     extraction_text: str
+    # Mapping calls that failed this run; the previous mapping stood in for each.
+    errors: list[str] = field(default_factory=list)
 
     def providers(self) -> dict[int, str]:
         return {
@@ -139,16 +141,34 @@ def build_mapping(session: Session, matter_id: int) -> MatterMapping:
     matter = matters[0] if matters else None
     relationships = sources_of(session, matter_id, SourceType.RELATIONSHIP)
     values = custom_values(session, matter_id, matter)
-
-    roles, names = _map_roles(session, matter_id, matter, relationships)
-    slots, stage = _map_fields(session, matter_id, matter, values)
+    # A failed call must not wipe what the last good mapping produced: its roles and
+    # slots stand in, the facts that need the missing answer are left as they are,
+    # and the run records the error. A failed call is not cached, so the next digest
+    # asks again.
+    previous = _previous_mapping(session, matter_id)
+    errors: list[str] = []
     counts: Counter[str] = Counter()
-    if matter is not None:
-        facts = _stage_facts(matter, stage) + [
-            fact for v in values if (fact := _slot_fact(v, slots.get(v.field_id)))
-        ]
-        replace_facts(session, matter, facts, Origin.CODE)
-        counts["matter"] = len(facts)
+
+    roles, names = _map_roles(session, matter_id, relationships)
+    if roles is None:
+        errors.append("Role mapping call failed; kept the previous contact roles")
+        roles = dict(previous.contact_roles) if previous else {}
+    _add_client(roles, names, matter)
+
+    fields = _map_fields(session, matter_id, matter, values)
+    if fields is None:
+        errors.append(
+            "Field mapping call failed; kept the previous KPI and stage facts"
+        )
+        slots = dict(previous.field_slots) if previous else {}
+    else:
+        slots, stage = fields
+        if matter is not None:
+            facts = _stage_facts(matter, stage) + [
+                fact for v in values if (fact := _slot_fact(v, slots.get(v.field_id)))
+            ]
+            replace_facts(session, matter, facts, Origin.CODE)
+            counts["matter"] = len(facts)
     counts["party"] = _party_facts(session, relationships, roles)
     mapping = MatterMapping(
         contact_roles=roles,
@@ -156,10 +176,17 @@ def build_mapping(session: Session, matter_id: int) -> MatterMapping:
         field_slots=slots,
         matter=matter,
         extraction_text=_extraction_text(values, slots),
+        errors=errors,
     )
-    counts.update(_ledger_facts(session, matter_id, mapping.providers()))
+    ledger = _ledger_facts(session, matter_id, mapping.providers())
+    if ledger is None:
+        errors.append("Activity call failed; kept the previous ledger facts")
+    else:
+        counts.update(ledger)
     _store(session, matter_id, mapping)
     session.commit()
+    for error in errors:
+        log.warning("Mapping: %s", error)
     log.info(
         "Mapping: %d contacts, %d providers, %d slots, facts %s",
         len(roles),
@@ -210,12 +237,19 @@ def _value_text(raw: dict[str, Any], definition: dict[str, Any]) -> str:
     return str(value).strip()
 
 
+def _previous_mapping(session: Session, matter_id: int) -> FieldMappingContent | None:
+    stored = session.scalars(
+        select(Digest).where(
+            Digest.matter_id == matter_id, Digest.kind == DigestKind.FIELD_MAPPING
+        )
+    ).first()
+    return FieldMappingContent.model_validate(stored.content_json) if stored else None
+
+
 def _map_roles(
-    session: Session,
-    matter_id: int,
-    matter: Source | None,
-    relationships: list[Source],
-) -> tuple[dict[int, ContactRole], dict[int, str]]:
+    session: Session, matter_id: int, relationships: list[Source]
+) -> tuple[dict[int, ContactRole] | None, dict[int, str]]:
+    """Each related contact's role, or None for the roles when the call failed."""
     contacts: dict[int, dict[str, Any]] = {}
     for relationship in relationships:
         contact = relationship.raw_json.get("contact") or {}
@@ -239,17 +273,23 @@ def _map_roles(
                 matter_id=matter_id,
             ),
         )
-        if isinstance(result, RoleMapping):
-            roles = {
-                e.contact_id: ContactRole(e.role)
-                for e in result.contacts
-                if e.contact_id in contacts
-            }
+        if not isinstance(result, RoleMapping):
+            return None, names
+        roles = {
+            e.contact_id: ContactRole(e.role)
+            for e in result.contacts
+            if e.contact_id in contacts
+        }
+    return roles, names
+
+
+def _add_client(
+    roles: dict[int, ContactRole], names: dict[int, str], matter: Source | None
+) -> None:
     client = (matter.raw_json.get("client") or {}) if matter else {}
     if client.get("id"):
         roles[int(client["id"])] = ContactRole.CLIENT
         names[int(client["id"])] = str(client.get("name") or client["id"])
-    return roles, names
 
 
 def _map_fields(
@@ -257,7 +297,8 @@ def _map_fields(
     matter_id: int,
     matter: Source | None,
     values: list[CustomValue],
-) -> tuple[dict[int, FieldSlot], CaseStage | None]:
+) -> tuple[dict[int, FieldSlot], CaseStage | None] | None:
+    """Custom field slots and the canonical stage, or None when the call failed."""
     if matter is None:
         return {}, None
     payload = {
@@ -280,7 +321,7 @@ def _map_fields(
         ),
     )
     if not isinstance(result, FieldMapping):
-        return {}, None
+        return None
     known = {v.field_id for v in values}
     slots: dict[int, FieldSlot] = {}
     for entry in result.fields:
@@ -413,7 +454,12 @@ def _party_facts(
 
 def _ledger_facts(
     session: Session, matter_id: int, providers: dict[int, str]
-) -> Counter[str]:
+) -> Counter[str] | None:
+    """Classify non-time activities into ledger facts; None when the call failed.
+
+    On a failure nothing is replaced: a medical charge guessed to be a firm cost would
+    move money from one KPI total to another.
+    """
     counts: Counter[str] = Counter()
     activities = [
         a
@@ -448,11 +494,9 @@ def _ledger_facts(
             matter_id=matter_id,
         ),
     )
-    decisions = (
-        {e.activity_id: e for e in result.activities}
-        if isinstance(result, LedgerMapping)
-        else {}
-    )
+    if not isinstance(result, LedgerMapping):
+        return None
+    decisions = {e.activity_id: e for e in result.activities}
     for activity in activities:
         fact = _ledger_fact(activity, decisions.get(activity.id), providers)
         replace_facts(session, activity, [fact], Origin.CODE)
