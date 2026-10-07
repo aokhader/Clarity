@@ -1,10 +1,13 @@
 import type { FactOut } from '@/api/types'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
-import { SourceChip } from '@/components/shared/SourceChip'
+import { SourceChipList } from '@/components/shared/SourceChipList'
 import { formatDate } from '@/lib/format'
 import { KIND_LABELS } from '@/lib/labels'
 
-/** One fact in What Matters and the timeline: date, kind, and what it says. */
+/**
+ * One fact in What Matters and the timeline: date, kind, and what it says. In the ranked
+ * feed a fact stands for the records that restate it, so its chips open each of them.
+ */
 export function FeedRow({ fact }: { fact: FactOut }) {
   return (
     <li className="group/src grid grid-cols-[7.5rem_8rem_minmax(0,1fr)] items-center gap-4 py-3">
@@ -17,7 +20,7 @@ export function FeedRow({ fact }: { fact: FactOut }) {
       <span className="flex items-center gap-2 text-[15px]">
         <span className="min-w-0">{fact.title}</span>
         <RevealOnHover>
-          <SourceChip fact={fact} />
+          <SourceChipList facts={[fact, ...fact.restated_by]} max={2} expandable />
         </RevealOnHover>
       </span>
     </li>
