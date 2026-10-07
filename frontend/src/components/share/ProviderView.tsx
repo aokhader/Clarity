@@ -27,6 +27,8 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
   const sharesNothing =
     [status, coverage, requests, bills, records, treatment_activity, updates].every((section) => section === null) &&
     !payload.note
+  const listsLien = bills?.some((item) => item.kind === 'lien') ?? false
+  const billsHeading = listsLien ? 'Bills and liens' : 'Bills'
   return (
     <div className="space-y-4">
       <ProviderHeader payload={payload} />
@@ -46,17 +48,18 @@ export function ProviderView({ payload, onOpenSource }: ProviderViewProps) {
             {payload.bills_total && <BillsTotal total={payload.bills_total} />}
             {bills && (
               // The bills setting releases liens as well as bills, and the total above counts
-              // bills only (BillsTotal), so the list says so rather than read as its addends.
-              <section aria-label="Bills and liens">
-                <h3 className="text-sm font-medium">Bills and liens</h3>
-                {payload.bills_total && (
+              // bills only (BillsTotal). A listed lien is labelled on its row, and the caption
+              // says it is not one of the total's addends.
+              <section aria-label={billsHeading}>
+                <h3 className="text-sm font-medium">{billsHeading}</h3>
+                {listsLien && payload.bills_total && (
                   <p className="mt-0.5 text-xs text-muted-foreground">Liens are listed, but not added to the total above.</p>
                 )}
                 <ProviderItemList
                   items={bills}
-                  empty="No bills or liens from your office on file."
+                  empty="No bills from your office on file."
                   onOpenSource={onOpenSource}
-                  scroll={{ rows: VISIBLE_ITEMS, label: 'Bills and liens, scrollable' }}
+                  scroll={{ rows: VISIBLE_ITEMS, label: `${billsHeading}, scrollable` }}
                 />
               </section>
             )}

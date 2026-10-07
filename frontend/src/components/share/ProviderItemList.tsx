@@ -3,6 +3,8 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { ProviderItemOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { formatDate, formatMoney } from '@/lib/format'
+import { KIND_LABELS } from '@/lib/labels'
+import { cn } from '@/lib/utils'
 
 type ProviderItemListProps = {
   items: ProviderItemOut[]
@@ -64,9 +66,24 @@ export function ProviderItemList({ items, empty, onOpenSource, scroll }: Provide
               <span className="w-24 shrink-0 tabular-nums text-muted-foreground">
                 {item.on ? formatDate(item.on) : 'Undated'}
               </span>
-              <span className="min-w-0 flex-1">{item.label}</span>
+              <span className="min-w-0 flex-1">
+                {item.kind === 'lien' && (
+                  <span className="mr-2 rounded-sm border px-1.5 py-px text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                    {KIND_LABELS.lien}
+                  </span>
+                )}
+                {item.label}
+              </span>
               {item.amount_cents !== null && (
-                <span className="shrink-0 tabular-nums font-medium">{formatMoney(item.amount_cents)}</span>
+                <span
+                  className={cn(
+                    'shrink-0 tabular-nums',
+                    // A lien's amount is set apart from the bills' column, which the total adds up.
+                    item.kind === 'lien' ? 'text-muted-foreground' : 'font-medium',
+                  )}
+                >
+                  {formatMoney(item.amount_cents)}
+                </span>
               )}
               {onOpenSource && item.has_source && (
                 <Button
