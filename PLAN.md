@@ -154,7 +154,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 
   30 min
 - [ ] V2 README: verified / built, lightly tested / half-done, cost per case, a repository map. 40 min
-- [ ] V3 One screenshot per view in `docs/screenshots/`, on the real matter. 20 min
+- [ ] V3 One screenshot per view in `docs/screenshots/`, on the synthetic matter (D33), taken by the lead from the reviewer clean clone. 20 min
 - [ ] V4 Fill the brackets in `docs/form-answers.md` from measured numbers. 15 min
 - [ ] V5 Clean-clone run, timed, following the README exactly. 30 min
 
