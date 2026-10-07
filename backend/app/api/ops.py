@@ -4,13 +4,15 @@ Sync and digest run in a background thread with their own session (`services/job
 never inside a request, so no page load waits on Clio or a model.
 """
 
+from functools import partial
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select
 
 from app.config import get_settings
 from app.db import SessionDep, check_database
 from app.models import LlmCall, Page, Source
-from app.schemas import CostOut, HealthOut, RunStatusOut
+from app.schemas import CostOut, DigestStartIn, HealthOut, RunStatusOut
 from app.services.jobs import (
     Job,
     JobAlreadyRunning,
@@ -47,8 +49,11 @@ def sync_status(session: SessionDep) -> RunStatusOut:
 
 
 @router.post("/digest", status_code=202)
-def start_digest(session: SessionDep) -> RunStatusOut:
-    _start(Job.DIGEST, digest_synced_matter)
+def start_digest(
+    session: SessionDep, body: DigestStartIn | None = None
+) -> RunStatusOut:
+    retry_failed = body.retry_failed if body else False
+    _start(Job.DIGEST, partial(digest_synced_matter, retry_failed=retry_failed))
     return job_status(session, Job.DIGEST)
 
 

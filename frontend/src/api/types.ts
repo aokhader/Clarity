@@ -679,6 +679,17 @@ export type RunStatusOut = {
   last_run: RunOut | null
   /** Set only while no run row is newer than the failed attempt. */
   start_failure: StartFailureOut | null
+  /**
+   * Digest only (null for sync): model calls a digest answers from the cache as failed.
+   * Offer "retry failed calls" only when this is above zero (D29).
+   */
+  cached_failed_calls: number | null
+}
+
+/** Optional body of POST /api/ops/digest. */
+export type DigestStartIn = {
+  /** Ask the model again for calls that failed before, instead of the cached failure. */
+  retry_failed: boolean
 }
 
 export type CostOut = {

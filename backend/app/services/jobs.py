@@ -15,12 +15,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import func, select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_sessionmaker
-from app.models import DigestRun, SyncRun
+from app.models import DigestRun, LlmCall, SyncRun
 from app.schemas import RunOut, RunStatusOut, StartFailureOut
 
 log = logging.getLogger(__name__)
@@ -90,7 +90,32 @@ def job_status(session: Session, job: Job) -> RunStatusOut:
     if failure is not None and failure.run_id_before == (run.id if run else None):
         start_failure = StartFailureOut(at=failure.at, error=failure.error)
     return RunStatusOut(
-        running=_lock.locked(), last_run=last_run, start_failure=start_failure
+        running=_lock.locked(),
+        last_run=last_run,
+        start_failure=start_failure,
+        cached_failed_calls=cached_failed_calls(session) if job is Job.DIGEST else None,
+    )
+
+
+def cached_failed_calls(session: Session) -> int:
+    """Requests a digest would answer from the cache as failed (D29).
+
+    The rule of `digest/llm.py:_lookup`: a request whose call failed, and that has no
+    successful response, is not sent again unless the digest retries failed calls.
+    """
+    # A failed call stores JSON null, which SQL does not count as NULL.
+    succeeded = select(LlmCall.cache_key).where(
+        func.coalesce(func.json_type(LlmCall.response_json), "null") != "null"
+    )
+    return (
+        session.scalar(
+            select(func.count(distinct(LlmCall.cache_key))).where(
+                LlmCall.cache_hit.is_(False),
+                LlmCall.error.is_not(None),
+                LlmCall.cache_key.not_in(succeeded),
+            )
+        )
+        or 0
     )
 
 
@@ -109,10 +134,11 @@ def sync_configured_matter(session: Session) -> None:
         client.close()
 
 
-def digest_synced_matter(session: Session) -> None:
+def digest_synced_matter(session: Session, *, retry_failed: bool = False) -> None:
+    """Digest the synced matter, as `cli digest` does, with its --retry-failed."""
     from app.digest.run import run_digest, synced_matter_id
 
-    run_digest(session, synced_matter_id(session))
+    run_digest(session, synced_matter_id(session), retry_failed=retry_failed)
 
 
 def _run(job: Job, work: JobWork) -> None:

@@ -791,6 +791,16 @@ class RunStatusOut(BaseModel):
     last_run: RunOut | None
     # Set only while no run row is newer than the failed attempt.
     start_failure: StartFailureOut | None
+    # Digest only (None for sync): model calls a digest answers from the cache as
+    # failed. Above zero, a digest with retry_failed asks the model again (D29).
+    cached_failed_calls: int | None = None
+
+
+class DigestStartIn(BaseModel):
+    """Optional body of POST /api/ops/digest."""
+
+    # Ask the model again for calls that failed before, instead of the cached failure.
+    retry_failed: bool = False
 
 
 class CostOut(BaseModel):

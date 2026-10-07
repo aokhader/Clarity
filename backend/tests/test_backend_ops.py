@@ -15,8 +15,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_sessionmaker
-from app.models import SyncRun
+from app.models import LlmCall, SyncRun
 from app.services import jobs
+from tests.fixtures.synthetic_matter import MATTER_ID
 
 IDLE_TIMEOUT_S = 10.0
 
@@ -125,3 +126,79 @@ def test_a_second_job_is_refused_while_one_runs(client: TestClient) -> None:
     finally:
         release.set()
     _wait_until_idle(client, "digest")
+
+
+# --- D29: retry the model calls that failed ---------------------------------------------
+
+
+@pytest.fixture
+def digest_runs(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Stand in for pipeline's run_digest, so no model is called; record each call."""
+    import app.digest.run as digest_run
+
+    calls: list[dict[str, Any]] = []
+
+    def run_digest(
+        session: Session, matter_id: int, retry_failed: bool = False
+    ) -> None:
+        calls.append({"matter_id": matter_id, "retry_failed": retry_failed})
+
+    monkeypatch.setattr(digest_run, "run_digest", run_digest)
+    return calls
+
+
+def test_a_digest_retries_failed_calls_only_when_asked(
+    client: TestClient, seeded: Session, digest_runs: list[dict[str, Any]]
+) -> None:
+    assert client.post("/api/ops/digest").status_code == 202
+    _wait_until_idle(client, "digest")
+    response = client.post("/api/ops/digest", json={"retry_failed": True})
+    assert response.status_code == 202, response.text
+    _wait_until_idle(client, "digest")
+
+    assert digest_runs == [
+        {"matter_id": MATTER_ID, "retry_failed": False},
+        {"matter_id": MATTER_ID, "retry_failed": True},
+    ]
+
+
+def _call(key: str, *, error: str | None = None, hit: bool = False) -> LlmCall:
+    return LlmCall(
+        matter_id=MATTER_ID,
+        purpose="extract_page",
+        model="test-model",
+        cache_key=key,
+        response_json=None if error or hit else {"facts": []},
+        cache_hit=hit,
+        error=error,
+    )
+
+
+def test_the_digest_status_counts_calls_cached_as_failed(
+    client: TestClient, seeded: Session
+) -> None:
+    seeded.add_all(
+        [
+            _call("failed", error="HTTP 500"),
+            # A failure answered again from the cache is the same failed call.
+            _call("failed", error="earlier call failed: HTTP 500", hit=True),
+            _call("failed twice", error="timeout"),
+            _call("failed twice", error="timeout"),
+            # A call that failed and then succeeded is answered by the success.
+            _call("recovered", error="timeout"),
+            _call("recovered"),
+            _call("succeeded"),
+        ]
+    )
+    seeded.commit()
+
+    status = client.get("/api/ops/digest/status").json()
+
+    assert status["cached_failed_calls"] == 2
+    assert client.get("/api/ops/sync/status").json()["cached_failed_calls"] is None
+
+
+def test_no_failed_calls_means_nothing_to_retry(
+    client: TestClient, seeded: Session
+) -> None:
+    assert client.get("/api/ops/digest/status").json()["cached_failed_calls"] == 0
