@@ -18,7 +18,6 @@ import logging
 import re
 import threading
 import time
-from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -363,7 +362,7 @@ def _send_anthropic(
         timeout=settings.llm_timeout_seconds,
     )
     if response.status_code >= 400:
-        raise ExtractionFailed(f"HTTP {response.status_code}: {response.text[:300]}")
+        raise ExtractionFailed(_http_error(response))
     payload = response.json()
     usage = payload.get("usage") or {}
     tokens_in = int(usage.get("input_tokens", 0))
@@ -416,7 +415,7 @@ def _send_openai(
         timeout=settings.llm_timeout_seconds,
     )
     if response.status_code >= 400:
-        raise ExtractionFailed(f"HTTP {response.status_code}: {response.text[:300]}")
+        raise ExtractionFailed(_http_error(response))
     payload = response.json()
     usage = payload.get("usage") or {}
     text = payload["choices"][0]["message"].get("content") or "{}"
@@ -485,8 +484,7 @@ def _send_gemini(
             timeout=settings.llm_timeout_seconds,
         )
     if response.status_code >= 400:
-        error = response.text[:300].replace(key, "[key]")
-        raise ExtractionFailed(f"HTTP {response.status_code}: {error}")
+        raise ExtractionFailed(_http_error(response, key))
     payload = response.json()
     usage = payload.get("usageMetadata") or {}
     tokens_in = int(usage.get("promptTokenCount", 0))
@@ -568,13 +566,14 @@ def _openapi_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], set[str]]:
 
 
 class RateLimiter:
-    """At most `limit` HTTP attempts per model in any 60 seconds, across threads.
+    """Spaces HTTP attempts to each model evenly, across threads: at least 60/limit
+    seconds apart, plus a margin. A rolling window let five quick retries go in
+    seconds, and the API then counted the next one, a minute after the first, as the
+    sixth in its minute.
 
-    The count lives in this process only, so only one process may make model calls
-    during a run: a second process would have its own count and could double the rate.
+    The pacing lives in this process only, so only one process may make model calls
+    during a run: a second process would keep its own pace and could double the rate.
     """
-
-    WINDOW_SECONDS = 60.0
 
     def __init__(
         self,
@@ -584,23 +583,19 @@ class RateLimiter:
         self._clock = clock
         self._sleep = sleep
         self._lock = threading.Lock()
-        self._sent: defaultdict[str, deque[float]] = defaultdict(deque)
+        self._next: dict[str, float] = {}
 
-    def acquire(self, model: str, limit: int) -> None:
-        """Return once an attempt to `model` fits in the window; 0 means no limit."""
+    def acquire(self, model: str, limit: int, margin: float = 0.0) -> None:
+        """Return at this attempt's slot for `model`; 0 means no limit."""
         if limit <= 0:
             return
-        while True:
-            with self._lock:
-                now = self._clock()
-                sent = self._sent[model]
-                while sent and now - sent[0] >= self.WINDOW_SECONDS:
-                    sent.popleft()
-                if len(sent) < limit:
-                    sent.append(now)
-                    return
-                wait = self.WINDOW_SECONDS - (now - sent[0])
-            # Slept outside the lock, so other models are not held up.
+        with self._lock:
+            now = self._clock()
+            # Each caller reserves the next free slot, so threads queue up in turn.
+            slot = max(now, self._next.get(model, now))
+            self._next[model] = slot + 60.0 / limit + margin
+        wait = slot - now
+        if wait > 0:
             log.info("Model rate limit: waiting %.0fs for %s", wait, model)
             self._sleep(wait)
 
@@ -618,10 +613,11 @@ def _post(url: str, *, model: str = "", rpm: int = 0, **kwargs: Any) -> httpx.Re
 
     Every attempt, the first and each retry, passes the per-model limiter first.
     """
-    attempts = get_settings().llm_max_attempts
+    settings = get_settings()
+    attempts = settings.llm_max_attempts
     for attempt in range(attempts):
         last = attempt + 1 == attempts
-        _LIMITER.acquire(model, rpm)
+        _LIMITER.acquire(model, rpm, settings.llm_rate_margin_seconds)
         try:
             response = httpx.post(url, **kwargs)
         except httpx.TransportError:
@@ -631,13 +627,56 @@ def _post(url: str, *, model: str = "", rpm: int = 0, **kwargs: Any) -> httpx.Re
             continue
         if response.status_code not in RETRY_STATUSES or last:
             return response
-        wait = _retry_wait(response) or min(2**attempt, 30)
+        asked = _retry_wait(response)
+        cap = settings.llm_max_retry_wait_seconds
+        if asked is not None and asked > cap:
+            # A daily quota asks for hours; waiting would stall the whole run. The
+            # failure is cached, and retry-failed asks again later.
+            log.info(
+                "Model API %s asked to wait %.0fs, over the %.0fs allowed; failing",
+                response.status_code,
+                asked,
+                cap,
+            )
+            raise RetryWaitTooLong(
+                f"HTTP {response.status_code}: the API asked to wait {asked:.0f}s, "
+                f"more than the {cap:.0f}s allowed{_quota_note(response)}"
+            )
+        wait = asked or min(2**attempt, 30)
         log.info("Model API %s; retrying in %.0fs", response.status_code, wait)
         time.sleep(wait)
     raise AssertionError("unreachable")
 
 
 _SECONDS = re.compile(r"^(\d+(?:\.\d+)?)s$")
+
+
+class RetryWaitTooLong(ExtractionFailed):
+    """The API asked for a longer wait than `llm_max_retry_wait_seconds`."""
+
+
+def _http_error(response: httpx.Response, secret: str | None = None) -> str:
+    """An error response as stored: status, the start of the body, any quota hit."""
+    message = f"HTTP {response.status_code}: {response.text[:300]}"
+    message += _quota_note(response)
+    return message.replace(secret, "[key]") if secret else message
+
+
+def _quota_note(response: httpx.Response) -> str:
+    """Google's QuotaFailure ids, which say whether a per-minute or a per-day quota
+    ran out. They hold no secret and no case text."""
+    try:
+        details = response.json().get("error", {}).get("details") or []
+    except (ValueError, AttributeError):
+        return ""
+    ids = [
+        str(violation["quotaId"])
+        for detail in details
+        if isinstance(detail, dict)
+        for violation in detail.get("violations") or []
+        if isinstance(violation, dict) and violation.get("quotaId")
+    ]
+    return f"; quota {', '.join(dict.fromkeys(ids))}" if ids else ""
 
 
 def _retry_wait(response: httpx.Response) -> float | None:

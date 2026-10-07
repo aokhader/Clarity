@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # limit. Enforced per process, so only one process may call models during a run.
     extract_rpm: int = Field(default=0, ge=0)
     merge_rpm: int = Field(default=0, ge=0)
+    # Added to the 60/rpm seconds between attempts, for clock skew at the API's end.
+    llm_rate_margin_seconds: float = Field(default=1.0, ge=0)
+    # The longest wait a 429 or 503 may ask for; a longer one fails the call at once.
+    llm_max_retry_wait_seconds: float = Field(default=120, gt=0)
     # Tries per model call on rate limits, overload and dropped connections.
     llm_max_attempts: int = Field(default=5, ge=1)
     # Inputs extracted, and facts scored, per committed batch.
