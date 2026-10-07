@@ -111,6 +111,9 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
   - a document's own date in the drawer (#13);
   - no duplicate limits on the provider page (#16). 40 min
 - [ ] B9 backend: "no bills on file" instead of $0 (#15; D16). 20 min
+- [ ] P13 pipeline (D19, D20): the extraction prompt records which policy a limit belongs to, and gives economic damages and recovery caps kinds of their own. Add a command that re-extracts named pages only. Run it after the Manager approves the estimate (P10 b). Bump the prompt version. 45 min plus the run
+- [ ] B10 backend (D19, D20): the contract changes to match P13 (new kinds, the policy field, both additive) with `types.ts`; the new kinds go into visibility as internal; the Coverage tile leads with the defendant limit and labels the others. 40 min
+- [ ] U9 ui-builder (D19): the Coverage tile shows the leading limit and the labelled client policies under it. 20 min, after B10
 - [ ] U8 ui-builder:
   - loading, empty and error states (U5);
   - chips in the share preview open their sources;
@@ -171,7 +174,7 @@ T+0:00 is 2026-10-07 00:30 PDT. The clock times are targets: agents run faster t
 | 2:00 | 02:30 | Demo moments 1 and 2 on real data; draft checker server side (B1) done | [ ] |
 | 3:00 | 03:30 | Draft checker UI (U4) on real data; second critic pass (C2); Calls starts | [ ] |
 | 5:30 | 06:00 | Calls on real data, and the Manager's test call (C-T) | [ ] |
-| 6:00 | 06:30 | **Feature freeze.** Fixes, checks and the README only | [ ] |
+| 6:00 | 06:30 (moves later, D18) | **Feature freeze.** Fixes, checks and the README only | [ ] |
 | 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [ ] |
 
 ## Cut order
