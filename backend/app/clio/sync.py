@@ -164,8 +164,29 @@ def sync_matter(session: Session, client: ClioClient, matter_id: int) -> SyncRun
     try:
         _sync(session, client, matter_id, since, stats)
     except ClioError as error:
-        stats.errors.append(str(error))
-        run.error = str(error)[:2000]
+        # Clio refused or failed a request: the run ends with what it pulled so far.
+        _close_run(session, client, run, stats, str(error))
+        return run
+    except BaseException as error:
+        # Anything else (an auth failure, a full disk, Ctrl-C) still closes the run,
+        # so it never reads as in progress, and then goes up to the caller.
+        session.rollback()
+        _close_run(session, client, run, stats, _describe(error))
+        raise
+    _close_run(session, client, run, stats, None)
+    return run
+
+
+def _close_run(
+    session: Session,
+    client: ClioClient,
+    run: SyncRun,
+    stats: SyncStats,
+    error: str | None,
+) -> None:
+    if error is not None:
+        stats.errors.append(error)
+        run.error = error[:2000]
         log.error("Sync stopped: %s", error)
     run.finished_at = datetime.now(UTC)
     run.stats_json = stats.as_json()
@@ -176,7 +197,11 @@ def sync_matter(session: Session, client: ClioClient, matter_id: int) -> SyncRun
         len(stats.errors),
         client.request_count,
     )
-    return run
+
+
+def _describe(error: BaseException) -> str:
+    name = type(error).__name__
+    return f"{name}: {error}" if str(error) else name
 
 
 def _sync(
