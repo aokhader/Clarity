@@ -2,11 +2,13 @@
 
 A `KnownValue` is one figure or date, with the facts that state it and plain words for
 what it is. `fact_values` reads every amount and date a fact carries, including a
-second read that disagreed (`alt_values`), so a check can recognise any of them.
+second read that disagreed (`alt_values`) and the figures a call note lists, so a check
+can recognise any of them.
 """
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from functools import partial
 from typing import Any
 
 from app.models import Fact
@@ -29,9 +31,15 @@ class KnownValue:
     cues: tuple[str, ...] = ()
     # Among withheld values that match, the reason of the lowest rank is given.
     rank: int = 0
+    # Withheld only: locks on an exact match, never on a rounded figure or a range. For
+    # values of facts the link releases but does not display (a balance, a second read),
+    # which a rounded figure about the provider's own bill would otherwise hit.
+    exact_only: bool = False
 
 
-def fact_values(fact: Fact, what: str, rank: int = 0) -> list[KnownValue]:
+def fact_values(
+    fact: Fact, what: str, rank: int = 0, *, exact_only: bool = False
+) -> list[KnownValue]:
     """Every amount and date the fact carries, each stated by this fact."""
     payload: dict[str, Any] = fact.value_json or {}
     reads = [
@@ -44,16 +52,22 @@ def fact_values(fact: Fact, what: str, rank: int = 0) -> list[KnownValue]:
         for key in _AMOUNT_KEYS
         if isinstance(read.get(key), int)
     }
-    dates = {fact.event_date} if fact.event_date else set()
-    dates |= {_day(read.get("on")) for read in reads} - {None}
-    dates |= {_day(payload.get("due_at"))} - {None}
-    return [
-        KnownValue(what=what, amount_cents=cents, facts=(fact,), rank=rank)
-        for cents in sorted(amounts)
-    ] + [
-        KnownValue(what=what, on=day, facts=(fact,), rank=rank)
-        for day in sorted(d for d in dates if d is not None)
-    ]
+    # A call note lists every figure its quote states.
+    amounts |= {a for a in payload.get("amounts_cents") or [] if isinstance(a, int)}
+    days = {fact.event_date} if fact.event_date else set()
+    days |= {_day(read.get("on")) for read in reads} - {None}
+    days |= {_day(payload.get("due_at"))} - {None}
+    months: set[date] = set()
+    for mentioned in payload.get("dates") or []:
+        if not isinstance(mentioned, dict) or (on := _day(mentioned.get("on"))) is None:
+            continue
+        (months if mentioned.get("precision") == "month" else days).add(on)
+    known = partial(KnownValue, what, facts=(fact,), rank=rank, exact_only=exact_only)
+    return (
+        [known(amount_cents=cents) for cents in sorted(amounts)]
+        + [known(on=day) for day in sorted(d for d in days if d)]
+        + [known(on=month, month_only=True) for month in sorted(months)]
+    )
 
 
 def _day(value: object) -> date | None:

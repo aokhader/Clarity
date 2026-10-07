@@ -2,27 +2,34 @@
 
 `check_text` is the matcher, and it knows nothing about shares: it takes the values the
 reader may be told (`shown`) and the values they must not be (`withheld`). Each amount
-and date in the text gets one verdict:
+and date in the text gets one verdict (D25):
 
 - supported: a shown value matches it, at the precision it was written;
-- do_not_send: only a withheld value matches it;
+- do_not_send: it discloses a withheld value. An amount locks when it equals one,
+  when it is that value rounded the way the writer may have rounded it ("$330,000"),
+  when a range around it brackets one, or when two amounts in the text add up to one.
+  A date locks only when it is the date of a sensitive internal fact (an offer, a
+  demand, a settlement, a valuation, a limit, a deadline). $0 never locks;
 - differs: no value matches, but one shown value is clearly about the same subject
   (the sentence names it), so that value is offered in its place;
 - not_in_file: nothing matches.
 
+A number with no money marker (bare digits, or words) is reported only when it is
+supported or locks: on its own it may be a year or a reference number. A date is compared
+at the precision written, so a month and year never matches a day.
+
 A do_not_send verdict returns the rule that withholds the value and the refs of the
 facts it matched, so the attorney can open why a sentence is locked (D17). These
-routes are firm-only; nothing here reaches a provider. `check_share_draft` applies the
-matcher to a provider's link. No model is called.
+routes are firm-only; nothing here reaches a provider. No model is called.
 """
 
-import re
 from collections.abc import Iterable
 from datetime import datetime
+from itertools import combinations
 
 from sqlalchemy.orm import Session
 
-from app.models import Fact, Share
+from app.models import Fact, FactKind, Share
 from app.schemas import (
     DraftCheckOut,
     DraftMentionOut,
@@ -32,12 +39,17 @@ from app.schemas import (
 )
 from app.services.fact_views import fact_ref
 from app.services.known_values import KnownValue
-from app.services.share_values import shown_values, withheld_values
-from app.services.text_mentions import (
+from app.services.money_mentions import (
+    ROUNDING_FROM_CENTS,
     AmountMention,
+    find_amounts,
+    find_ranges,
+)
+from app.services.share_values import shown_values, withheld_values
+from app.services.subject_cues import contexts_around, same_subject
+from app.services.text_mentions import (
     DateMention,
     DatePrecision,
-    find_amounts,
     find_dates,
     sentence_spans,
 )
@@ -52,34 +64,51 @@ _SEVERITY: list[SentenceVerdict] = [
     "supported",
     "unchecked",
 ]
+# D25: the internal facts whose dates alone disclose something.
+SENSITIVE_DATE_KINDS = frozenset(
+    {
+        FactKind.OFFER,
+        FactKind.DEMAND,
+        FactKind.SETTLEMENT,
+        FactKind.CASE_VALUE,
+        FactKind.POLICY_LIMIT,
+        FactKind.DEADLINE,
+    }
+)
 
 
 def check_text(
     text: str, shown: list[KnownValue], withheld: list[KnownValue]
 ) -> DraftCheckOut:
-    mentions: list[Mention] = sorted(
-        [*find_amounts(text), *find_dates(text)], key=lambda m: m.start
-    )
-    sentences = []
-    for start, end in sentence_spans(text):
+    dates = find_dates(text)
+    amounts = [
+        a
+        for a in find_amounts(text)
+        if a.marked or not any(a.start < d.end and d.start < a.end for d in dates)
+    ]
+    mentions: list[Mention] = sorted([*amounts, *dates], key=lambda m: m.start)
+    checked: dict[int, DraftMentionOut | None] = {}
+    spans = sentence_spans(text)
+    for start, end in spans:
         within = [m for m in mentions if start <= m.start < end]
-        checked = [
-            _check(
-                text,
-                mention,
-                _contexts(text, start, end, mention, within),
-                shown,
-                withheld,
-            )
-            for mention in within
+        for mention in within:
+            contexts = contexts_around(text, start, end, mention, within)
+            checked[id(mention)] = _check(text, mention, contexts, shown, withheld)
+    _lock_combined(text, amounts, checked, shown, withheld)
+    sentences = []
+    for start, end in spans:
+        found = [
+            out
+            for m in mentions
+            if start <= m.start < end and (out := checked.get(id(m))) is not None
         ]
         sentences.append(
             DraftSentenceOut(
                 start=_utf16(text, start),
                 end=_utf16(text, end),
                 text=text[start:end],
-                verdict=worst_verdict(m.verdict for m in checked),
-                mentions=checked,
+                verdict=worst_verdict(m.verdict for m in found),
+                mentions=found,
             )
         )
     return DraftCheckOut(
@@ -96,125 +125,160 @@ def check_share_draft(
     )
 
 
+def _out(
+    text: str,
+    mention: Mention,
+    verdict: MentionVerdict,
+    reason: str,
+    facts: Iterable[Fact] = (),
+    file_value: KnownValue | None = None,
+) -> DraftMentionOut:
+    return DraftMentionOut(
+        start=_utf16(text, mention.start),
+        end=_utf16(text, mention.end),
+        text=text[mention.start : mention.end],
+        kind="amount" if isinstance(mention, AmountMention) else "date",
+        verdict=verdict,
+        reason=reason,
+        facts=[fact_ref(f) for f in {f.id: f for f in facts}.values()],
+        file_amount_cents=file_value.amount_cents if file_value else None,
+        file_date=file_value.on if file_value else None,
+    )
+
+
+def _locked(text: str, mention: Mention, blocked: list[KnownValue]) -> DraftMentionOut:
+    # The most severe rule is the reason; every matched fact is cited (D17).
+    return _out(
+        text,
+        mention,
+        "do_not_send",
+        min(blocked, key=lambda k: k.rank).what,
+        (f for k in blocked for f in k.facts),
+    )
+
+
 def _check(
     text: str,
     mention: Mention,
     contexts: tuple[str, ...],
     shown: list[KnownValue],
     withheld: list[KnownValue],
-) -> DraftMentionOut:
-    def out(
-        verdict: MentionVerdict,
-        reason: str,
-        facts: Iterable[Fact] = (),
-        file_value: KnownValue | None = None,
-    ) -> DraftMentionOut:
-        return DraftMentionOut(
-            start=_utf16(text, mention.start),
-            end=_utf16(text, mention.end),
-            text=text[mention.start : mention.end],
-            kind="amount" if isinstance(mention, AmountMention) else "date",
-            verdict=verdict,
-            reason=reason,
-            facts=[fact_ref(f) for f in {f.id: f for f in facts}.values()],
-            file_amount_cents=file_value.amount_cents if file_value else None,
-            file_date=file_value.on if file_value else None,
-        )
-
-    if matches := [k for k in shown if _matches(mention, k)]:
-        return out(
+) -> DraftMentionOut | None:
+    if isinstance(mention, AmountMention):
+        matches = [
+            k
+            for k in shown
+            if k.amount_cents is not None and mention.matches(k.amount_cents)
+        ]
+        blocked = _amount_locks(mention, shown, withheld)
+    else:
+        matches = [k for k in shown if _date_matches(mention, k)]
+        blocked = [
+            k
+            for k in withheld
+            if _date_matches(mention, k)
+            and any(f.kind in SENSITIVE_DATE_KINDS for f in k.facts)
+        ]
+    if matches:
+        return _out(
+            text,
+            mention,
             "supported",
             f"Matches {matches[0].what}",
             (f for k in matches for f in k.facts),
         )
-    if blocked := [k for k in withheld if _matches(mention, k)]:
-        # The most severe rule is the reason; every matched fact is cited (D17).
-        return out(
-            "do_not_send",
-            min(blocked, key=lambda k: k.rank).what,
-            (f for k in blocked for f in k.facts),
-        )
-    if same := _same_subject(mention, contexts, shown):
-        return out(
+    if blocked:
+        return _locked(text, mention, blocked)
+    if isinstance(mention, AmountMention) and not mention.marked:
+        return None  # a bare number that matches nothing may be a year or an id
+    if same := same_subject(mention, contexts, shown):
+        return _out(
+            text,
+            mention,
             "differs",
             f"Differs from {same[0].what}",
             (f for k in same for f in k.facts),
             same[0],
         )
-    return out("not_in_file", "Not found in the file")
+    return _out(text, mention, "not_in_file", "Not found in the file")
 
 
-def _matches(mention: Mention, known: KnownValue) -> bool:
-    if isinstance(mention, AmountMention):
-        return known.amount_cents is not None and mention.matches(known.amount_cents)
+def _amount(known: KnownValue) -> int:
+    """The known value's amount, or 0 when it has none. $0 never locks."""
+    return known.amount_cents or 0
+
+
+def _amount_locks(
+    mention: AmountMention, shown: list[KnownValue], withheld: list[KnownValue]
+) -> list[KnownValue]:
+    """Withheld values the amount equals, or is a rounding of."""
+    if mention.cents == 0:
+        return []
+    exact = [k for k in withheld if _amount(k) and mention.matches(_amount(k))]
+    if exact or not mention.marked:
+        return exact
+    # A rounded figure that may be the provider's own (shown) figure is not a leak.
+    if any(_amount(k) and mention.rounds_from(_amount(k)) for k in shown):
+        return []
+    return [
+        k
+        for k in withheld
+        if not k.exact_only and _amount(k) and mention.rounds_from(_amount(k))
+    ]
+
+
+def _lock_combined(
+    text: str,
+    amounts: list[AmountMention],
+    checked: dict[int, DraftMentionOut | None],
+    shown: list[KnownValue],
+    withheld: list[KnownValue],
+) -> None:
+    """Lock amounts that disclose a withheld figure together: a range around it, or two
+    amounts that add up to it. Neither may be a figure the link already shows."""
+    internal = [k for k in withheld if not k.exact_only and _amount(k)]
+    shown_amounts = [_amount(k) for k in shown if _amount(k)]
+
+    def open_to_lock(mention: AmountMention) -> bool:
+        out = checked.get(id(mention))
+        return out is None or out.verdict not in ("supported", "do_not_send")
+
+    for found in find_ranges(text, amounts):
+        if any(found.brackets(cents) for cents in shown_amounts):
+            continue
+        if blocked := [k for k in internal if found.brackets(_amount(k))]:
+            for end in (found.low, found.high):
+                checked[id(end)] = _locked(text, end, blocked)
+    for one, other in combinations(amounts, 2):
+        total = one.cents + other.cents
+        slack = one.tolerance_cents + other.tolerance_cents
+        if (
+            total < ROUNDING_FROM_CENTS
+            or not (one.cents and other.cents)
+            or not (open_to_lock(one) and open_to_lock(other))
+            or any(abs(total - cents) <= slack for cents in shown_amounts)
+        ):
+            continue
+        if blocked := [k for k in internal if abs(total - _amount(k)) <= slack]:
+            for part in (one, other):
+                checked[id(part)] = _locked(text, part, blocked)
+
+
+def _date_matches(mention: DateMention, known: KnownValue) -> bool:
+    """At the precision written: a month matches only a month on file, never a day."""
     if known.on is None:
         return False
-    if known.month_only:
-        # A month on file supports a month written, never a day it does not show.
-        return mention.precision is DatePrecision.MONTH and mention.matches(known.on)
+    if known.month_only or mention.precision is DatePrecision.MONTH:
+        return (
+            known.month_only
+            and mention.precision is DatePrecision.MONTH
+            and mention.matches(known.on)
+        )
     return mention.matches(known.on)
-
-
-def _same_subject(
-    mention: Mention, contexts: tuple[str, ...], shown: list[KnownValue]
-) -> list[KnownValue]:
-    """The shown value the mention is about, when exactly one value fits best.
-
-    The clause around the mention is read first, so "bills of $X and a limit of $Y"
-    ties neither figure to the other's subject.
-    """
-    is_amount = isinstance(mention, AmountMention)
-    candidates = [
-        known
-        for known in shown
-        if known.cues
-        and not known.month_only
-        and (known.amount_cents is not None if is_amount else known.on is not None)
-    ]
-    for context in contexts:
-        scored = [
-            (sum(_plain(cue) in context for cue in known.cues), known)
-            for known in candidates
-        ]
-        best = max((score for score, _ in scored), default=0)
-        top = [known for score, known in scored if score == best]
-        if best > 0 and len({(k.amount_cents, k.on) for k in top}) == 1:
-            return top
-    return []
-
-
-# Where one clause of a sentence ends: punctuation, a dash, or a joining word. A comma
-# counts only before a space, so "$1,234" stays whole.
-_CLAUSE_BREAK = re.compile(
-    r"[;:()—]|,\s|\s-\s|\s(?:and|but|while|whereas|plus)\s", re.IGNORECASE
-)
-
-
-def _contexts(
-    text: str, start: int, end: int, mention: Mention, within: list[Mention]
-) -> tuple[str, ...]:
-    """Where to look for the mention's subject, in plain form: its clause, then the
-    whole sentence, but only when no other figure of its kind shares the sentence."""
-    begin, finish = start, end
-    for brk in _CLAUSE_BREAK.finditer(text, start, end):
-        if brk.end() <= mention.start:
-            begin = brk.end()
-        elif brk.start() >= mention.end:
-            finish = brk.start()
-            break
-    clause = _plain(text[begin:finish])
-    if sum(type(m) is type(mention) for m in within) > 1:
-        return (clause,)
-    return clause, _plain(text[start:end])
 
 
 def worst_verdict(verdicts: Iterable[SentenceVerdict]) -> SentenceVerdict:
     return min(verdicts, key=_SEVERITY.index, default="unchecked")
-
-
-def _plain(text: str) -> str:
-    """Lower case with hyphens as spaces, so "Per-person" finds the cue "per person"."""
-    return text.lower().replace("-", " ")
 
 
 def _utf16(text: str, index: int) -> int:

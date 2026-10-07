@@ -81,14 +81,29 @@ def file_values(facts: list[Fact]) -> list[KnownValue]:
                 cues=_SPEND_CUES,
             )
         )
-    return values
+    return with_months(values)
+
+
+def with_months(values: list[KnownValue]) -> list[KnownValue]:
+    """Each dated value also as its month: a brief may say "in July" of a dated event.
+
+    The draft checker compares a month only with a month on file (D25); the brief is
+    the firm's own summary, so its months are read against the days they cover."""
+    months = [
+        replace(v, on=v.on.replace(day=1), month_only=True)
+        for v in values
+        if v.on is not None and not v.month_only
+    ]
+    return values + months
 
 
 def check_sentence(
     text: str, cited: list[Fact], file: list[KnownValue]
 ) -> tuple[SentenceVerdict, list[DraftMentionOut]]:
     """One brief sentence (or the headline): its verdict and every mention's."""
-    own = [v for f in cited for v in fact_values(f, "a fact this sentence cites")]
+    own = with_months(
+        [v for f in cited for v in fact_values(f, "a fact this sentence cites")]
+    )
     checked = check_text(text, [*own, *file], [])
     mentions = [m for s in checked.sentences for m in s.mentions]
     cited_ids = {f.id for f in cited}

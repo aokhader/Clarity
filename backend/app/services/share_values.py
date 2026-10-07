@@ -12,7 +12,14 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from app.models import Fact, FactKind, Share, Visibility
-from app.schemas import ProviderItemOut, ProviderPayload, ShareSetting, ShareSettings
+from app.schemas import (
+    ExpensePayload,
+    ProviderItemOut,
+    ProviderPayload,
+    ShareSetting,
+    ShareSettings,
+)
+from app.services.bills import count_bills
 from app.services.fact_views import renderable_facts
 from app.services.known_values import KnownValue, fact_values
 from app.services.provider_view import provider_payload
@@ -34,6 +41,10 @@ _SETTING_WORDS: dict[ShareSetting, str] = {
 }
 _PER_CUES = ("per person", "per occurrence")
 _STAGE_KINDS = {FactKind.CASE_STAGE, FactKind.STATUS_CHANGE}
+_NEVER_SHARED = "Kept internal: never shared with providers"
+_OTHER_PROVIDER = "Kept internal: about another provider"
+# The rank of a fact the link releases but whose value it does not display.
+_RELEASED = 4
 
 
 def shown_values(session: Session, share: Share, now: datetime) -> list[KnownValue]:
@@ -60,11 +71,43 @@ def withheld_values(session: Session, share: Share, now: datetime) -> list[Known
     """Every amount and date in the file, with the reason this link does not carry it."""
     settings = ShareSettings.model_validate(share.settings_json)
     hidden = set(share.hidden_fact_ids_json or [])
+    facts = list(session.scalars(renderable_facts(share.matter_id)))
     values: list[KnownValue] = []
-    for fact in session.scalars(renderable_facts(share.matter_id)):
+    for fact in facts:
         reason, rank = _withheld_because(fact, share, settings, hidden)
-        values += fact_values(fact, reason, rank)
-    return values
+        values += fact_values(fact, reason, rank, exact_only=rank == _RELEASED)
+    return values + _internal_totals(facts)
+
+
+def _internal_totals(facts: list[Fact]) -> list[KnownValue]:
+    """Figures the firm page computes from internal facts and no single fact holds:
+    the Firm spend total, and the bills of every provider together (D25)."""
+    totals = []
+    spent = [
+        (f, cents)
+        for f in facts
+        if f.kind is FactKind.EXPENSE
+        and (cents := ExpensePayload.model_validate(f.value_json).amount_cents)
+    ]
+    if spent:
+        totals.append(
+            KnownValue(
+                _NEVER_SHARED,
+                amount_cents=sum(cents for _, cents in spent),
+                facts=tuple(f for f, _ in spent),
+            )
+        )
+    counted = count_bills([f for f in facts if f.kind is FactKind.MEDICAL_BILL])
+    if len(counted) > 1:
+        totals.append(
+            KnownValue(
+                _OTHER_PROVIDER,
+                amount_cents=sum(c.total_cents for c in counted),
+                facts=tuple(f for c in counted for f in c.facts),
+                rank=1,
+            )
+        )
+    return totals
 
 
 def _withheld_because(
@@ -77,19 +120,19 @@ def _withheld_because(
         or fact.visibility is Visibility.INTERNAL
         or fact.mentions_strategy
     ):
-        return "Kept internal: never shared with providers", 0
+        return _NEVER_SHARED, 0
     if (
         setting in PROVIDER_SCOPED_SETTINGS
         and fact.provider_contact_id != share.provider_contact_id
     ):
-        return "Kept internal: about another provider", 1
+        return _OTHER_PROVIDER, 1
     if fact.id in hidden:
         return "Hidden from this link by the firm", 2
     if not getattr(settings, setting):
         return f"This link does not share {_SETTING_WORDS[setting]}", 3
     # A released fact whose value the link does not display: a balance, a second read,
     # a day behind a month, or a stage date other than the latest.
-    return "Not shown on this link", 4
+    return "Not shown on this link", _RELEASED
 
 
 def _facts(ids: list[int], visible: dict[int, Fact]) -> tuple[Fact, ...]:

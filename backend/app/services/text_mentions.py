@@ -1,35 +1,23 @@
-"""Sentences, money amounts and dates in free text, found with the standard library.
+"""Sentences and dates in free text, found with the standard library.
 
-The draft checker reads what an attorney typed, so parsing is deliberately narrow. A
-number is money only when it carries `$`, `USD` or "dollars", so a phone number or a
-year never is. A date must name a month or use a full numeric form. Each mention keeps
-its character span, so the UI can underline it, and the precision it was written at,
-so "$12k" is compared to the nearest $1,000 and "$2,480.50" to the cent.
+A date must name a month or use a full numeric form. Each mention keeps its character
+span, so the UI can underline it, and the precision it was written at: a day, a month
+and year, or a month and day. Money is read in `money_mentions.py`.
 """
 
 import re
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
 from enum import StrEnum
+
+from app.services.money_mentions import AmountMention
+from app.services.money_mentions import find_amounts as find_money
 
 
 class DatePrecision(StrEnum):
     DAY = "day"  # Jul 14, 2031
     MONTH = "month"  # July 2031
     MONTH_DAY = "month_day"  # Sept 6, with no year
-
-
-@dataclass(frozen=True)
-class AmountMention:
-    start: int
-    end: int
-    cents: int
-    # Half the smallest unit written: 50 for "$2,480", 0 for "$2,480.50", $500 for "$12k".
-    tolerance_cents: int
-
-    def matches(self, cents: int) -> bool:
-        return abs(cents - self.cents) <= self.tolerance_cents
 
 
 @dataclass(frozen=True)
@@ -81,93 +69,6 @@ def _trim(text: str, start: int, end: int) -> tuple[int, int]:
     while end > start and text[end - 1].isspace():
         end -= 1
     return start, end
-
-
-# --- Amounts -----------------------------------------------------------------------
-
-_NUMBER = r"\d{1,3}(?:,\d{3})+|\d+"
-_SCALES = {"k": 1_000, "thousand": 1_000, "m": 1_000_000, "million": 1_000_000}
-_SYMBOL_AMOUNT = re.compile(
-    rf"(?:\$|\bUSD)\s?(?P<num>{_NUMBER})(?:\.(?P<frac>\d{{1,2}}))?(?!\d)"
-    r"(?:\s?(?P<scale>k|m|thousand|million)\b)?",
-    re.IGNORECASE,
-)
-_DOLLARS_AMOUNT = re.compile(
-    rf"\b(?P<num>{_NUMBER})(?:\.(?P<frac>\d{{1,2}}))?(?:\s(?P<scale>thousand|million))?"
-    r"\s+dollars\b",
-    re.IGNORECASE,
-)
-
-_UNIT_WORDS = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-    "seventeen", "eighteen", "nineteen",
-]  # fmt: skip
-_TEN_WORDS = [
-    "twenty",
-    "thirty",
-    "forty",
-    "fifty",
-    "sixty",
-    "seventy",
-    "eighty",
-    "ninety",
-]
-_UNITS = {word: n for n, word in enumerate(_UNIT_WORDS)}
-_TENS = {word: 10 * n for n, word in enumerate(_TEN_WORDS, start=2)}
-_WORD_SCALES = {"thousand": 1_000, "million": 1_000_000}
-# Longest first, so "seventeen" is not read as "seven".
-_NUMBER_WORD = "|".join(
-    sorted([*_UNITS, *_TENS, "hundred", *_WORD_SCALES], key=len, reverse=True)
-)
-_WORDS_AMOUNT = re.compile(
-    rf"\b(?P<words>(?:{_NUMBER_WORD})\b(?:(?:\s+and\s+|[\s-]+)(?:{_NUMBER_WORD})\b)*)"
-    r"\s+dollars\b",
-    re.IGNORECASE,
-)
-
-
-def _numeric_amount(match: re.Match[str]) -> AmountMention:
-    frac = match.group("frac") or ""
-    scale = Decimal(
-        _SCALES[match.group("scale").lower()] if match.group("scale") else 1
-    )
-    dollars = Decimal(
-        match.group("num").replace(",", "") + (f".{frac}" if frac else "")
-    )
-    unit_cents = scale * 100 / Decimal(10) ** len(frac)
-    return AmountMention(
-        start=match.start(),
-        end=match.end(),
-        cents=int(dollars * scale * 100),
-        tolerance_cents=int(unit_cents / 2),
-    )
-
-
-def _words_value(words: str) -> int:
-    total = current = 0
-    for word in re.split(r"[\s-]+", words.lower()):
-        if word in _UNITS:
-            current += _UNITS[word]
-        elif word in _TENS:
-            current += _TENS[word]
-        elif word == "hundred":
-            current = (current or 1) * 100
-        elif word in _WORD_SCALES:
-            total += (current or 1) * _WORD_SCALES[word]
-            current = 0
-    return total + current
-
-
-def find_amounts(text: str) -> list[AmountMention]:
-    """Money in the text: "$2,480.50", "USD 1,200", "$12k", "twelve hundred dollars"."""
-    found = [_numeric_amount(m) for m in _SYMBOL_AMOUNT.finditer(text)]
-    found += [_numeric_amount(m) for m in _DOLLARS_AMOUNT.finditer(text)]
-    found += [
-        AmountMention(m.start(), m.end(), _words_value(m.group("words")) * 100, 50)
-        for m in _WORDS_AMOUNT.finditer(text)
-    ]
-    return _without_overlaps(found)
 
 
 # --- Dates -------------------------------------------------------------------------
@@ -254,9 +155,7 @@ def find_dates(text: str) -> list[DateMention]:
     return sorted(found, key=lambda d: d.start)
 
 
-def _without_overlaps(amounts: list[AmountMention]) -> list[AmountMention]:
-    kept: list[AmountMention] = []
-    for amount in sorted(amounts, key=lambda a: (a.start, -a.end)):
-        if not any(amount.start < k.end and k.start < amount.end for k in kept):
-            kept.append(amount)
-    return kept
+def find_amounts(text: str) -> list[AmountMention]:
+    """Amounts written with a money marker. Bare numbers are left out: the call-notes
+    check compares a note's figures with its quote's, where a year is not money."""
+    return [amount for amount in find_money(text) if amount.marked]
