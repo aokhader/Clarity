@@ -27,6 +27,7 @@ from app.services.incident import incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.record_requests import outstanding_record_requests
 from app.services.restatements import group_restatements
+from app.services.shares import medical_provider_ids
 
 # How many candidates the feed reads per row it returns, to find restatements.
 FEED_CANDIDATES_PER_ROW = 10
@@ -288,7 +289,14 @@ def matter_timeline(
 
 
 def matter_injuries(session: Session, matter_id: int) -> list[FactOut]:
-    """Injuries and diagnoses, most significant first."""
+    """Injuries and diagnoses: those the client's treating providers recorded first,
+    then the rest (defense exams, expert reviews, notes, pleadings), each part most
+    significant first.
+
+    No synced field marks a defense exam; what the data does say is which facts come
+    from one of the matter's treating providers (the field mapping's roles).
+    """
+    treating = medical_provider_ids(session, matter_id)
     facts = session.scalars(
         renderable_facts(matter_id)
         .where(Fact.kind.in_((FactKind.INJURY, FactKind.DIAGNOSIS)))
@@ -296,4 +304,5 @@ def matter_injuries(session: Session, matter_id: int) -> list[FactOut]:
             Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
         )
     )
-    return [fact_out(f) for f in facts]
+    ordered = sorted(facts, key=lambda f: f.provider_contact_id not in treating)
+    return [fact_out(f) for f in ordered]
