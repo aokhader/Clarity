@@ -114,9 +114,16 @@ class CoveragePayload(FactPayload):
     confirmed: bool | None = None
 
 
+# D19, D21: whose policy a limit belongs to. None is unknown, as on facts read before.
+PolicyHolder = Literal[
+    "defendant_liability", "client_no_fault", "client_um_uim", "client_other"
+]
+
+
 class PolicyLimitPayload(FactPayload):
     amount_cents: int | None = None
     per: Literal["person", "occurrence"] | None = None
+    policy: PolicyHolder | None = None
 
 
 class CaseValuePayload(FactPayload):
@@ -171,6 +178,20 @@ class MedicalSpecialsPayload(FactPayload):
     amount_cents: int | None = None
 
 
+class EconomicDamagesPayload(FactPayload):
+    """Specials plus other losses. `basis` says what the total includes."""
+
+    amount_cents: int | None = None
+    basis: str | None = None
+
+
+class RecoveryCapPayload(FactPayload):
+    """A ceiling on what the case can recover. `basis` says what sets it."""
+
+    amount_cents: int | None = None
+    basis: str | None = None
+
+
 class OtherPayload(FactPayload):
     detail: str | None = None
 
@@ -199,6 +220,8 @@ PAYLOAD_BY_KIND: dict[FactKind, type[FactPayload]] = {
     FactKind.PARTY: PartyPayload,
     FactKind.INCIDENT: IncidentPayload,
     FactKind.MEDICAL_SPECIALS: MedicalSpecialsPayload,
+    FactKind.ECONOMIC_DAMAGES: EconomicDamagesPayload,
+    FactKind.RECOVERY_CAP: RecoveryCapPayload,
     FactKind.OTHER: OtherPayload,
 }
 

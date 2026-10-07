@@ -45,6 +45,8 @@ export type FactKind =
   | 'party'
   | 'incident'
   | 'medical_specials'
+  | 'economic_damages'
+  | 'recovery_cap'
   | 'other'
 
 export type Visibility = 'internal' | 'shareable'
@@ -100,9 +102,12 @@ export type CoveragePayload = PayloadBase & {
   coverage_type: string | null
   confirmed: boolean | null
 }
+/** D19, D21: whose policy a limit belongs to. null is unknown, as on facts read before. */
+export type PolicyHolder = 'defendant_liability' | 'client_no_fault' | 'client_um_uim' | 'client_other'
 export type PolicyLimitPayload = PayloadBase & {
   amount_cents: number | null
   per: 'person' | 'occurrence' | null
+  policy: PolicyHolder | null
 }
 export type CaseValuePayload = PayloadBase & {
   low_cents: number | null
@@ -130,6 +135,10 @@ export type ClientContactPayload = PayloadBase & {
 export type PartyPayload = PayloadBase & { role: string | null }
 export type IncidentPayload = PayloadBase & { description: string | null }
 export type MedicalSpecialsPayload = PayloadBase & { amount_cents: number | null }
+/** Specials plus other losses. `basis` says what the total includes. */
+export type EconomicDamagesPayload = PayloadBase & { amount_cents: number | null; basis: string | null }
+/** A ceiling on what the case can recover. `basis` says what sets it. */
+export type RecoveryCapPayload = PayloadBase & { amount_cents: number | null; basis: string | null }
 export type OtherPayload = PayloadBase & { detail: string | null }
 
 /** PAYLOAD_BY_KIND in schemas.py. */
@@ -157,6 +166,8 @@ export type FactPayloads = {
   party: PartyPayload
   incident: IncidentPayload
   medical_specials: MedicalSpecialsPayload
+  economic_damages: EconomicDamagesPayload
+  recovery_cap: RecoveryCapPayload
   other: OtherPayload
 }
 

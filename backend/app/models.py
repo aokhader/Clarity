@@ -102,6 +102,11 @@ class FactKind(StrEnum):
     # the KPI strip's medical specials total. No other kind can carry them.
     INCIDENT = "incident"
     MEDICAL_SPECIALS = "medical_specials"
+    # D20, D21: kept apart from medical specials and case value, which they used to
+    # be filed as. Economic damages are specials plus other losses (wages, for
+    # example); a recovery cap is a ceiling on what the case can collect.
+    ECONOMIC_DAMAGES = "economic_damages"
+    RECOVERY_CAP = "recovery_cap"
     OTHER = "other"
 
 

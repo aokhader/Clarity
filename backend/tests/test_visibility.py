@@ -7,12 +7,22 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, Share, Visibility
-from app.schemas import ShareSetting, ShareSettings
+from app.models import (
+    Confidence,
+    Fact,
+    FactKind,
+    Origin,
+    Share,
+    Source,
+    SourceType,
+    Visibility,
+)
+from app.schemas import ShareSetting, ShareSettings, validate_payload
 from app.services.visibility import (
     KINDS_BY_SETTING,
     PROVIDER_SCOPED_SETTINGS,
     SETTING_BY_KIND,
+    fact_visibility,
     visible_facts_for_share,
 )
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID, THERAPY_ID
@@ -182,3 +192,62 @@ def test_a_share_inside_its_expiry_is_live(seeded: Session) -> None:
 
 def test_another_matters_facts_never_appear(seeded: Session) -> None:
     assert _visible(seeded, _share(matter_id=MATTER_ID + 1)) == []
+
+
+# --- D20, D21: economic damages, recovery caps, and whose policy a limit is ----------
+
+
+def _new_fact(
+    session: Session, kind: FactKind, value: dict[str, object], provider: int | None
+) -> Fact:
+    source = Source(
+        matter_id=MATTER_ID,
+        clio_type=SourceType.NOTE,
+        clio_id=f"visibility-note-{session.query(Source).count()}",
+        raw_json={},
+    )
+    session.add(source)
+    session.flush()
+    fact = Fact(
+        matter_id=MATTER_ID,
+        kind=kind,
+        title="A figure",
+        value_json=validate_payload(kind, value),
+        source_id=source.id,
+        quote="A figure",
+        provider_contact_id=provider,
+        # Tagged shareable on purpose: the kind alone must keep it in.
+        visibility=Visibility.SHAREABLE,
+        confidence=Confidence.HIGH,
+        origin=Origin.MODEL,
+    )
+    session.add(fact)
+    session.flush()
+    return fact
+
+
+@pytest.mark.parametrize("kind", [FactKind.ECONOMIC_DAMAGES, FactKind.RECOVERY_CAP])
+def test_damages_and_caps_are_internal_by_default_deny(
+    seeded: Session, kind: FactKind
+) -> None:
+    assert kind not in SETTING_BY_KIND
+    assert fact_visibility(kind, mentions_strategy=False) is Visibility.INTERNAL
+
+    fact = _new_fact(seeded, kind, {"amount_cents": 1_000_00, "basis": "x"}, ORTHO_ID)
+
+    assert fact not in _visible(seeded, _share())
+
+
+def test_a_limits_policy_does_not_change_whether_it_is_released(
+    seeded: Session,
+) -> None:
+    limit = _new_fact(
+        seeded,
+        FactKind.POLICY_LIMIT,
+        {"amount_cents": 2_500_00, "per": "person", "policy": "client_um_uim"},
+        None,
+    )
+    limits_off = ALL_ON.model_copy(update={"coverage_limits": False})
+
+    assert limit in _visible(seeded, _share())
+    assert limit not in _visible(seeded, _share(settings=limits_off))
