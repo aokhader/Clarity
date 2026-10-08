@@ -135,24 +135,31 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 
 ### The views
 
-The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. This section is read from the code under `frontend/src/components/firm/` at `e61aee2`, after the Overview pass (D38, D39). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. This section is read from the code under `frontend/src/components/firm/` at `6cb901b`, after the Overview pass (D38, D39) and the fixes from the critic's fourth pass (D40). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
 
 **On every view, the identity header:**
 - a breadcrumb (Cases, the client, the view);
 - the client's photo from Clio, or initials, and the client's name;
 - a case line: Clio's description, the matter number, and the incident date with its age and a source chip;
-- the stage on a five-step track, "Step N of 5" in words, an "inferred" marker when the stage was inferred, and its chips.
+- the stage on a five-step track, "Step N of 5" in words, an "inferred" marker when the stage was inferred, and its chips. The steps before the current one are filled but carry no check mark and are not called completed, since a case in litigation can still be treating (D40). Only a settled or closed case completes the track.
 
 **Case Overview**, the 90-second read, on one sheet from top to bottom:
 1. **The bottom line:** the brief's headline, with its facts cited.
-2. **What happened:** the incident as most records describe it, never Clio's date field (`incident_account`, D39); up to three injuries, treating providers first; and the leading liability fact. A missing one reads "Not found in file".
-3. **Now:** the next step, the statute with a countdown in words, the last client contact, and the overdue, upcoming and waiting counts, which link to the action board.
+2. **What happened:** a missing line reads "Not found in file".
+   - **Incident:** the account most records give, never Clio's date field (`incident_account`, D39).
+   - **Injuries:** one row per body region, up to three, the region the most records state first. Each row shows the finding the most records give for that region; a tie goes to the treating providers. No injury count is shown, since the records restate one injury many times; a link opens all of them on For Attorney (D40).
+   - **Liability:** the two most significant liability facts, so a contested point does not read as settled by one opinion (D40).
+3. **Now:** in each cell, the value and its chip.
+   - **Next step,** headed "Overdue" when the item it picks is overdue.
+   - **Statute,** with its countdown in words. When the Clio task the statute was read from is complete, it reads "Met", with its date in neutral ink, never a red "passed" (D40).
+   - **Last client contact.**
+   - **To do:** the overdue, upcoming and open-request counts, which link to the action board. "Open requests" replaced "waiting on others", because a record request does not say who is waiting on whom (D40).
 4. **Money:** the four tiles, Case value, Coverage limit, Medical specials and Firm spend. They moved here from For Attorney (D38).
-5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. "Full timeline" opens For Attorney with the timeline chosen.
+5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. Deadlines are left out, since a scheduled date does not say that anything happened (D40). "Full timeline" opens For Attorney with the timeline chosen.
 6. **Since you last opened:** at most five changes, then a count of the rest. Hidden when nothing is new; one line on a first visit.
 7. **Where it stands:** the brief's sentences, one per row, then "Not answered by the file", the brief's open questions.
 
-In What happened, The story so far and Where it stands, each line's source chips sit in a right-hand margin beside it, so the sentence reads uninterrupted and keeps its own chips (D3). A figure the draft checker marks keeps its chip inline.
+In What happened, The story so far and Where it stands, each line's source chips sit in a right-hand margin beside it, so the sentence reads uninterrupted and keeps its own chips (D3). A figure the draft checker marks keeps its chip inline. For the incident account and each key event, the extra chips cite the other records that restate it, one chip per record, never one per page (D40).
 
 **For Attorney:**
 - the action board as a table: task, due date, owner and status, overdue first, with each task's title opening its source;
@@ -174,7 +181,11 @@ Seen working on the hackathon's matter, and by whom.
   - **Lighthouse's accessibility score is 100** on all five firm views.
   - **Reflow** at 640 and 320 CSS px. The top bar overflowed at 320 px until `724c6e3` fixed it.
   - Backend tests cover the key events and the incident account (`backend/tests/test_backend_key_events.py`, `test_backend_incident_account.py`). The reviewer has read the code but not seen these views rendered.
-  - **Not yet reported:** the critic's check on the real matter that every chip in the new blocks opens a source holding its text (C4).
+  - These were measured before the D40 fixes. The critic found that one of the ten answers, whether the client is still treating, came only from the stage track's check mark, which said treatment was complete when it was not. D40 removed that mark, and the count has not been taken again since.
+- **The critic's fourth pass (C4, `docs/reviews/critic.md`), on the real matter on 2026-10-08:** through the API and the code at `e61aee2`, with no browser, and the database opened read-only.
+  - It traced every block of the new Overview to its sources. Every chip it opened holds its text.
+  - The incident account is a model fact, never the Clio field, and the money row agrees with the brief's figures.
+  - Its first-screen findings were fixed in code under D40 (see [Built, lightly tested](#built-lightly-tested)). What D40 left open is under Known issues.
 - **By the lead, in the browser, during the trial (2026-10-07):**
   - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below). Since D38 the chips sit in the margin beside each sentence.
   - The source drawer, and the share preview's chips, which open their sources (U8).
@@ -218,7 +229,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 419 pass at `4cb81ba`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 428 pass at `1cfd638`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
@@ -245,6 +256,17 @@ By the lead, in the browser, on the clean clone's invented matter, while taking 
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
 
+- **The D40 fixes, from the critic's fourth pass** (`fe07ba2` to `53523da`). These are code changes with no model call. They are described under [The views](#the-views):
+  - a met statute reads "Met";
+  - earlier stages are not marked completed;
+  - injuries show one row per body region;
+  - liability shows two facts;
+  - "Overdue" heads the Now cell when its item is overdue;
+  - the count reads "open requests";
+  - the story has no deadlines;
+  - restating records are counted once each.
+
+  **Seen by the reviewer through the API on 2026-10-08:** on the real matter, read-only, the story's 10 events include no deadline, and the incident account cites 9 records. On the clone's invented matter, the story's 10 events include no deadline either. The reviewer has read the screens' code but not seen them rendered.
 - **The D37 screens:** the types check, and the reviewer has read the code but not seen these rendered.
   - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
   - **The draft-check panel (`f267fc6`):** a `not_on_link` date is shown in a neutral tone with one chip and a count, under "Some dates are in the file but not on this link". It neither locks nor warns.
@@ -319,6 +341,11 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - What matters, the ranked feed on For Attorney, still shows both.
   - A one-line prompt change and one brief call, about 5 cents, would restore them; that is optional and needs the Manager's go-ahead.
   - The open questions state their premises without chips.
+- **On the Overview, left open by D40** (critic Pass 4):
+  - **The story so far has no litigation history** (the suit, its dismissal and renewal, the answer): those records were read as kind `other` or undated. A prompt line and a re-read of the pleadings would fix it, at a cost of cents; it waits on the Manager (D40). Finding 6.
+  - **The open-request count mixes the firm's requests with demands made of the client.** About half of the 44, by the critic's count, are defense or carrier demands for the client's records, which the firm owes. A record request carries no direction. Adding one needs a re-read like the one above. Finding 7.
+  - **Most of the records behind the incident account cannot be opened from the Overview.** On the real matter the account cites 9 records, one more than a margin will expand. So it shows two chips and "+7 more" as a plain count. The reviewer counted this through the API after D40. Finding 10.
+  - **Defense medical exams sit in the Treatment lane** of the story, because a diagnosis maps to that lane. Their reports' own dates disagree with a firm note and the calendar, which put the exams about six months later. The chips support what is shown. Finding 10.
 - **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
 - **Pages read before a provider was known never get that provider.** Two fixes are written up in `STATUS.md`; neither is built.
   - None of the real matter's 8 lien facts has a provider attached, as found during D35 and confirmed in the database.
@@ -327,7 +354,7 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - The "shared on" and "expires" dates are UTC days, so a link made in the evening, Pacific time, reads as made the next day (`backend/app/services/provider_view.py`).
   - A stored call records the consent wording but not which firm user confirmed it.
   - The provider's "File opened" date (from a note) and the header's opened date (from Clio) differ by two days, as of the critic's third pass.
-  - "Waiting on others" lists 45 items, 26 of them undated, as of the critic's second pass.
+  - The action board's open requests numbered 45, 26 of them undated, as of the critic's second pass.
 - **Smaller issues:**
   - Deduplication deletes duplicate facts, so a source that had one gets new fact ids on the next run.
   - A re-sync pulls the matter named by `CLIO_MATTER_QUERY`, not necessarily the one on screen.
@@ -436,7 +463,7 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               419 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               428 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
