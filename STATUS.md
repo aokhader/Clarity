@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
-| reviewer | Done: V5, V2, V4. README final (f3f856d). Clone servers stopped; clone folder kept. check.sh at c097f44: no FAIL, 369 tests | Stopped. GateGuard prompts: 4 | lead: README cost and form placeholders after D34 runs; team size; clip link | | 10:52 |
+| reviewer | README and form: D36 run costs, ~$1.40 case estimate, resolved issues moved. check.sh f37a110: no FAIL, 371 | Stopped | | lead: Coverage tile "Sources disagree" again since re-read (backend kpis.py or pipeline); stale P9 stub line | 2026-10-08 04:06 |
 
 ## Stubs and shortcuts
 
