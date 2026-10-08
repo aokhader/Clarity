@@ -3,6 +3,11 @@ import { SourceChipList } from '@/components/shared/SourceChipList'
 
 /** Chips drawn per sentence before the rest fold into "+N more". */
 const CHIPS_PER_SENTENCE = 2
+/**
+ * Beyond this many sources "+N more" stays a count, as in DraftMentionMark: an account
+ * that a hundred records restate would otherwise open into a wall of chips.
+ */
+const MAX_EXPANDED_CHIPS = 8
 
 /** A cited page of a scanned document: the source an attorney most wants to open. */
 function isDocumentPage(fact: FactRef): boolean {
@@ -20,5 +25,12 @@ function isDocumentPage(fact: FactRef): boolean {
  */
 export function BriefCitations({ facts, describedBy }: { facts: FactRef[]; describedBy?: string }) {
   const ordered = [...facts.filter(isDocumentPage), ...facts.filter((fact) => !isDocumentPage(fact))]
-  return <SourceChipList facts={ordered} max={CHIPS_PER_SENTENCE} expandable describedBy={describedBy} />
+  return (
+    <SourceChipList
+      facts={ordered}
+      max={CHIPS_PER_SENTENCE}
+      expandable={ordered.length <= MAX_EXPANDED_CHIPS}
+      describedBy={describedBy}
+    />
+  )
 }
