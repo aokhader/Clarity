@@ -4,17 +4,20 @@ import { ApiError } from '@/api/client'
 import { useMatterHeader } from '@/api/matters'
 import type { MatterHeaderOut } from '@/api/types'
 import { DigestPrompt } from '@/components/firm/DigestPrompt'
-import { MatterHeader } from '@/components/firm/MatterHeader'
+import { MatterIdentity } from '@/components/firm/MatterIdentity'
 import { LoadError } from '@/components/shared/LoadError'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type MatterShellProps = {
   matterId: number
-  /** The current view, rendered once the header has loaded and the matter is digested. */
+  /** The view on screen, named in the breadcrumb and the tab's title. */
+  viewLabel: string
+  /** The current view, rendered under the identity once the matter is digested. */
   children: (header: MatterHeaderOut) => ReactNode
 }
 
-export function MatterShell({ matterId, children }: MatterShellProps) {
+/** The matter's identity over the current view, in every state that has the header, so each page has its h1. */
+export function MatterShell({ matterId, viewLabel, children }: MatterShellProps) {
   const header = useMatterHeader(matterId)
 
   if (header.isPending) {
@@ -38,13 +41,10 @@ export function MatterShell({ matterId, children }: MatterShellProps) {
     return <LoadError what="the matter" error={header.error} onRetry={() => void header.refetch()} />
   }
 
-  if (!header.data.digested) {
-    return (
-      <div className="space-y-6">
-        <MatterHeader header={header.data} />
-        <DigestPrompt />
-      </div>
-    )
-  }
-  return children(header.data)
+  return (
+    <>
+      <MatterIdentity header={header.data} viewLabel={viewLabel} />
+      {header.data.digested ? children(header.data) : <DigestPrompt />}
+    </>
+  )
 }

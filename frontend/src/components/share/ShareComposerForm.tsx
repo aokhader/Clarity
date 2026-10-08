@@ -175,7 +175,11 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
             ) : preview.isError ? (
               <LoadError what="the preview" error={preview.error} onRetry={() => void preview.refetch()} />
             ) : (
-              <ProviderView payload={preview.data.payload} onOpenSource={(item) => drawer.open(item.fact_id)} />
+              <ProviderView
+                payload={preview.data.payload}
+                onOpenSource={(item) => drawer.open(item.fact_id)}
+                headingLevel={2}
+              />
             )}
           </div>
         </div>

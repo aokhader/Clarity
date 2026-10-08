@@ -23,5 +23,11 @@ export function ProviderPreview({ matterId, providerId }: { matterId: number; pr
   if (preview.isError) {
     return <LoadError what="the provider preview" error={preview.error} onRetry={() => void preview.refetch()} />
   }
-  return <ProviderView payload={preview.data.payload} onOpenSource={(item) => drawer.open(item.fact_id)} />
+  return (
+    <ProviderView
+      payload={preview.data.payload}
+      onOpenSource={(item) => drawer.open(item.fact_id)}
+      headingLevel={2}
+    />
+  )
 }

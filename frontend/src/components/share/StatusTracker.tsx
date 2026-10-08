@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils'
 
 /** The canonical stages in order, with the current one marked. Earlier stages are not
  * ticked off: a case can skip one, and a tick would claim it happened. */
-export function StatusTracker({ status }: { status: ProviderStatusOut }) {
+export function StatusTracker({ status, level }: { status: ProviderStatusOut; level: 2 | 3 }) {
   return (
-    <Panel title="Case status">
+    <Panel title="Case status" level={level}>
       <ol aria-label="Case stages" className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
         {status.stages.map((stage, index) => {
           const current = stage === status.current
