@@ -55,6 +55,25 @@ export const STAGE_LABELS: Record<CaseStage, string> = {
   closed: 'Closed',
 }
 
+/** The stage track's five steps, in order; each is named by its STAGE_LABELS entry. */
+export const STAGE_STEPS = ['intake', 'treating', 'demand', 'negotiation', 'litigation'] as const satisfies readonly CaseStage[]
+
+/**
+ * Where each stage sits on the track, from 1 to STAGE_STEPS.length. A finished treatment
+ * is still the treating step. Settled and closed are past the last step: the whole
+ * track is done, and they are named by their own label, not by a step number.
+ */
+export const STEP_OF_STAGE: Record<CaseStage, number | 'past_end'> = {
+  intake: 1,
+  treating: 2,
+  treatment_complete: 2,
+  demand: 3,
+  negotiation: 4,
+  litigation: 5,
+  settled: 'past_end',
+  closed: 'past_end',
+}
+
 export const WAITING_ON_LABELS: Record<WaitingOn, string> = {
   firm: 'the firm',
   client: 'the client',
