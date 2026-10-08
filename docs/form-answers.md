@@ -16,18 +16,27 @@ FastAPI and SQLite backend, Vite and React frontend, running on localhost. Clio 
 
 ## 4. Models and cost
 
-Per-page and per-record extraction: `claude-sonnet-5-5`. Field and role mapping, significance, and the brief: `claude-opus-5-5`.
+Per-page and per-record extraction: `claude-haiku-5-5`. Field and role mapping, significance, and the brief: `claude-sonnet-5-5`. These are the models since 2026-10-08 (D36).
 
-One full digest of the matter cost about $7.65:
+**A whole case on these models: about $1.40. This is an estimate, not a measurement:** no full digest has run on them. It prices the measured October 2 digest's tokens at their rates:
+- extraction, about $0.48 to $0.54. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output tokens of the October 2 model. The ratio comes from records only, and most extraction calls read scanned pages.
+- the merge, about $0.89, assuming Sonnet uses as many tokens as the October 2 model did.
+
+**Measured: one full digest on October 2 cost $7.65,** on `claude-sonnet-5-5` for extraction and `claude-opus-5-5` for the merge:
 - 361 pages and 112 records;
 - 514 model calls: 473 extraction calls ($5.86) and 41 merge calls ($1.79);
 - 1,728,515 input and 329,989 output tokens.
 
-This was measured from `GET /api/ops/cost` and the `llm_calls` table for the October 2 digest. A further 184 calls were rejected by the API and cost nothing.
+This was measured from `GET /api/ops/cost` and the `llm_calls` table. A further 184 calls were rejected by the API and cost nothing.
+
+**Measured: the two update runs on 2026-10-08 cost $0.17 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
+- The re-digest made 6 calls (36,295 input and 7,905 output tokens), for $0.0979.
+- The re-read of 9 records made 10 paid calls, and answered 4 more from the cache (49,274 input and 15,266 output tokens), for $0.0760.
+- No call failed. A trial on a copy of the database before them made 6 calls for $0.0148.
+
+Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 attempts in a 2026-10-08 trial (D36).
 
 Reopening the matter costs $0, because results are stored and cached by input hash. A second digest over unchanged inputs makes no model call (`backend/tests/test_pipeline_second_digest.py`).
-
-**[LEAD, after runs (a) and (b): the trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). Add their calls, tokens and cost from `GET /api/ops/cost`. Those runs re-run only changed prompts, so they price an update, not a whole case.]**
 
 ## 5. Anything the judges should know
 
@@ -48,16 +57,11 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 - The provider page does not show the firm's name; no synced record carries it.
 - A live provider link cannot be edited; the firm withdraws it and shares again.
 - The draft checker checks figures only. A sentence that discloses an internal fact without an amount or a date is `unchecked`, and a figure merely near an internal amount is not flagged.
-- Several fixes take effect only at a re-digest, which has not run yet:
-  - the headline's citations;
-  - computed totals in the brief;
-  - the new fact kinds;
-  - which policy a limit belongs to.
-  Until then, the stored brief from October 2 has one figure that no fact holds, and it is marked on screen.
+- No full digest has run on the current models. The whole-case figure for them is an estimate.
+- Since the limits were re-read, the Coverage tile warns "Sources disagree" again. One limit names no policy, and one names neither per person nor per occurrence, so the tile cannot rule out that each is the same limit as a different figure.
 - Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
 - A provider link's "shared on" and "expires" dates are UTC days.
 - Pages read before a provider was known never get that provider.
-- One pleading's scan is missing on disk until a re-sync.
 - The screenshots show the invented `seed-dev` matter, not the real one (D33).
 - The full list, with the files where each item lives: README, "Half-done or stubbed".
 

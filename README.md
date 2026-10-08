@@ -91,7 +91,7 @@ Fill `.env` at the repository root. Every setting, with its default, is in `back
 
 - **Clio:** a developer application with read permissions (`CLIO_CLIENT_ID`, `CLIO_CLIENT_SECRET`). Register `http://127.0.0.1:8000/oauth/callback` as its redirect URI. `CLIO_MATTER_QUERY` is the search string that finds the matter.
 - **Models:**
-  - `LLM_PROVIDER` is `anthropic`, `openai` or `gemini`.
+  - `LLM_PROVIDER` is `anthropic`, `openai` or `gemini`. The trial's runs used `anthropic`, with `claude-haiku-5-5` for extraction and `claude-sonnet-5-5` for the merge (D36). The October 2 digest used `claude-sonnet-5-5` and `claude-opus-5-5`.
   - `LLM_API_KEY`, `EXTRACT_MODEL` (vision-capable, one call per page or record) and `MERGE_MODEL` (mapping, significance and the brief).
   - The four `*_PRICE_*` settings, in USD per million tokens, so the cost can be computed.
   - `EXTRACT_RPM` and `MERGE_RPM` cap and space the requests per minute to each model (D31). `LLM_MAX_RETRY_WAIT_SECONDS` fails a call at once when the API asks for a longer wait; retry it later.
@@ -137,17 +137,31 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 Seen working on the hackathon's matter, and by whom.
 
 - **By the lead, in the browser, during the trial (2026-10-07):**
-  - The brief's sentences, each ending in source chips that open the cited page (U1). The stored brief predates later fixes; see Half-done.
+  - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below).
   - The source drawer, and the share preview's chips, which open their sources (U8).
   - The draft checker:
     - in the composer: the "don't send" lock, and removing a sentence (U4);
     - the brief's "differs from the file" mark (U7).
-  - "No bills on file" in place of $0, and the Coverage tile's leading limit with the client's own policies labelled beneath it (U9).
+  - "No bills on file" in place of $0, and the Coverage tile's leading limit with the client's own policies labelled beneath it (U9). That was before the limits were re-read; the tile has changed since (see Known issues).
   - Calls:
     - the list of whom to call, with chips;
     - a typed number;
     - the consent gate;
     - the notes state when no model is configured.
+- **After the model runs of 2026-10-08 (D36; costs under [Cost per case](#cost-per-case)):**
+  - The lead checked the results in the browser after both runs.
+  - The reviewer checked them through the API, with the database opened read-only, at `f37a110`:
+    - The brief has 5 sentences, down from 8, and every one cites facts. Its headline cites 4 facts (D14).
+    - No sentence or headline figure is marked "differs from the file" or "not in the file". Two sentences state no amount or date, so they are "unchecked".
+    - No open question asks for a date the header already shows (P11).
+    - The stage label has no trailing space, and the ledger's medical charges carry the neutral title (P12).
+    - 19 of the 20 policy limits name their policy (D19).
+    - Economic damages and recovery caps are kinds of their own (D20), and the Case value and Medical specials tiles cite neither.
+    - Each provider's bill facts are unchanged by the runs: the same amounts, sources and pages as in the backup taken before them. So every provider's total is unchanged.
+  - The critic's third pass, over the rewritten brief and the re-read limits, is under way (C3).
+- **After the re-sync of 2026-10-07 (D30), seen by the reviewer through the API on 2026-10-08:**
+  - The sync fetched again the one pleading whose download had failed on October 2, and the next digest rendered it. All 27 of its page images now load.
+  - All 31 documents carry Clio's received date, which the source drawer shows as the document's own date.
 - **By the lead, outside the browser:**
   - The draft checker's server side on the real matter (B1).
   - The in-place schema upgrade on the real database, with all 14 tables keeping their row counts (D24).
@@ -161,7 +175,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 369 pass at `c097f44`.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 371 pass at `f37a110`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - Sharing:
   - A created link returns exactly what the preview showed.
@@ -197,19 +211,15 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
   - A provider's "last movement" is left out when the latest change has no date.
   - The client's treating injuries are listed first.
   - The consent wording names every service the audio and transcript reach (D27).
-- **Pipeline fixes (P2 to P7).** No sync or digest has run on the real matter's database since; its last digest run is from October 2.
-  - A partly failed sync is pulled again.
-  - A failed mapping call keeps the previous mapping.
-  - The policy-limit cross-check.
-  - A second digest over unchanged inputs calls no model.
-- **The brief's inputs and prompts (P9, P11, P12, P13):**
-  - The headline cites its facts.
-  - Computed totals reach the model with their facts.
-  - Separate kinds for economic damages and recovery caps, and which policy a limit belongs to.
-  - These take effect only at the pending re-digest.
+- **Pipeline fixes (P2 to P7).** The re-sync and the two model runs on the real matter went through them with no failed item, so their failure paths were not exercised there.
+  - A partly failed sync is pulled again (P2).
+  - A sync stopped by any error is closed as failed (P3).
+  - A failed mapping call keeps the previous mapping (P4).
+  - The policy-limit cross-check (P5).
+  - A second digest over unchanged inputs calls no model (P6). In run (b), the unchanged mapping calls and one record were answered from the cache.
 - **Model access:**
-  - The Gemini provider (D30) and the per-model request limit (D31). Pipeline's diagnostic calls to Gemini returned 200. The lead's trial run on a copy of the database got no successful answer in 12 attempts (503s, and a 429 quota), so no digest of the real matter has run on Gemini.
-  - The "Retry failed calls" control (D29), which had not been clicked by the freeze.
+  - The Gemini provider (D30) and its per-model request limit (D31). On the free tier, the trials got no answer in 12 attempts on 2026-10-07 (D34) and 4 answers in 14 attempts on 2026-10-08 (D36). So the runs moved to Anthropic, and no digest of the real matter has run on Gemini.
+  - The "Retry failed calls" control (D29), which had not been clicked by the freeze. The runs had no failed call to retry.
 - **Call notes from a transcript (C-P):** every note's quote is checked against the transcript. The real matter's database holds no notes made by a live model, and the Manager's test call (C-T) has not happened.
 
 ### Half-done or stubbed
@@ -237,22 +247,20 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - A failed model call is not retried until `cli digest --retry-failed` or the footer's retry control (`backend/app/digest/llm.py`).
   - `cli reextract --dry-run` prices a selection from the average recorded cost per call, which is an upper bound (`backend/app/digest/reextract.py`).
   - A date said on a call without a year is placed at the nearest such day within six months, else left out (`backend/app/digest/call_notes.py`).
-  - `headline_fact_ids` is stored beside the brief's fields, not yet in the contract (`backend/app/digest/merge.py`).
 - **Page and link details:**
   - The provider page does not show the firm's name; no synced record carries it.
   - A live link cannot be edited. To change what a provider sees, withdraw it and share again.
   - The `requests` setting releases only open record requests and open tasks.
 
 **Known issues**
-- **Waiting on the re-digest** (pending; it needs the Manager's go-ahead and model credit):
-  - The stored brief was written on October 2. One sentence states a figure that no fact holds, and is marked `not_in_file`.
-  - The headline has no chip until the re-digest stores its facts (D14).
-  - An open question asks for a date the page already shows.
-  - A ledger bill keeps a raw Clio title.
-  - Coverage limits are not yet tagged by policy (D19).
-- **Waiting on a re-sync:**
-  - One pleading's PDF and its page images are missing on disk, so its chips cannot show the scan.
-  - Documents are dated by upload until Clio's received date is synced.
+
+The issues that waited on the re-digest, the re-read and the re-sync are resolved: the brief's unsourced figure, the headline without chips, the open question about a date on the page, the ledger bill's raw title, the missing pleading and the upload dates. Policy limits are now tagged by policy, all but one. What was seen is under [Verified](#verified). These remain:
+
+- **The Coverage tile warns "Sources disagree" again, since the re-read.**
+  - One of the 20 limits names no policy, and one of the defendant's limits names neither per person nor per occurrence. The tile counts each as possibly the same limit as a different figure.
+  - So its nine figures are listed as equals under the warning, and the defendant's limit no longer leads (`backend/app/services/kpis.py`, `_coverage`).
+  - Seen through the API's `sources_disagree` flag and read from the tile's code; the critic's third pass is checking the limits.
+- **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
 - **Pages read before a provider was known never get that provider.** Two fixes are written up in `STATUS.md`; neither is built.
   - None of the real matter's 8 lien facts has a provider attached, as found during D35 and confirmed in the database.
   - A link's bills-and-liens setting releases only its own provider's facts, so no provider's link shows a lien on the real matter.
@@ -266,7 +274,7 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - Deduplication deletes duplicate facts, so a source that had one gets new fact ids on the next run.
   - A re-sync pulls the matter named by `CLIO_MATTER_QUERY`, not necessarily the one on screen.
   - Each visit uses up the "since you last opened" block.
-  - `digests.created_at` is the brief's first generation time, not its latest.
+  - The stored brief's `generated_at` still reads its first generation on October 2, though the runs rewrote its text on 2026-10-08. `f37a110` dates each later rewrite correctly, but this brief was written before it. The screen does not show this date.
 - **Tooling:**
   - `npm install` reports 7 high-severity advisories, all in the dependency tree of `shadcn`, whose stylesheet the app imports. They have not been triaged.
   - On Windows, `uvicorn --reload` sometimes keeps serving old code; restart it if a new route returns 404.
@@ -275,7 +283,9 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
 
 ## Cost per case
 
-Measured with `GET /api/ops/cost` and the `llm_calls` table, on the hackathon's matter, for the digest run on October 2, 2026 with Claude models:
+Measured with `GET /api/ops/cost` and the `llm_calls` table, on the hackathon's matter. Every call is costed at the prices set in `.env` when it ran.
+
+**One full digest, measured on October 2, 2026:**
 
 | | Model | Calls | Cost |
 |---|---|---|---|
@@ -283,13 +293,38 @@ Measured with `GET /api/ops/cost` and the `llm_calls` table, on the hackathon's 
 | Merge: field and role mapping, significance, the brief | `claude-opus-5-5` | 41 | $1.79 |
 | **One full digest** | | **514** | **$7.65** |
 
-That is 1,728,515 input and 329,989 output tokens, at the prices then set in `.env`. Another 184 calls were rejected by the API (HTTP 400 or 401), and they used no tokens and cost nothing.
+That is 1,728,515 input and 329,989 output tokens. Another 184 calls were rejected by the API (HTTP 400 or 401), and they used no tokens and cost nothing.
 - **Reopening the matter costs nothing,** because no page load calls a model.
 - **A second digest over unchanged inputs makes no model call,** because results are cached by input hash (`backend/tests/test_pipeline_second_digest.py`).
 
-**Gemini runs: PENDING.** The trial moved to `gemini-3.8-flash` for extraction and `gemini-3.7-flash` for the merge (D30, D31). The re-digest (a) and the targeted re-read (b) have not run. The trial run before them got no successful answer in 12 attempts (503s, and a 429 quota). The Manager decided to retry them on the free tier at a quieter hour, with the limiter now spacing attempts evenly (D34). They re-run only the calls whose prompts changed, so they will price an update, not a whole case.
+**The trial's model runs, measured on 2026-10-08 (D36).** These ran on Anthropic's paid tier:
+- extraction on `claude-haiku-5-5`, at $0.10 per million input tokens and $0.50 per million output tokens;
+- the merge on `claude-sonnet-5-5`, at $2 and $10.
 
-> **[LEAD, after runs (a) and (b): fill from `GET /api/ops/cost` and `llm_calls`: calls, tokens and dollars for each run, by model. A full-case Gemini figure needs a full digest on a fresh database.]**
+They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case. Run (a) re-digested the matter. Run (b) re-read 9 named records under the new extraction prompt (P13).
+
+| Run | Purpose | Model | Tokens in / out | Cost |
+|---|---|---|---|---|
+| (a) | Role mapping | `claude-sonnet-5-5` | 1,785 / 368 | $0.0073 |
+| (a) | Field mapping | `claude-sonnet-5-5` | 2,311 / 378 | $0.0084 |
+| (a) | Ledger classification | `claude-sonnet-5-5` | 3,742 / 737 | $0.0149 |
+| (a) | The matter's record | `claude-haiku-5-5` | 3,503 / 4,961 | $0.0028 |
+| (a) | Significance | `claude-sonnet-5-5` | 5,890 / 798 | $0.0198 |
+| (a) | The brief | `claude-sonnet-5-5` | 19,064 / 663 | $0.0448 |
+| (b) | 8 records re-read | `claude-haiku-5-5` | 23,507 / 13,744 | $0.0092 |
+| (b) | Significance | `claude-sonnet-5-5` | 5,600 / 883 | $0.0200 |
+| (b) | The brief | `claude-sonnet-5-5` | 20,167 / 639 | $0.0467 |
+
+- **Run (a):** 6 calls, 36,295 input and 7,905 output tokens, $0.0979, and 38 s by its digest run's own record.
+- **Run (b):** 10 paid calls and 4 answered from the cache (the three mapping calls and one record), 49,274 input and 15,266 output tokens, $0.0760, and 64 s.
+- **Both runs:** 16 paid calls, $0.1738, against a $2 stop. No call failed.
+  - Pipeline reports no retries and no 429s.
+  - The trial on a copy of the database, just before the runs, made 6 calls, all answered on the first try, for $0.0148. That copy is not in `app.db`, so this figure is from pipeline's report.
+- **`GET /api/ops/cost` now reports the matter's total:** 714 calls and 14 cache hits, 1,814,084 input and 353,160 output tokens, $7.83. That covers the October 2 digest, its 184 rejected calls, and the two runs.
+
+**A whole case at the D36 models: about $1.40, an estimate, not measured.** No full digest has run on these models. The estimate prices the October 2 digest's tokens at the D36 rates:
+- **Extraction, about $0.48 to $0.54.** The October 2 extraction used 1,481,705 input and 289,882 output tokens. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output of the October 2 Sonnet calls (2.2 in pipeline's trial, 2.5 over the 9 records in the runs). The ratio was measured on records only, and most extraction calls read scanned pages.
+- **The merge, about $0.89.** On October 2 it used 246,810 input and 40,107 output tokens on Opus. These are priced at Sonnet's rates, assuming Sonnet uses as many tokens.
 
 ## Where data lives
 
@@ -307,11 +342,12 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
     - sync and digest runs;
     - Clio's OAuth tokens.
   - **`files/`** holds the downloaded documents, and **`pages/`** the rendered page images.
-  - **`app.db.bak-<time>`** is the copy `upgrade_schema` takes before upgrading the database in place (D24).
+  - **`app.db.bak-<time>`** is the copy `upgrade_schema` takes before upgrading the database in place (D24). The copies taken by hand before each model run (D36) carry the same name.
   - **`raw-export.json`** exists only while `check.sh` runs its case-data step.
 - **`.env`**, at the repository root, holds the Clio credentials and the model key. It is never committed.
 - **Outside the machine:**
-  - The model provider receives page images and record text during a digest, and a call's transcript when notes are requested.
+  - The model provider receives page images and record text during a digest, and a call's transcript when notes are requested. That was Anthropic for the October 2 digest and the trial's runs (D36).
+  - The Gemini trials on copies of the real matter's database (D34, D36) sent some of its content to Google's free tier, whose terms allow Google to use it. D36 stopped this.
   - On a call, Chrome's speech recognition sends the microphone audio to Google's speech service. The consent step says so (D27).
 
 ## Repository map
@@ -336,7 +372,7 @@ backend/app/
     brief_check.py           brief figures checked against today's facts when served (D12)
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               369 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               371 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
@@ -362,7 +398,7 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D33, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D36, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 
