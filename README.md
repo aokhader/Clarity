@@ -1,18 +1,18 @@
 # Clarity
 
-Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets a brief it can read in 90 seconds: the case in sentences, the figures that matter, what is overdue, and what changed since the last visit. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the quote highlighted. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
+Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets an Overview it can read in 90 seconds: what happened, where the case is now, the figures that matter, the key events in order, what changed since the last visit, and the brief's account in sentences. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the quote highlighted. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
 
 Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026), then finished in a trial run by a team of agents (see [The trial](#the-trial)).
 
 | Case Overview | For Attorney |
 |---|---|
-| ![Case Overview: the brief, with a source chip on each sentence](docs/screenshots/overview.png) | ![For Attorney: KPI tiles, action board, ranked facts, providers](docs/screenshots/attorney.png) |
+| ![Case Overview: the client and the stage track, the bottom line, what happened, the Now strip and the money tiles, with each line's sources in the margin](docs/screenshots/overview.png) | ![For Attorney: the action board as a table, What matters, injuries and providers](docs/screenshots/attorney.png) |
 | **For Service Provider (the firm's preview)** | **Calls** |
 | ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
 | **The provider's own page** | **The draft checker, in the share composer** |
 | ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). All six were taken before the Overview pass of 2026-10-08 (D38), so until the lead retakes them they show the earlier layout, not the views described under [The views](#the-views).
 
 ## Run it
 
@@ -64,7 +64,7 @@ npm run dev
 
 If PowerShell refuses to run `Activate.ps1`, skip activation and call the environment's Python directly, such as `.venv\Scripts\python -m pip install -r requirements.txt`.
 
-Open `http://localhost:5173/`. It lists the matters; the invented one is at `/matters/1`. The views are in the left rail. To make a provider link, open **For Attorney** and use **Share** in the Providers panel. The link opens at `/p/<token>`.
+Open `http://localhost:5173/`. It lists the matters; the invented one is at `/matters/1`. The views are in the left rail; in a window narrower than 1024 px, the rail folds into a top bar and the views are under **Menu**. To make a provider link, open **For Attorney** and use **Share** in the Providers panel. The link opens at `/p/<token>`.
 
 **Measured on a clean clone** of commit `189e7ec` on Windows 11 (Git Bash), with Python 3.14.8 and Node 22.23.1, on 2026-10-07.
 - PowerShell was used only to check that `Activate.ps1` works.
@@ -127,17 +127,56 @@ Without credentials, each command stops with a message, as seen in the clean clo
 - a scan for private files
 - the backend tests
 - the strict TypeScript check
+- any other Node tests under `tests/`. There are none, so this step always reports SKIPPED.
 
 Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothing. The case-data step derives its forbidden terms from the synced matter in `data/app.db`. On a clone holding only the invented matter, it reports SKIPPED and says why.
 
 ## What works
 
+### The views
+
+The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. This section is read from the code under `frontend/src/components/firm/` at `e61aee2`, after the Overview pass (D38, D39). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+
+**On every view, the identity header:**
+- a breadcrumb (Cases, the client, the view);
+- the client's photo from Clio, or initials, and the client's name;
+- a case line: Clio's description, the matter number, and the incident date with its age and a source chip;
+- the stage on a five-step track, "Step N of 5" in words, an "inferred" marker when the stage was inferred, and its chips.
+
+**Case Overview**, the 90-second read, on one sheet from top to bottom:
+1. **The bottom line:** the brief's headline, with its facts cited.
+2. **What happened:** the incident as most records describe it, never Clio's date field (`incident_account`, D39); up to three injuries, treating providers first; and the leading liability fact. A missing one reads "Not found in file".
+3. **Now:** the next step, the statute with a countdown in words, the last client contact, and the overdue, upcoming and waiting counts, which link to the action board.
+4. **Money:** the four tiles, Case value, Coverage limit, Medical specials and Firm spend. They moved here from For Attorney (D38).
+5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. "Full timeline" opens For Attorney with the timeline chosen.
+6. **Since you last opened:** at most five changes, then a count of the rest. Hidden when nothing is new; one line on a first visit.
+7. **Where it stands:** the brief's sentences, one per row, then "Not answered by the file", the brief's open questions.
+
+In What happened, The story so far and Where it stands, each line's source chips sit in a right-hand margin beside it, so the sentence reads uninterrupted and keeps its own chips (D3). A figure the draft checker marks keeps its chip inline.
+
+**For Attorney:**
+- the action board as a table: task, due date, owner and status, overdue first, with each task's title opening its source;
+- What matters: the top 10 facts by significance, or the full timeline. The choice is in the URL (`?view=attorney&feed=timeline`);
+- injuries, and providers with **Share**.
+
+**Accessibility (D38).** What the lead measured is under [Verified](#verified). Built, and read from the code:
+- every view reflows to 320 CSS px, and below 1024 px the rail becomes a top bar with a Menu button;
+- a skip link to the matter;
+- closing the source drawer returns focus to the chip that opened it;
+- under each scanned page in the drawer, a "Page text" disclosure holds the page's text as its text alternative.
+
 ### Verified
 
 Seen working on the hackathon's matter, and by whom.
 
+- **The Overview pass (D38, D39), measured by the lead on the real matter in Chrome at 1440×900 on 2026-10-08:**
+  - **The 90-second test: 10 of the 12 questions** in `docs/ui.md` are answered on the first screen, above the fold at 900 px. That screen holds the identity header, the bottom line, What happened, Now, and Money's lead figures. The other two, what changed lately and what has happened so far in order, are answered within one scroll. The target was at least 9 on the first screen and all 12 within one scroll.
+  - **Lighthouse's accessibility score is 100** on all five firm views.
+  - **Reflow** at 640 and 320 CSS px. The top bar overflowed at 320 px until `724c6e3` fixed it.
+  - Backend tests cover the key events and the incident account (`backend/tests/test_backend_key_events.py`, `test_backend_incident_account.py`). The reviewer has read the code but not seen these views rendered.
+  - **Not yet reported:** the critic's check on the real matter that every chip in the new blocks opens a source holding its text (C4).
 - **By the lead, in the browser, during the trial (2026-10-07):**
-  - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below).
+  - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below). Since D38 the chips sit in the margin beside each sentence.
   - The source drawer, and the share preview's chips, which open their sources (U8).
   - The draft checker:
     - in the composer: the "don't send" lock, and removing a sentence (U4);
@@ -160,7 +199,7 @@ Seen working on the hackathon's matter, and by whom.
     - Each provider's bill facts are unchanged by the runs: the same amounts, sources and pages as in the backup taken before them. So every provider's total is unchanged.
   - The critic's third pass (C3, `docs/reviews/critic.md`) traced the rewritten brief, the Coverage tile, the Case value and Medical specials tiles, all ten provider totals, and each re-read record. Every amount and date in the brief checks out. Its open findings are under Known issues.
 - **After the critic's third-pass fixes (D37), seen by the reviewer through the API at `10ffbb3`:**
-  - **The Coverage tile** has 7 rows, leads with the defendant's per-person limit, and shows no warning. A limit that names no policy or no per-person or per-occurrence basis is folded into the row whose figure it repeats. Where limits genuinely conflict, the tile keeps its lead and adds "Sources disagree on some limits" beneath it (read from `KpiTile.tsx`; the invented matter's two defendant figures raise the flag).
+  - **The Coverage figure** has 7 rows in the API, leads with the defendant's per-person limit, and carries no warning. Since D38 the tile shows the lead and one more limit, with the rest behind a disclosure (`e2142ac`). A limit that names no policy or no per-person or per-occurrence basis is folded into the row whose figure it repeats. Where limits genuinely conflict, the tile keeps its lead and adds "Sources disagree on some limits" beneath it (read from `KpiTile.tsx`; the invented matter's two defendant figures raise the flag).
   - **A provider's coverage limits:** with every setting on, an unsaved preview for one provider released only the defendant's liability limits. That was 10 facts, shown on the page as two labelled limits, per person and per occurrence. The client's own policies stay with the firm.
   - **The draft checker** answers `not_on_link`, "In the file, not on this link", for the incident date in a draft to a provider whose link does not carry it. An invented date is still `not_in_file`.
 - **After the re-sync of 2026-10-07 (D30), seen by the reviewer through the API on 2026-10-08:**
@@ -179,8 +218,12 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 387 pass at `10ffbb3`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 418 pass at `389927b`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
+- **After the Overview pass, on 2026-10-08:** the clone was pulled to `389927b`, not cloned afresh, and `cli seed-dev` reloaded the invented matter in 3.1 s.
+  - Every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
+  - `key-events` returned 10 events, oldest first, the incident first.
+  - The header's `incident_account` is null there, as expected (see [Half-done](#half-done-or-stubbed)).
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
@@ -242,6 +285,7 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - Provider access is by an unguessable, expiring link only; there is no provider login.
   - "Send update" leaves the recipient blank, because no synced field holds the provider's email (`frontend/src/components/share/SendUpdateMenu.tsx`).
 - **`cli seed-dev`** loads an invented matter for development, tests and the screenshots, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`).
+  - Its incident facts are both code facts, and only a fact a model read can give the incident account (D39). So on the invented matter the API returns no account, and What happened's Incident line reads "Not found in file". A backend test expects this (`test_with_only_field_facts_there_is_no_account`).
 - **What the sync and digest leave out:**
   - Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced. Bills come from documents, notes and the expense ledger.
   - A Clio request falls back to a smaller field list if Clio rejects a field name.
@@ -275,7 +319,7 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - No share exists on the real matter, so nothing leaked. It is still a gap in rule 4, the provider boundary. Owner: backend, after the freeze.
 - **The rewritten brief is accurate but thin** (critic Pass 3, finding 6).
   - Every amount and date in it checks out. But it leaves out what the defense medical exams found and the limitations defense the defendant pleaded. The old brief stated both.
-  - The ranked feed on the same page still shows both.
+  - What matters, the ranked feed on For Attorney, still shows both.
   - A one-line prompt change and one brief call, about 5 cents, would restore them; that is optional and needs the Manager's go-ahead.
   - The open questions state their premises without chips.
 - **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
@@ -391,9 +435,11 @@ backend/app/
     provider_view.py         the provider payload, built only from that function's output
     draft_check.py, money_mentions.py, text_mentions.py, known_values.py   the draft checker
     brief_check.py           brief figures checked against today's facts when served (D12)
+    incident.py              the incident's date and the account most records give (D39)
+    matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               387 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               418 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
@@ -419,8 +465,8 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D37, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D39, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 
-The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. The commits are `git log 987c1bf..kit-trial`.
+The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. The commits are `git log 987c1bf..kit-trial`.

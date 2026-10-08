@@ -60,7 +60,7 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 - No full digest has run on the current models. The whole-case figure for them is an estimate.
 - Another party's liability policy (the defense driver's own auto policy) is labelled "Client's other policy" on the firm's Coverage tile. The policy field has no value for another party's liability. Providers never see it, since a link releases only the defendant's limits.
 - A share stores hidden items by fact id. A re-digest that re-reads a record gives its facts new ids, so an item hidden on a share would come back. No share exists on the real matter. This is a gap in the provider boundary, to fix after the freeze.
-- The brief rewritten on 2026-10-08 is accurate, but it leaves out the defense medical exam findings and the pleaded limitations defense. The ranked feed below it still shows both.
+- The brief rewritten on 2026-10-08 is accurate, but it leaves out the defense medical exam findings and the pleaded limitations defense. What matters, the ranked feed on For Attorney, still shows both.
 - Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
 - A provider link's "shared on" and "expires" dates are UTC days.
 - Pages read before a provider was known never get that provider.

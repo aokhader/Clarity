@@ -46,9 +46,9 @@ Record at 1440 by 900 with the browser zoomed so the brief is readable on a proj
 | Time | Show |
 |---|---|
 | 0:00 to 0:10 | The problem in one sentence over the Clio matter's tabs |
-| 0:10 to 0:35 | Open the matter in the firm view: photo, stage, KPI strip, brief |
-| 0:35 to 0:50 | Click a date in the brief; the drawer opens the scanned page with the quote |
-| 0:50 to 1:00 | Since-you-last-opened and the action board |
+| 0:10 to 0:35 | Open the matter on the Overview's first screen: the client and the stage track, the bottom line, what happened, Now, and the money tiles |
+| 0:35 to 0:50 | Click a chip in the margin; the drawer opens the scanned page with the quote |
+| 0:50 to 1:00 | One scroll: the story so far and since-you-last-opened; then the action board on For Attorney |
 | 1:00 to 1:20 | Share with a provider: toggle one section off in the composer, copy the link, open the provider view, show it is absent |
 | 1:20 to 1:30 | Back in the firm view, the share shows as opened. Close on cost per case. |
 
