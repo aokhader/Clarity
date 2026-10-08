@@ -152,7 +152,7 @@ Visibility is decided by code from `kind` and `provider_contact_id`. A model nev
 |---|---|---|
 | `case_stage` | on | `case_stage`, `status_change` (date and neutral label only), whether the matter is open |
 | `coverage_exists` | on | A boolean derived from `coverage` facts. No carrier, no amounts. |
-| `coverage_limits` | off | `policy_limit` amounts |
+| `coverage_limits` | off | `policy_limit` amounts of the defendant's liability policy only (`policy` is `defendant_liability`, D37), each labelled per person or per occurrence. The client's own policies and limits with no policy are never released. |
 | `own_bills` | on | `medical_bill`, `lien` where `provider_contact_id` matches the share |
 | `own_records` | on | `records_received` where `provider_contact_id` matches |
 | `requests` | on | `record_request` and open `task` facts where `provider_contact_id` matches |
