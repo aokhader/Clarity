@@ -7,7 +7,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | lead | D36 runs done on Anthropic: (a) 03:49, (b) 03:50, $0.17; browser checks pass | Critic C3, README costs, pipeline fixes; then check.sh and push | | Manager: clip link; test call (C-T) now possible | 03:55 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
 | backend | D37: coverage fold 8d34407; provider limits 7e77d07; contract: verdict not_on_link a98001f | Freeze fixes only | ui-builder: not_on_link in VERDICT_LINES, UNDERLINE (typecheck fails); lead: restart :8000 | | 2026-10-08 04:43 |
-| ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
+| ui-builder | D37: doc chips first 8d4b1fa; Coverage lead 8341c7c; not_on_link and limits text rendered | Stand by | | | 2026-10-08 04:46 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
 | reviewer | README and form: D36 run costs, ~$1.40 case estimate, resolved issues moved. check.sh f37a110: no FAIL, 371 | Stopped | | lead: Coverage tile "Sources disagree" again since re-read (backend kpis.py or pipeline); stale P9 stub line | 2026-10-08 04:06 |

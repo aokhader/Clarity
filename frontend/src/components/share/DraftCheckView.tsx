@@ -1,4 +1,4 @@
-import { CircleCheck, CircleHelp, Lock, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { CircleCheck, CircleHelp, Info, Lock, TriangleAlert, type LucideIcon } from 'lucide-react'
 
 import type { SentenceVerdict } from '@/api/types'
 import { CheckedDraftText } from '@/components/share/CheckedDraftText'
@@ -14,6 +14,8 @@ const VERDICT_LINES: Record<SentenceVerdict, { Icon: LucideIcon; tone: string; t
   },
   differs: { Icon: TriangleAlert, tone: 'text-warning', text: 'Some amounts or dates differ from the file.' },
   not_in_file: { Icon: CircleHelp, tone: 'text-muted-foreground', text: 'Some amounts or dates are not in the file.' },
+  // A right figure the link does not carry: not a lock and not an error (D37).
+  not_on_link: { Icon: Info, tone: 'text-muted-foreground', text: 'Some dates are in the file but not on this link.' },
   do_not_send: {
     Icon: Lock,
     tone: 'text-danger',

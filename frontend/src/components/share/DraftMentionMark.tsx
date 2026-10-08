@@ -1,4 +1,4 @@
-import { CircleCheck, CircleHelp, Lock, TriangleAlert } from 'lucide-react'
+import { CircleCheck, CircleHelp, Info, Lock, TriangleAlert } from 'lucide-react'
 
 import type { DraftMentionOut } from '@/api/types'
 import { SourceChipList } from '@/components/shared/SourceChipList'
@@ -12,10 +12,14 @@ function fileValue(mention: DraftMentionOut): string | null {
   return null
 }
 
+/** Beyond this many sources, "+N more" stays a count instead of drawing every chip. */
+const MAX_EXPANDED_CHIPS = 8
+
 const UNDERLINE: Record<DraftMentionOut['verdict'], string> = {
   supported: 'decoration-success',
   differs: 'decoration-warning decoration-wavy',
   not_in_file: 'decoration-muted-foreground decoration-dotted',
+  not_on_link: 'decoration-muted-foreground decoration-dashed',
   do_not_send: 'decoration-danger',
 }
 
@@ -52,13 +56,23 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
             Not in file
           </span>
         )}
+        {mention.verdict === 'not_on_link' && (
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            <Info aria-hidden className="size-3.5" />
+            In the file, not on this link
+          </span>
+        )}
         {mention.verdict === 'do_not_send' && (
           <span className="inline-flex items-center gap-1 font-medium text-danger">
             <Lock aria-hidden className="size-3.5" />
             Internal
           </span>
         )}
-        {mention.facts.length > 0 && <SourceChipList facts={mention.facts} max={1} expandable />}
+        {/* A date the file states everywhere (an incident date) can cite hundreds of facts:
+            one chip opens a source, and the rest stay a count rather than a wall of chips. */}
+        {mention.facts.length > 0 && (
+          <SourceChipList facts={mention.facts} max={1} expandable={mention.facts.length <= MAX_EXPANDED_CHIPS} />
+        )}
         {replacement && onUseFileValue && (
           <button
             type="button"
