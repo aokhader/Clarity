@@ -1,49 +1,22 @@
-import type { DraftMentionOut, FactRef } from '@/api/types'
-import { BriefCitations } from '@/components/firm/BriefCitations'
+import type { DraftMentionOut } from '@/api/types'
 import { MarkedText } from '@/components/shared/MarkedText'
-
-/**
- * Where the text's last word starts: the point after which the last word and the
- * citations wrap as one unit. A checked figure is never cut, so if the last word is part
- * of one, the unit starts before that figure.
- */
-function wrapPoint(text: string, start: number, end: number, mentions: DraftMentionOut[]): number {
-  let point = text.lastIndexOf(' ', end - 1) + 1
-  for (const mention of [...mentions].reverse()) {
-    if (mention.start < point && point < mention.end) point = text.lastIndexOf(' ', mention.start - 1) + 1
-  }
-  return Math.max(point, start)
-}
 
 type BriefSentenceProps = {
   text: string
-  /** The facts the sentence cites; its chips sit after its last word. */
-  facts: FactRef[]
   mentions: DraftMentionOut[]
+  /**
+   * Whether the text cites facts of its own, in its row's gutter. Text that cites none
+   * marks its matching figures in place, each with its chip.
+   */
+  cited: boolean
 }
 
 /**
- * One sentence of the brief, or its headline. Its last word and its citations wrap as a
- * unit, so a chip can never land at the start of a line where it would read as the next
- * sentence's source. Text with no citations marks its matching figures with their chips.
+ * One sentence of the brief, or its headline, with each checked figure that differs from
+ * today's file marked in place (D12). Its citations are drawn by its row (MarginCited).
  */
-export function BriefSentence({ text, facts, mentions }: BriefSentenceProps) {
+export function BriefSentence({ text, mentions, cited }: BriefSentenceProps) {
   const start = text.length - text.trimStart().length
   const end = text.trimEnd().length
-  const point = wrapPoint(text, start, end, mentions)
-  const marks = { text, mentions, markSupported: facts.length === 0 }
-  return (
-    <span>
-      <MarkedText {...marks} from={start} to={point} />
-      <span className="whitespace-nowrap">
-        <MarkedText {...marks} from={point} to={end} />
-        {facts.length > 0 && (
-          <>
-            {' '}
-            <BriefCitations facts={facts} />
-          </>
-        )}
-      </span>{' '}
-    </span>
-  )
+  return <MarkedText text={text} mentions={mentions} from={start} to={end} markSupported={!cited} />
 }
