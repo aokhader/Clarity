@@ -53,7 +53,19 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
         </div>
 
         <div className={ROW}>
-          <dt className={TERM}>Injuries</dt>
+          <dt>
+            <span className={TERM}>Injuries</span>
+            {/* The way to the rest sits under the label, so no injury row wraps to make room for it. */}
+            {groups.length > INJURIES_SHOWN && (
+              <Link
+                to={{ search: '?view=attorney' }}
+                className="mt-0.5 block text-xs text-primary underline-offset-4 hover:underline"
+              >
+                All {groups.length} injuries
+                <span className="sr-only"> on For Attorney</span>
+              </Link>
+            )}
+          </dt>
           <dd className="min-w-0">
             {injuries.isPending && (
               <Loading label="Loading injuries">
@@ -68,25 +80,13 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
                 NOT_FOUND
               ) : (
                 <ul>
-                  {shownInjuries.map(({ key, lead, facts }, index) => (
+                  {shownInjuries.map(({ key, lead, facts }) => (
                     <MarginCited key={key} facts={facts} dense className="text-[15px]">
                       <span className="font-medium">{lead.title}</span>
                       <span className="text-muted-foreground">
                         {' · '}
                         {[KIND_LABELS[lead.kind], lead.value.body_part].filter(Boolean).join(' · ')}
                       </span>
-                      {/* The way to the rest sits on the last row, not on a line of its own. */}
-                      {index === shownInjuries.length - 1 && groups.length > INJURIES_SHOWN && (
-                        <>
-                          {' · '}
-                          <Link
-                            to={{ search: '?view=attorney' }}
-                            className="text-sm text-primary underline-offset-4 hover:underline"
-                          >
-                            All {groups.length} injuries on For Attorney
-                          </Link>
-                        </>
-                      )}
                     </MarginCited>
                   ))}
                 </ul>

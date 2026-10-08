@@ -35,8 +35,8 @@ function cellValue(query: { isPending: boolean; isError: boolean }, value: React
   return value ?? empty
 }
 
-/** The next step's title, then when it falls due and who owns it. */
-function nextStepText({ fact, overdue }: { fact: FactOut; overdue: boolean }): ReactNode {
+/** When the next step falls due and who owns it. */
+function nextStepDetail({ fact, overdue }: { fact: FactOut; overdue: boolean }): ReactNode {
   const due = actionDueDate(fact)
   const days = due === null ? null : daysFromToday(due)
   const owner = actionOwner(fact)
@@ -46,45 +46,28 @@ function nextStepText({ fact, overdue }: { fact: FactOut; overdue: boolean }): R
     ) : overdue ? (
       <span className="font-medium text-danger">Overdue</span>
     ) : null
+  if (!when && !owner) return null
   return (
-    <>
-      <p className="font-medium">{fact.title}</p>
-      {(when || owner) && (
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {when}
-          {when && owner && ' · '}
-          {owner}
-        </p>
-      )}
-    </>
+    <span>
+      {when}
+      {when && owner && ' · '}
+      {owner}
+    </span>
   )
 }
 
-/** The statute's date and its countdown: amber within STATUTE_SOON_DAYS, red once passed. */
-function statuteText(due: IsoDate): ReactNode {
+/** The statute's countdown in words: amber within STATUTE_SOON_DAYS, red once passed. */
+function statuteDetail(due: IsoDate): ReactNode {
   const days = daysFromToday(due)
   const tone = days < 0 ? 'text-danger' : days <= STATUTE_SOON_DAYS ? 'text-warning' : 'text-muted-foreground'
-  return (
-    <>
-      <p className="font-medium tabular-nums">{formatDate(due)}</p>
-      <p className={cn('mt-0.5 text-[13px] font-medium', tone)}>{formatDaysUntil(days)}</p>
-    </>
-  )
+  return <span className={cn('font-medium', tone)}>{formatDaysUntil(days)}</span>
 }
 
 /** How long since the client was last in touch, in words and amber once it is stale. */
-function contactText(on: IsoDate): ReactNode {
+function contactValue(on: IsoDate): ReactNode {
   const days = -daysFromToday(on)
-  return (
-    <>
-      {days > STALE_CONTACT_DAYS ? (
-        <p className="font-medium text-warning">No contact in {days} days</p>
-      ) : (
-        <p className="font-medium">{formatDaysAgo(on)}</p>
-      )}
-      <p className="mt-0.5 text-[13px] text-muted-foreground tabular-nums">{formatDate(on)}</p>
-    </>
-  )
+  if (days > STALE_CONTACT_DAYS) return <span className="font-medium text-warning">No contact in {days} days</span>
+  return <span className="font-medium">{formatDaysAgo(on)}</span>
 }
 
 /** The open actions counted by group, linking to the action board. */
@@ -100,7 +83,8 @@ function toDoText(actions: ActionsOut): ReactNode {
 /**
  * Where the case is today, in one row: the next step, the statute, the last client
  * contact, and what is open. Each value cites its fact; the counts link to the action
- * board on For Attorney.
+ * board on For Attorney. The next step gets twice the width, since its title is a
+ * sentence where the others are a date or a count.
  */
 export function NowStrip({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
   const actions = useMatterActions(matterId)
@@ -113,15 +97,27 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
   return (
     <Section title="Now">
       <div className="@container">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @min-[36rem]:grid-cols-2 @min-[60rem]:grid-cols-4 @min-[60rem]:divide-x">
-          <NowCell label="Next step" facts={next ? [next.fact] : []}>
-            {cellValue(actions, next && nextStepText(next), <span className="text-muted-foreground">Nothing scheduled</span>)}
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 @min-[36rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] @min-[60rem]:divide-x">
+          <NowCell label="Next step" facts={next ? [next.fact] : []} detail={next && nextStepDetail(next)}>
+            {cellValue(
+              actions,
+              next && <span className="font-medium">{next.fact.title}</span>,
+              <span className="text-muted-foreground">Nothing scheduled</span>,
+            )}
           </NowCell>
-          <NowCell label="Statute" facts={statute ? [statute.fact] : []}>
-            {cellValue(deadlines, statute && statuteText(statute.due), NOT_FOUND)}
+          <NowCell label="Statute" facts={statute ? [statute.fact] : []} detail={statute && statuteDetail(statute.due)}>
+            {cellValue(
+              deadlines,
+              statute && <span className="font-medium tabular-nums">{formatDate(statute.due)}</span>,
+              NOT_FOUND,
+            )}
           </NowCell>
-          <NowCell label="Last client contact" facts={contact ? [contact.fact] : []}>
-            {contact ? contactText(contact.on) : <span className="text-muted-foreground">None found in file</span>}
+          <NowCell
+            label="Last client contact"
+            facts={contact ? [contact.fact] : []}
+            detail={contact && <span className="tabular-nums">{formatDate(contact.on)}</span>}
+          >
+            {contact ? contactValue(contact.on) : <span className="text-muted-foreground">None found in file</span>}
           </NowCell>
           <NowCell label="To do">{cellValue(actions, actions.data && toDoText(actions.data), null)}</NowCell>
         </div>

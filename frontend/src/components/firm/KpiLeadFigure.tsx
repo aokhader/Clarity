@@ -11,7 +11,7 @@ const RANGE_SIZES = ['text-xl', 'text-lg', 'text-base'] as const
  * A tile's lead figure, as large as fits. On a narrow tile a range takes a second line
  * after its dash, and a figure still too wide steps down a size: it is never cut off.
  */
-export function KpiLeadFigure({ value }: { value: KpiValueOut }) {
+export function KpiLeadFigure({ value, id }: { value: KpiValueOut; id?: string }) {
   const single = value.amount_cents !== null
   const { ref, size } = useLargestFittingSize<HTMLParagraphElement>(
     single ? AMOUNT_SIZES : RANGE_SIZES,
@@ -20,6 +20,7 @@ export function KpiLeadFigure({ value }: { value: KpiValueOut }) {
   return (
     <p
       ref={ref}
+      id={id}
       className={cn(
         'mt-1 min-h-8 font-semibold tabular-nums',
         size,
