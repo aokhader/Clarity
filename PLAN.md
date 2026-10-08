@@ -75,7 +75,7 @@ Owner, item, budget. Track A review references are in `docs/progress.md` under "
 - [x] P6 A second digest can still call the model (after an errored call, dropped score ids, or a dedup-removed custom-field fact) (`digest/extract.py`). 30 min
 - [x] P8 D7: rename the matter-derived insurer term in `digest/prompts/map_roles.txt` and the policy-limits term in `digest/prompts/significance.txt` (the allowlist hides the second, so check both by eye), and bump each prompt's version string. A changed prompt misses the cache, so the next digest re-runs those calls and needs the Manager's go-ahead and API credit. 15 min
 - [x] P9 D14: the brief prompt asks for the facts the headline rests on, and the merge step stores them with the headline. Bump the prompt version. 20 min
-- [ ] P10 (approved under D30; deferred by D34: a 09:31 trial on a database copy got no answer from Gemini in 12 attempts, 503 overload and 429 quota; retry at a quieter hour after the limiter paces evenly) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
+- [x] P10 (run 2026-10-08 on Anthropic, D36: Gemini's free tier answered 4 of 14 attempts after the reset; a trial on a database copy passed, then (a) at 03:49 and (b) at 03:50 on the real database, 16 paid calls, $0.17, a backup before each) D13: re-digest once. First estimate the model calls that will miss the cache and the cost, and stop. The lead brings the estimate to the Manager, then run it. Needs the model settings in the root `.env`. 20 min plus the run
 - [x] P7 Minor: split `mapping.py`; move retry counts, timeouts and batch sizes into `config.py`; remove the dead code in `payloads.py` and `records.py`; keep case text out of the warning log in `llm.py`; send JPEGs as `image/jpeg`. 40 min
 
 **Backend**
@@ -176,7 +176,7 @@ T+0:00 is 2026-10-07 00:30 PDT. The planned clock times were targets; the Done c
 | 3:00 | 03:30 | Draft checker UI (U4) on real data; second critic pass (C2); Calls starts | [x] 01:55 |
 | 5:30 | 06:00 | Calls on real data, and the Manager's test call (C-T) | [ ] Calls built and checked 01:53; C-T not done |
 | 6:00 | 06:30 | **Feature freeze.** Fixes, checks and the README only | [x] last feature commit 02:53; recorded 09:29 (D32) |
-| 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [ ] check.sh clean; README done 10:04; 3 of 6 screenshots; the model runs wait (D34) |
+| 6:30 | 07:00 | `check.sh` shows no FAIL; README and screenshots done; trial retro written | [x] check.sh clean; README and 6 screenshots 10:52 (Oct 7); model runs 03:50 (Oct 8, D36); retro written |
 
 ## Cut order
 

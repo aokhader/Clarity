@@ -4,8 +4,8 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | D35 done, shots retaken (c097f44); check.sh clean (369); kit-trial pushed | Gemini retry (D34) when the Manager prompts, after midnight PT | | Manager: clip link; test call (C-T) | 11:01 |
-| pipeline | D34 trial on the copy stopped by rule: 3 of 5 units answered, scan page failed 5 tries (503), amounts page and merge call not tried; no 429; 14 attempts, $0.024; real DB untouched | Step 2 not run; waiting for the lead | | Retry the scan page and the rest at another hour? | 2026-10-08 02:42 |
+| lead | D36 runs done on Anthropic: (a) 03:49, (b) 03:50, $0.17; browser checks pass | Critic C3, README costs, pipeline fixes; then check.sh and push | | Manager: clip link; test call (C-T) now possible | 03:55 |
+| pipeline | Freeze fixes: reextract estimate leaves failed calls out; rewritten brief updates created_at | Report commits | | | 2026-10-08 03:55 |
 | backend | D35 contract: ProviderItemOut.kind 'bill' or 'lien' on bills items, else null; types.ts mirrored | Freeze fixes only; ui-builder can label lien rows (01d6e41, :8000 serves it) | | | 10:35 |
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
