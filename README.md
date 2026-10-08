@@ -218,7 +218,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 418 pass at `389927b`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 419 pass at `4cb81ba`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
@@ -436,7 +436,7 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               418 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               419 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
