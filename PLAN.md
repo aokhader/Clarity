@@ -23,8 +23,88 @@ Decided (details in DECISIONS.md):
   - One re-digest happens after pipeline's batch, once the Manager fills the model settings in `.env`, with a cost estimate first.
   - The brief headline cites its facts.
   - The Calls view accepts a typed number, stored only in Clarity.
+- **D38 and D39 (2026-10-08, after the freeze):** one UI pass so the Overview answers, in 90 seconds, what the case is about, what has happened and where it is now. It uses the legal-memo restyle, margin citations, and moves the money tiles to the Overview. Three additive contract changes. No model call. Details are under "Overview pass".
 
 Waiting for the Manager: nothing.
+
+## Overview pass (D38, D39)
+
+The Manager measured the Overview against CaseDesk and Corro.
+- **What was wrong:** the first screen showed six metadata cards and pushed the story below the fold. There was no incident narrative and no chronology. The look was generic, against `docs/ui.md`.
+- **The WCAG 2.2 audit:** a reflow blocker and five serious issues.
+- **The target:** at least 9 of the 12 questions in `docs/ui.md` on the first screen at 1440×900, and all 12 within one scroll.
+
+The design rules are in `docs/ui.md`.
+
+The order:
+1. Backend B11–B13 and ui-builder U10 run in parallel. U10 runs alone among ui-builder's items, since it touches every view.
+2. Then U11–U17 and A11Y.
+3. The lead checks the real matter (kind counts only) before U14 and U16 are accepted.
+
+**Backend**
+- [ ] B11 `incident_account`. 30 min
+  - In `services/incident.py`, choose among the **model** incident facts on the day `incident_fact()` picks: one with a description first, then by significance.
+  - Never return the Clio field fact.
+  - `MatterHeaderOut.incident_account` (`IncidentAccountOut {text, fact}`), committed with `types.ts`, and the frontend typecheck run (D23).
+  - Add a code incident fact with no description to the fixture.
+- [ ] B12 `GET /matters/{id}/key-events?limit=10`. 60 min
+  - `matter_key_events(session, matter_id, today, limit)`, built from:
+    - the pinned header incident;
+    - event kinds only: diagnosis, treatment visit, status change, coverage, demand, offer, settlement, records received, and past deadlines;
+    - nothing after `today`;
+    - restatements folded;
+    - at most `KEY_EVENTS_PER_KIND = 3` per kind.
+  - Returned oldest first.
+  - Tests in `test_backend_key_events.py` with an explicit `today`.
+- [ ] B13 `SourceOut.pages` becomes `FirmPageOut(PageRef)` with `text` from `Page.text`. `ProviderSourceOut.page` stays `PageRef`. 20 min
+
+**ui-builder**
+- [ ] U10 Tokens and the rail. 120 min
+  - The paper, ivory, ink and ink-blue palette.
+  - Every status token retuned to at least 4.5:1 for text and 3:1 for borders on every surface, with the ratios in a comment.
+  - Corners of 8px or less, a solid `outline-ring`, and a reduced-motion rule.
+  - `Panel` loses its icons and shadow.
+  - A light 15rem rail.
+  - No `slate-*`, `blue-*` or gradient classes left in the firm components.
+- [ ] U11 `MatterIdentity` in `MatterShell`, in both branches. 45 min
+  - The breadcrumb, the avatar, a serif h1 of the client's name, and a case line (description, matter number, incident date with a chip), plus the stage track.
+  - `document.title`.
+  - `ProviderView` gets a heading-level prop.
+- [ ] U12 `StageTrack`. 30 min
+  - Steps move to `lib/labels.ts`, named as `STAGE_LABELS`.
+  - Visible "Step N of 5"; settled and closed never read "Step 6 of 5".
+  - The inferred marker and the chip.
+  - `RoadmapCard` is deleted.
+- [ ] U13 `MarginCited` rows. 60 min
+  - Also `BottomLine` (26px serif), `WhereItStands` (one sentence per row) and `OpenQuestions` (neutral).
+  - Chips go in a 14rem gutter, and drop under the text below about 40rem.
+  - D12 marks keep their inline chip.
+- [ ] U14 `WhatHappened`, after B11. 30 min
+  - The incident account, up to 3 injuries, and the liability fact, each a `MarginCited` row.
+- [ ] U15 `NowStrip` and the money row. 60 min
+  - The cells: next step (overdue, else a task, else a deadline that isn't the statute), statute (amber within 90 days, red once passed), last client contact (words as well as amber), and the counts.
+  - `KpiStrip` moves to the Overview as a compact row.
+  - `CaseMetadata`, `MetadataItem` and `MatterHeader` are deleted.
+- [ ] U16 `KeyEvents`, after B12. 60 min
+  - A numbered `<ol>`, oldest first; each lane shown as a dot plus a word.
+  - "Full timeline" goes to `?view=attorney&feed=timeline`, so the feed toggle lives in the URL.
+- [ ] U17 Overview assembly. 40 min
+  - `ChangesSince` shows at most 5 rows, moves to the bottom, and its copy changes to fit.
+  - The For Attorney action board loses its count tiles.
+- [ ] A11Y 60 min
+  - Reflow: the rail collapses below `lg`, and grids use `auto-fit`.
+  - Drawer focus returns to the opener.
+  - `role="status"` for status changes.
+  - The action board becomes a `<table>`.
+  - Focus after "+N more", and `aria-expanded`.
+  - A skip link.
+  - Page text in a `<details>` (after B13).
+
+**Lead, reviewer, critic**
+- [x] L1 lead: update `docs/ui.md`, `docs/architecture.md` and `docs/project.md`.
+- [ ] L2 lead: retake all six screenshots on the synthetic matter (D33).
+- [ ] V6 reviewer: README alt text and views, `docs/submission.md:49`, and `check.sh` free of FAIL.
+- [ ] C4 critic: the 90-second test on the real matter from the first screen alone; every chip in the new blocks opens a source holding its text.
 
 ## Calls (D8: option A now, B later)
 

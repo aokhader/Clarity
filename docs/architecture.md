@@ -176,6 +176,7 @@ GET   /api/matters/{id}/brief                    narrative with fact ids per sen
 GET   /api/matters/{id}/changes                  facts new since this user's last open
 POST  /api/matters/{id}/opened                   record the visit
 GET   /api/matters/{id}/feed?limit=10            facts by significance
+GET   /api/matters/{id}/key-events?limit=10      key events, incident first, oldest first (D39)
 GET   /api/matters/{id}/timeline?kind=&q=        all facts by date
 GET   /api/matters/{id}/actions                  overdue, upcoming, waiting on others
 GET   /api/matters/{id}/injuries

@@ -41,7 +41,7 @@ It is equally explicit that existing dashboards fail because they show counts an
 
 ## User flows
 
-**1. Get up to speed (firm).** Open the matter. See the client's photo, the case stage, the KPI strip, and a short narrative brief with a source chip on each sentence. Read the injuries list and the ten events that matter most.
+**1. Get up to speed (firm).** Open the matter. The first screen names the client and the case, gives the bottom line, says what happened (the incident, the injuries, liability), and where the case is now (stage, next step, statute, last client contact, money), each line with its sources in the margin. One scroll down: where it stands in full, and the key events in order (D38).
 
 **2. Catch up (firm).** A "Since you last opened" block lists what changed since this user's last visit. Leaving the page records the visit.
 
@@ -62,7 +62,7 @@ Build in this order. When time runs short, cut from the bottom.
 **Must (the demo fails without these)**
 - Clio sync for the matter by ID
 - Fact store with sources
-- Firm view: header with KPI strip, brief, ranked feed, action board
+- Firm view: identity header, bottom line, what happened, the now strip and money row, the brief, key events, action board
 - Source drawer with click-through to the note, email, or PDF page
 - Scanned-PDF extraction with page-level citations
 - Provider view behind a share link, filtered on the server
