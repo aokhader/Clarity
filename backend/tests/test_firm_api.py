@@ -46,6 +46,8 @@ def test_header_carries_stage_dates_and_sourced_kpis(
     # Two sources name different limits, so the tile shows both.
     coverage = _kpi(header, "coverage")["values"]
     assert sorted(v["amount_cents"] for v in coverage) == [5_000_000, 10_000_000]
+    # The adjuster's figure is not the stated limit's, so the tile still warns (D37).
+    assert _kpi(header, "coverage")["sources_disagree"] is True
     # The specials field agrees with the sum of the bills: one value, three sources.
     specials = _kpi(header, "medical_specials")
     assert [v["amount_cents"] for v in specials["values"]] == [344_000]

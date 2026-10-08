@@ -311,6 +311,114 @@ def test_an_unknown_policy_stating_the_same_figure_does_not_disagree(
     assert _tile(facts, "coverage").sources_disagree is False
 
 
+# --- D37: a limit that leaves out whose it is, or its basis, is another source --------
+
+
+def _rows(tile: KpiOut) -> list[tuple[int | None, str | None, set[int]]]:
+    return [(v.amount_cents, v.label, {ref.id for ref in v.facts}) for v in tile.values]
+
+
+def test_a_defendant_limit_without_its_basis_joins_the_row_it_repeats(
+    session: Session,
+) -> None:
+    per_person = _limit(session, 100_000_00, "person", "defendant_liability")
+    per_occurrence = _limit(session, 300_000_00, "occurrence", "defendant_liability")
+    unbased = _limit(session, 100_000_00, None, "defendant_liability")
+
+    tile = _tile([unbased, per_occurrence, per_person], "coverage")
+
+    assert _rows(tile) == [
+        (100_000_00, "Defendant liability, per person", {per_person.id, unbased.id}),
+        (300_000_00, "Defendant liability, per occurrence", {per_occurrence.id}),
+    ]
+    assert tile.sources_disagree is False
+
+
+def test_a_limit_of_no_named_policy_joins_the_row_it_repeats(session: Session) -> None:
+    defendant = _limit(session, 100_000_00, "person", "defendant_liability")
+    no_fault = _limit(session, 50_000_00, None, "client_no_fault")
+    untagged = _limit(session, 50_000_00, None)
+
+    tile = _tile([untagged, defendant, no_fault], "coverage")
+
+    assert _rows(tile) == [
+        (100_000_00, "Defendant liability, per person", {defendant.id}),
+        (50_000_00, "Client no-fault", {no_fault.id, untagged.id}),
+    ]
+    assert tile.sources_disagree is False
+
+
+def test_a_row_with_the_basis_as_stated_is_the_closer_reading(
+    session: Session,
+) -> None:
+    # The untagged figure, with no basis, repeats a no-fault limit (which has none)
+    # and a UM/UIM per-occurrence limit: the no-fault row is the closer reading.
+    no_fault = _limit(session, 50_000_00, None, "client_no_fault")
+    um_person = _limit(session, 25_000_00, "person", "client_um_uim")
+    um_occurrence = _limit(session, 50_000_00, "occurrence", "client_um_uim")
+    untagged = _limit(session, 50_000_00, None)
+
+    tile = _tile([untagged, no_fault, um_person, um_occurrence], "coverage")
+
+    assert _rows(tile) == [
+        (50_000_00, "Client no-fault", {no_fault.id, untagged.id}),
+        (25_000_00, "Client UM/UIM, per person", {um_person.id}),
+        (50_000_00, "Client UM/UIM, per occurrence", {um_occurrence.id}),
+    ]
+    assert tile.sources_disagree is False
+
+
+def test_any_policys_limit_without_the_basis_its_others_give_joins_its_row(
+    session: Session,
+) -> None:
+    um_person = _limit(session, 25_000_00, "person", "client_um_uim")
+    um_occurrence = _limit(session, 50_000_00, "occurrence", "client_um_uim")
+    unbased = _limit(session, 25_000_00, None, "client_um_uim")
+
+    tile = _tile([unbased, um_person, um_occurrence], "coverage")
+
+    assert _ids(tile, 0) == {um_person.id, unbased.id}
+    assert len(tile.values) == 2
+    assert tile.sources_disagree is False
+
+
+def test_a_limit_that_repeats_two_rows_stands_alone_unlabelled(
+    session: Session,
+) -> None:
+    defendant = _limit(session, 100_000_00, "person", "defendant_liability")
+    um = _limit(session, 100_000_00, "person", "client_um_uim")
+    untagged = _limit(session, 100_000_00, "person")
+
+    tile = _tile([untagged, defendant, um], "coverage")
+
+    assert _rows(tile) == [
+        (100_000_00, "Defendant liability, per person", {defendant.id}),
+        (100_000_00, "Client UM/UIM, per person", {um.id}),
+        (100_000_00, None, {untagged.id}),
+    ]
+    assert tile.sources_disagree is False
+
+
+def test_a_limit_that_repeats_no_row_it_could_be_disagrees_without_taking_the_lead(
+    session: Session,
+) -> None:
+    per_person = _limit(session, 100_000_00, "person", "defendant_liability")
+    per_occurrence = _limit(session, 300_000_00, "occurrence", "defendant_liability")
+    stray = _limit(session, 50_000_00, None, "defendant_liability")
+    # The client's figure is the same, but a defendant limit cannot be the client's.
+    client = _limit(session, 50_000_00, "person", "client_um_uim")
+
+    tile = _tile([stray, client, per_occurrence, per_person], "coverage")
+
+    assert tile.sources_disagree is True
+    assert _rows(tile)[0] == (
+        100_000_00,
+        "Defendant liability, per person",
+        {per_person.id},
+    )
+    assert (50_000_00, "Defendant liability", {stray.id}) in _rows(tile)
+
+
 def test_other_tiles_disagree_when_they_hold_two_figures(session: Session) -> None:
     one = _fact(session, FactKind.EXPENSE, {"amount_cents": 100_00})
     specials = [

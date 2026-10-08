@@ -8,7 +8,7 @@ When sources disagree, the figure stated by the most records comes first, so one
 misread line cannot become the headline over a figure the file states again and again.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import combinations
 
 from app.models import Fact, FactKind, Origin
@@ -170,6 +170,11 @@ def _coverage(facts: list[Fact]) -> KpiOut:
     The defendant's liability limit leads, then the client's own policies, then limits
     whose policy is not known. Different policies are separate entries, not a
     disagreement: two figures disagree only when they could be the same limit.
+
+    A loose limit leaves out whose policy it is, or the basis its policy's other limits
+    give. It is one more source for the row whose figure it repeats, among the rows it
+    could be (D37). If it repeats several, it stands alone, unlabelled, and warns of
+    nothing; it disagrees only when it repeats none.
     """
     statements: list[_Statement] = []
     kind_of: dict[str | None, _LimitKind] = {}
@@ -180,15 +185,55 @@ def _coverage(facts: list[Fact]) -> KpiOut:
         label = _limit_label(payload.policy, payload.per)
         kind_of[label] = (payload.policy, payload.per)
         statements.append(_stated((payload.amount_cents, None, None), fact, label))
-    groups = sorted(_grouped(statements), key=lambda g: _LABEL_ORDER.index(g[0].label))
+    based = {policy for policy, per in kind_of.values() if policy and per}
+
+    def is_loose(statement: _Statement) -> bool:
+        policy, per = kind_of[statement.label]
+        return policy is None or (per is None and policy in based)
+
+    rows = _grouped([s for s in statements if not is_loose(s)])
+    unplaced: list[_Statement] = []
+    alone: list[_Statement] = []
+    for statement in filter(is_loose, statements):
+        repeated = _rows_repeated(statement, rows, kind_of)
+        if len(repeated) == 1:
+            repeated[0].append(statement)
+        elif repeated:
+            alone.append(replace(statement, label=None))
+        else:
+            unplaced.append(statement)
+    weighed = rows + _grouped(unplaced)
+    groups = sorted(
+        [*weighed, *_grouped(alone)],
+        key=lambda g: (_LABEL_ORDER.index(g[0].label), -len(_records(g))),
+    )
     labels = {g[0].label for g in groups}
-    limits = [(g[0].amounts[0], kind_of[g[0].label]) for g in groups]
+    limits = [(g[0].amounts[0], kind_of[g[0].label]) for g in weighed]
     return KpiOut(
         name="coverage",
         values=[_value(g) for g in groups],
         basis=labels.pop() if len(labels) == 1 else None,
         sources_disagree=any(_conflict(a, b) for a, b in combinations(limits, 2)),
     )
+
+
+def _rows_repeated(
+    statement: _Statement,
+    rows: list[list[_Statement]],
+    kind_of: dict[str | None, _LimitKind],
+) -> list[list[_Statement]]:
+    """The rows a loose limit could be whose figure it repeats. A row whose basis is as
+    stated (both left out, or the same) is the closer reading, so it alone is kept."""
+    policy, per = kind_of[statement.label]
+    repeated = [
+        row
+        for row in rows
+        if row[0].amounts == statement.amounts
+        and _may_match(policy, kind_of[row[0].label][0])
+        and _may_match(per, kind_of[row[0].label][1])
+    ]
+    as_stated = [row for row in repeated if kind_of[row[0].label][1] == per]
+    return as_stated or repeated
 
 
 def _limit_label(policy: str | None, per: str | None) -> str | None:
