@@ -11,6 +11,8 @@ and date in the text gets one verdict (D25):
   A date locks only when it is the date of a sensitive internal fact (an offer, a
   demand, a settlement, a valuation, a limit) or of a legal deadline, by its type
   (D28): a plain calendar entry does not lock. $0 never locks;
+- not_on_link: a date that only a withheld fact states, and that does not lock: it is
+  in the file, not on this link (D37);
 - differs: no value matches, but one shown value is clearly about the same subject
   (the sentence names it), so that value is offered in its place;
 - not_in_file: nothing matches.
@@ -59,6 +61,7 @@ _SEVERITY: list[SentenceVerdict] = [
     "do_not_send",
     "differs",
     "not_in_file",
+    "not_on_link",
     "supported",
     "unchecked",
 ]
@@ -149,13 +152,11 @@ def _check(
             if k.amount_cents is not None and mention.matches(k.amount_cents)
         ]
         blocked = _amount_locks(mention, shown, withheld)
+        in_file: list[KnownValue] = []
     else:
         matches = [k for k in shown if _date_matches(mention, k)]
-        blocked = [
-            k
-            for k in withheld
-            if _date_matches(mention, k) and any(sensitive_date(f) for f in k.facts)
-        ]
+        in_file = [k for k in withheld if _date_matches(mention, k)]
+        blocked = [k for k in in_file if any(sensitive_date(f) for f in k.facts)]
     if matches:
         return _out(
             text,
@@ -166,6 +167,15 @@ def _check(
         )
     if blocked:
         return _locked(text, mention, blocked)
+    if in_file:
+        # The date is right; the link just does not carry it, so no "differs" either.
+        return _out(
+            text,
+            mention,
+            "not_on_link",
+            "In the file, not on this link",
+            (f for k in in_file for f in k.facts),
+        )
     if isinstance(mention, AmountMention) and not mention.marked:
         return None  # a bare number that matches nothing may be a year or an id
     if same := same_subject(mention, contexts, shown):

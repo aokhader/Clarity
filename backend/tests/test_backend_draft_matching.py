@@ -137,12 +137,12 @@ NOT_LOCKED = [
     (
         "a day that only coincides with a task",
         f"Can we talk on {TASK_DAY:%b} {TASK_DAY.day}, {TASK_DAY.year}?",
-        "not_in_file",
+        "not_on_link",
     ),
     (
         "the incident date",
         f"Since the accident on {INCIDENT_DAY:%B} {INCIDENT_DAY.day}, {INCIDENT_DAY.year}.",
-        "not_in_file",
+        "not_on_link",
     ),
     (
         "the month of a sensitive day",
@@ -152,17 +152,17 @@ NOT_LOCKED = [
     (
         "a day on a plain calendar entry",
         f"Can you see her on {_day(CALENDAR_DAY)}?",
-        "not_in_file",
+        "not_on_link",
     ),
     (
         "a day on an exam appointment",
         f"Her exam is on {_day(EXAM_DAY)}.",
-        "not_in_file",
+        "not_on_link",
     ),
     (
         "a day on a deadline with no type",
         f"Let us speak on {_day(UNTYPED_DAY)}.",
-        "not_in_file",
+        "not_on_link",
     ),
     ("a year", "We will know more in 2031.", "unchecked"),
     (
@@ -188,6 +188,25 @@ def test_what_does_not_disclose_is_not_locked(
     case: str, text: str, expected: str
 ) -> None:
     assert _verdict(text) == expected, case
+
+
+def test_a_date_in_the_file_but_not_on_the_link_says_so_and_cites_it() -> None:
+    [sentence] = check_text(
+        f"Since the accident on {_day(INCIDENT_DAY)}.", SHOWN, WITHHELD
+    ).sentences
+    [mention] = sentence.mentions
+
+    # D37: neither a lock (the incident is not sensitive) nor "not in the file".
+    assert mention.verdict == "not_on_link"
+    assert mention.reason == "In the file, not on this link"
+    assert [ref.id for ref in mention.facts] == [6]
+
+
+def test_not_on_the_link_ranks_below_not_in_the_file() -> None:
+    since = f"since {_day(INCIDENT_DAY)}."
+
+    assert _verdict(f"Your bills total $2,480 {since}") == "not_on_link"
+    assert _verdict(f"We paid $12,345 {since}") == "not_in_file"
 
 
 def test_the_date_of_a_sensitive_fact_locks() -> None:

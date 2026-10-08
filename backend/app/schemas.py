@@ -363,11 +363,14 @@ class FactSourceOut(BaseModel):
 
 # supported: the link already shows it. differs: the file has another value for the
 # same subject. not_in_file: nothing in the file states it. do_not_send: only facts
-# this link withholds state it.
-MentionVerdict = Literal["supported", "differs", "not_in_file", "do_not_send"]
+# this link withholds state it. not_on_link (D37): a date in the file that this link
+# does not carry, of a fact not sensitive enough to lock.
+MentionVerdict = Literal[
+    "supported", "differs", "not_in_file", "not_on_link", "do_not_send"
+]
 # A sentence takes its worst mention's verdict; with no amount or date it is unchecked.
 SentenceVerdict = Literal[
-    "supported", "differs", "not_in_file", "do_not_send", "unchecked"
+    "supported", "differs", "not_in_file", "not_on_link", "do_not_send", "unchecked"
 ]
 
 

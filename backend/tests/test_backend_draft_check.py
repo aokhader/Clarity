@@ -307,6 +307,20 @@ def test_the_share_note_does_not_vouch_for_itself(
     )
 
 
+def test_the_incident_date_is_in_the_file_but_not_on_the_link(
+    client: TestClient, seeded: Session, user_id: int
+) -> None:
+    incident = _fact(seeded, FactKind.INCIDENT, None)
+    assert incident.event_date is not None
+    text = f"Since the accident on {_written(incident.event_date)}."
+
+    mention = _only_mention(_check(client, _share(client, user_id), text))
+
+    assert mention["verdict"] == "not_on_link"
+    assert mention["reason"] == "In the file, not on this link"
+    assert incident.id in {ref["id"] for ref in mention["facts"]}
+
+
 def test_a_sentence_takes_its_worst_verdict(client: TestClient, user_id: int) -> None:
     result = _check(
         client,

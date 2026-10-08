@@ -535,9 +535,10 @@ export type ProviderSourceOut = {
 /**
  * supported: the link already shows it. differs: the file has another value for the same
  * subject. not_in_file: nothing in the file states it. do_not_send: only facts this link
- * withholds state it.
+ * withholds state it. not_on_link (D37): a date in the file that this link does not
+ * carry, of a fact not sensitive enough to lock ("In the file, not on this link").
  */
-export type MentionVerdict = 'supported' | 'differs' | 'not_in_file' | 'do_not_send'
+export type MentionVerdict = 'supported' | 'differs' | 'not_in_file' | 'not_on_link' | 'do_not_send'
 /** A sentence takes its worst mention's verdict; with no amount or date it is unchecked. */
 export type SentenceVerdict = MentionVerdict | 'unchecked'
 
