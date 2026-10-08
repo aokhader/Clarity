@@ -1,4 +1,3 @@
-import { Activity } from 'lucide-react'
 import { useState } from 'react'
 
 import { useMatterInjuries } from '@/api/matters'
@@ -23,7 +22,7 @@ export function InjuriesList({ matterId }: { matterId: number }) {
   const groups = groupSameInjuries(injuries.data?.filter(isInjury) ?? [])
   const shown = expanded ? groups : groups.slice(0, COLLAPSED_INJURIES)
   return (
-    <Panel title="Injuries" icon={<Activity />} aside={injuries.isSuccess ? groups.length : undefined}>
+    <Panel title="Injuries" aside={injuries.isSuccess ? groups.length : undefined}>
       {injuries.isPending && <Skeleton className="h-16" aria-label="Loading injuries" />}
       {injuries.isError && (
         <LoadError what="the injuries" error={injuries.error} onRetry={() => void injuries.refetch()} />

@@ -1,4 +1,4 @@
-import { ArrowRight, Briefcase, FolderOpen, Gavel, LayoutGrid, Phone, ShieldAlert, type LucideIcon } from 'lucide-react'
+import { Briefcase, FolderOpen, Gavel, LayoutGrid, Phone, ShieldAlert, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { UserSwitcher } from '@/components/firm/UserSwitcher'
@@ -13,20 +13,21 @@ const VIEW_ICONS: Record<MatterViewId, LucideIcon> = {
   calls: Phone,
 }
 
-/** The dark rail beside the firm view: product name, the views, and the stub user. */
+/** The light rail beside the firm view: product name, the views, and the stub user. */
 export function FirmSidebar({ view }: { view: MatterViewId }) {
   return (
-    <aside className="sticky top-0 flex h-screen flex-col bg-slate-900 text-white">
-      <div className="flex items-center gap-3 border-b border-slate-800 px-6 pt-6 pb-6">
-        <span className="flex size-10 items-center justify-center rounded-lg bg-primary">
-          <Gavel aria-hidden className="size-5" />
+    <aside aria-label="Clarity" className="sticky top-0 flex h-screen flex-col overflow-y-auto border-r bg-card">
+      <div className="flex items-center gap-3 border-b px-5 py-5">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-foreground text-foreground">
+          <Gavel aria-hidden className="size-[1.1rem]" />
         </span>
         <div>
-          <p className="text-lg leading-tight font-bold tracking-tight">Clarity</p>
-          <p className="text-[10px] font-semibold tracking-[0.12em] text-slate-400">CASE BRIEF</p>
+          <p className="text-lg leading-tight font-semibold tracking-tight">Clarity</p>
+          {/* Sentence case in the source, capitals by style: screen readers spell out literal capitals. */}
+          <p className="text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">Case brief</p>
         </div>
       </div>
-      <nav aria-label="Views" className="flex flex-col gap-2 px-4 py-6">
+      <nav aria-label="Views" className="flex flex-col gap-0.5 py-4">
         {MATTER_VIEWS.map(({ id, label }) => {
           const active = id === view
           const Icon = VIEW_ICONS[id]
@@ -36,15 +37,14 @@ export function FirmSidebar({ view }: { view: MatterViewId }) {
               to={{ search: id === 'overview' ? '' : `?view=${id}` }}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-4 py-3 text-[15px] font-medium transition-colors',
+                'flex items-center gap-3 border-l-3 py-2.5 pr-5 pl-4 text-[15px] transition-colors focus-visible:-outline-offset-2',
                 active
-                  ? 'bg-primary text-white shadow-lg shadow-blue-600/35'
-                  : 'text-slate-200 hover:bg-slate-800 hover:text-white',
+                  ? 'border-primary bg-muted font-medium text-foreground'
+                  : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
-              <Icon aria-hidden className={cn('size-[1.15rem]', active ? 'text-white' : 'text-slate-400')} />
-              <span className="flex-1">{label}</span>
-              {active && <ArrowRight aria-hidden className="size-4" />}
+              <Icon aria-hidden className={cn('size-[1.1rem]', active ? 'text-foreground' : 'text-muted-foreground')} />
+              {label}
             </Link>
           )
         })}

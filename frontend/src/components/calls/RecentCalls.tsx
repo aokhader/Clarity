@@ -1,5 +1,3 @@
-import { History } from 'lucide-react'
-
 import { useMatterCalls } from '@/api/calls'
 import type { NotesStatus } from '@/api/types'
 import { LoadError } from '@/components/shared/LoadError'
@@ -28,7 +26,7 @@ export function RecentCalls({ matterId, openCallId, onOpen }: RecentCallsProps) 
   const calls = useMatterCalls(matterId)
   if (calls.isSuccess && calls.data.length === 0) return null
   return (
-    <Panel title="Recent calls" icon={<History />}>
+    <Panel title="Recent calls">
       {calls.isPending && <Skeleton className="h-16 w-full" aria-label="Loading recent calls" />}
       {calls.isError && <LoadError what="recent calls" error={calls.error} onRetry={() => void calls.refetch()} />}
       {calls.isSuccess && (

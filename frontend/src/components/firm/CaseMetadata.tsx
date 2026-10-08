@@ -1,4 +1,4 @@
-import { Activity, Calendar, CircleAlert, FileText, Hourglass, MessageSquare, ShieldCheck, Signpost } from 'lucide-react'
+import { Activity, Calendar, CircleAlert, Hourglass, MessageSquare, ShieldCheck, Signpost } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { useMatterActions, useMatterInjuries, useMatterTimeline } from '@/api/matters'
@@ -51,7 +51,7 @@ export function CaseMetadata({ matterId, header }: { matterId: number; header: M
   const failed = [liability, deadlines, injuries, actions].filter((query) => query.isError)
 
   return (
-    <Panel title="Case metadata" icon={<FileText />}>
+    <Panel title="Case metadata">
       {/* Equal rows and equal columns, so every card has the same size. */}
       <div className="grid auto-rows-fr grid-cols-3 gap-4">
         <MetadataItem icon={<Signpost />} label="Case stage" facts={stage.facts}>

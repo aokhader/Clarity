@@ -1,4 +1,3 @@
-import { History, PhoneCall } from 'lucide-react'
 import { useState } from 'react'
 
 import type { CallTargetOut } from '@/api/types'
@@ -47,12 +46,12 @@ export function CallsView({ matterId }: { matterId: number }) {
         />
       )}
       {pane?.kind === 'notes' && (
-        <Panel title="Call notes" icon={<History />}>
+        <Panel title="Call notes">
           <CallNotes key={pane.callId} callId={pane.callId} />
         </Panel>
       )}
       {pane === null && (
-        <Panel title="Call" icon={<PhoneCall />}>
+        <Panel title="Call">
           <p className="text-sm text-muted-foreground">
             Choose someone to call, or type a number. The call opens in this computer&apos;s phone app; with everyone&apos;s
             agreement, Clarity transcribes what this computer&apos;s microphone hears and writes notes afterwards.

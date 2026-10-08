@@ -1,4 +1,4 @@
-import { Check, Signpost } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 import type { CaseStage, StageOut } from '@/api/types'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
@@ -28,7 +28,6 @@ export function RoadmapCard({ stage }: { stage: StageOut }) {
   return (
     <Panel
       title="Roadmap"
-      icon={<Signpost />}
       actions={
         <span className="group/src flex items-center gap-2 text-sm text-muted-foreground">
           {stage.inferred && <span className="text-warning">Stage inferred</span>}

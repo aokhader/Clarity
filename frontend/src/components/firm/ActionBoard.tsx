@@ -38,7 +38,7 @@ export function ActionBoard({ matterId }: { matterId: number }) {
   const shown = expanded ? rows : rows.slice(0, COLLAPSED_ROWS)
 
   return (
-    <Panel title="Action board" icon={<CalendarDays />} className="overflow-hidden">
+    <Panel title="Action board" className="overflow-hidden">
       {actions.isPending && (
         <div className="space-y-3 pb-2" aria-label="Loading the action board">
           <Skeleton className="h-24" />

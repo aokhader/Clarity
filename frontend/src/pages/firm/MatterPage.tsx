@@ -40,7 +40,7 @@ export function MatterPage() {
   const title = MATTER_VIEWS.find((entry) => entry.id === view)?.label
 
   return (
-    <div className="grid min-h-screen grid-cols-[17rem_minmax(0,1fr)]">
+    <div className="grid min-h-screen grid-cols-[15rem_minmax(0,1fr)]">
       <FirmSidebar view={view} />
       <main className="min-w-0 px-16 pt-12 pb-16">
         <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
@@ -48,10 +48,10 @@ export function MatterPage() {
             {(header) => (
               <>
                 <div className="mb-2 flex flex-col gap-1.5">
-                  <p className="text-sm font-medium tracking-[0.06em] text-primary uppercase">
+                  <p className="text-sm font-medium tracking-[0.06em] text-muted-foreground uppercase">
                     Matter {header.display_number ? `#${header.display_number}` : header.matter_id}
                   </p>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-800">{title}</h1>
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
                 </div>
                 <ViewContent view={view} matterId={matterId} header={header} />
                 <MatterFooter header={header} />

@@ -1,5 +1,3 @@
-import { ListChecks } from 'lucide-react'
-
 import { useCallTargets } from '@/api/calls'
 import { ApiError } from '@/api/client'
 import type { CallTargetOut } from '@/api/types'
@@ -19,7 +17,7 @@ type CallTargetListProps = {
 export function CallTargetList({ matterId, chosenId, onChoose }: CallTargetListProps) {
   const targets = useCallTargets(matterId)
   return (
-    <Panel title="Who to call next" icon={<ListChecks />} aside={targets.data?.length}>
+    <Panel title="Who to call next" aside={targets.data?.length}>
       {targets.isPending && <Skeleton className="h-24 w-full" aria-label="Loading who to call" />}
       {targets.isError &&
         (targets.error instanceof ApiError && targets.error.status === 404 ? (

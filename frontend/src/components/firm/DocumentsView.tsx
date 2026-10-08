@@ -1,4 +1,3 @@
-import { FileText } from 'lucide-react'
 import { useState } from 'react'
 
 import { useMatterTimeline } from '@/api/matters'
@@ -70,7 +69,7 @@ export function DocumentsView({ matterId }: { matterId: number }) {
       {shownTypes.map((type) => {
         const ofType = sources.filter((source) => source.type === type)
         return (
-          <Panel key={type} title={SOURCE_LABELS[type]} icon={<FileText />} aside={ofType.length}>
+          <Panel key={type} title={SOURCE_LABELS[type]} aside={ofType.length}>
             <ul className="divide-y">
               {ofType.map((source) => {
                 const date = firstDate(source.facts)

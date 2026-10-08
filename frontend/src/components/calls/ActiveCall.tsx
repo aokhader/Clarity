@@ -1,4 +1,4 @@
-import { PhoneCall, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { saveTranscript, useEndCall, useStartCall } from '@/api/calls'
@@ -103,7 +103,6 @@ export function ActiveCall({ matterId, target, onActiveChange, onClose }: Active
   return (
     <Panel
       title={`Call ${name}`}
-      icon={<PhoneCall />}
       actions={
         <Button variant="ghost" size="icon-sm" aria-label="Close this call" disabled={active} onClick={onClose}>
           <X />

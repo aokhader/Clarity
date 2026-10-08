@@ -1,4 +1,3 @@
-import { PhoneForwarded } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { useAddCallNumber } from '@/api/calls'
@@ -41,7 +40,7 @@ export function TypedNumberForm({ matterId, onAdded }: TypedNumberFormProps) {
   }
 
   return (
-    <Panel title="Call a number not in Clio" icon={<PhoneForwarded />}>
+    <Panel title="Call a number not in Clio">
       <form onSubmit={submit} className="space-y-3">
         <p className="text-sm text-muted-foreground">
           Stored only in Clarity and never written to Clio. Use it for someone the file has no number for.
