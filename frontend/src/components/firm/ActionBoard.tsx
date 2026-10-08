@@ -1,15 +1,11 @@
-import { CalendarDays, CalendarX, Hourglass, Users } from 'lucide-react'
 import { useState } from 'react'
 
-import { useMatterActions, useMatterTimeline } from '@/api/matters'
+import { useMatterActions } from '@/api/matters'
 import type { FactOut } from '@/api/types'
-import { ActionCountTile } from '@/components/firm/ActionCountTile'
 import { ACTION_COLUMNS, ActionRow, type ActionStatus } from '@/components/firm/ActionRow'
 import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
-import { statuteDeadline } from '@/lib/facts'
-import { daysFromToday } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 /** Tasks still to do are upcoming; calendar entries and deadlines are scheduled. */
@@ -20,13 +16,10 @@ function upcomingStatus(fact: FactOut): ActionStatus {
 /** Rows shown before the table is expanded; a long tail of old record requests would bury the rest. */
 const COLLAPSED_ROWS = 8
 
-/** Counts for the three action groups and the statute, over one table of everything open. */
+/** One table of everything open. The counts and the statute are on the Overview's Now strip. */
 export function ActionBoard({ matterId }: { matterId: number }) {
   const actions = useMatterActions(matterId)
   const [expanded, setExpanded] = useState(false)
-  const deadlines = useMatterTimeline(matterId, 'deadline', '')
-  const statute = deadlines.data ? statuteDeadline(deadlines.data) : null
-  const statuteDays = statute ? daysFromToday(statute.due) : null
   // Overdue first, then what others owe the firm, then what is coming up.
   const rows: { fact: FactOut; status: ActionStatus }[] = actions.data
     ? [
@@ -41,7 +34,6 @@ export function ActionBoard({ matterId }: { matterId: number }) {
     <Panel title="Action board" className="overflow-hidden">
       {actions.isPending && (
         <div className="space-y-3 pb-2" aria-label="Loading the action board">
-          <Skeleton className="h-24" />
           <Skeleton className="h-12" />
           <Skeleton className="h-12" />
         </div>
@@ -51,37 +43,11 @@ export function ActionBoard({ matterId }: { matterId: number }) {
       )}
       {actions.isSuccess && (
         <>
-          <div className="grid grid-cols-4 gap-4 pt-1">
-            <ActionCountTile
-              Icon={CalendarX}
-              value={String(actions.data.overdue.length)}
-              label="Overdue"
-              tone="danger"
-            />
-            <ActionCountTile
-              Icon={CalendarDays}
-              value={String(actions.data.upcoming.length)}
-              label="Upcoming"
-              tone="neutral"
-            />
-            <ActionCountTile
-              Icon={Users}
-              value={String(actions.data.waiting_on_others.length)}
-              label="Waiting on others"
-              tone="neutral"
-            />
-            <ActionCountTile
-              Icon={Hourglass}
-              value={statuteDays === null ? '—' : statuteDays < 0 ? 'Passed' : String(statuteDays)}
-              label="Days to SOL"
-              tone="neutral"
-            />
-          </div>
-          <div className="-mx-6 mt-6 -mb-4">
+          <div className="-mx-6 -my-4">
             <div
               className={cn(
                 ACTION_COLUMNS,
-                'border-y bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground',
+                'border-b bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground',
               )}
             >
               <span>Task</span>

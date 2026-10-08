@@ -5,15 +5,19 @@ import { KpiStrip } from '@/components/firm/KpiStrip'
 import { NowStrip } from '@/components/firm/NowStrip'
 import { WhereItStands } from '@/components/firm/WhereItStands'
 
-/** The case at a glance, under the matter's identity: what changed, the bottom line, now, the money, and the brief. */
+/**
+ * The 90-second read, under the matter's identity: the bottom line, where the case is
+ * now, the money, the brief, and what changed since the last visit. One ivory sheet
+ * divided by hairlines, so no block is a card inside a card.
+ */
 export function OverviewView({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
   return (
-    <>
-      <ChangesSince matterId={matterId} />
+    <div className="divide-y rounded-xl border bg-card px-8">
       <BottomLine matterId={matterId} />
       <NowStrip matterId={matterId} header={header} />
       <KpiStrip kpis={header.kpis} />
       <WhereItStands matterId={matterId} />
-    </>
+      <ChangesSince matterId={matterId} />
+    </div>
   )
 }
