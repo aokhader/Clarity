@@ -6,7 +6,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 |---|---|---|---|---|---|
 | lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
-| backend | B11b ecab2eb: account most records give; contract adds IncidentAccountOut.restated_by; 418 tests | Stand by for the lead's real-matter check | | | 2026-10-08 13:58 |
+| backend | B11c 0deb4a1: synthetic matter has an incident account (restated_by 1); 419 tests | Stand by | reviewer: rerun cli seed-dev in the clone (:5183, API :8010) | | 2026-10-08 14:37 |
 | ui-builder | Fold polish a56445c: 2fr next step, chips off label lines, injuries link under label | Lead measures the fold | | | 2026-10-08 14:14 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
