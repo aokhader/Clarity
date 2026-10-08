@@ -12,7 +12,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | **The provider's own page** | **The draft checker, in the share composer** |
 | ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). All six were taken before the Overview pass of 2026-10-08 (D38), so until the lead retakes them they show the earlier layout, not the views described under [The views](#the-views).
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
 
 ## Run it
 
@@ -176,16 +176,22 @@ In What happened, The story so far and Where it stands, each line's source chips
 
 Seen working on the hackathon's matter, and by whom.
 
-- **The Overview pass (D38, D39), measured by the lead on the real matter in Chrome at 1440×900 on 2026-10-08:**
-  - **The 90-second test: 10 of the 12 questions** in `docs/ui.md` are answered on the first screen, above the fold at 900 px. That screen holds the identity header, the bottom line, What happened, Now, and Money's lead figures. The other two, what changed lately and what has happened so far in order, are answered within one scroll. The target was at least 9 on the first screen and all 12 within one scroll.
-  - **Lighthouse's accessibility score is 100** on all five firm views.
-  - **Reflow** at 640 and 320 CSS px. The top bar overflowed at 320 px until `724c6e3` fixed it.
-  - Backend tests cover the key events and the incident account (`backend/tests/test_backend_key_events.py`, `test_backend_incident_account.py`). The reviewer has read the code but not seen these views rendered.
-  - These were measured before the D40 fixes. The critic found that one of the ten answers, whether the client is still treating, came only from the stage track's check mark, which said treatment was complete when it was not. D40 removed that mark, and the count has not been taken again since.
+- **The Overview pass (D38 to D40), measured by the lead on the real matter in Chrome on 2026-10-08:**
+  - **The 90-second test, re-counted after D40 at 1440×900: 9 of the 12 questions** in `docs/ui.md` are answered on the first screen, above the fold at 900 px, against a target of at least 9.
+    - Not on the first screen: whether the client is still treating, what changed lately, and what has happened so far in order.
+    - The last two are answered within one scroll. That makes 11 of 12 within one scroll, short of the target of all 12.
+    - Before D40 the lead counted 10. The tenth, whether the client is still treating, came only from the stage track's check mark. The critic found that the mark said treatment was complete when it was not (Pass 4, finding 4), and D40 removed it.
+  - **Lighthouse's accessibility score, re-run after the Overview pass, is 100** on all five firm views and on the provider page at `/p/:token`.
+  - **Reflow** at 640 and 320 CSS px, after D38. The top bar overflowed at 320 px until `724c6e3` fixed it.
+  - **The D40 fixes were in place for the re-count** (`fe07ba2` to `53523da`, code only, no model call, described under [The views](#the-views)): a met statute reads "Met"; earlier stages are not marked completed; injuries show one row per body region; liability shows two facts; "Overdue" heads the Now cell when its item is overdue; the count reads "open requests"; the story has no deadlines; restating records are counted once each. The lead did not report checking each fix on its own.
+  - **Seen by the reviewer on 2026-10-08:**
+    - through the API on the real matter, read-only: the story's 10 events include no deadline, and the incident account cites 9 records;
+    - in the lead's screenshots of the invented matter: earlier stages filled with no check mark, "Overdue" heading the Now cell, and "1 open request".
+  - Backend tests cover the key events and the incident account (`backend/tests/test_backend_key_events.py`, `test_backend_incident_account.py`). The reviewer has read the code and seen the lead's screenshots of the invented matter, not the real matter's screens.
 - **The critic's fourth pass (C4, `docs/reviews/critic.md`), on the real matter on 2026-10-08:** through the API and the code at `e61aee2`, with no browser, and the database opened read-only.
   - It traced every block of the new Overview to its sources. Every chip it opened holds its text.
   - The incident account is a model fact, never the Clio field, and the money row agrees with the brief's figures.
-  - Its first-screen findings were fixed in code under D40 (see [Built, lightly tested](#built-lightly-tested)). What D40 left open is under Known issues.
+  - Its first-screen findings were fixed in code under D40 (see the Overview pass entry above). What D40 left open is under Known issues.
 - **By the lead, in the browser, during the trial (2026-10-07):**
   - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below). Since D38 the chips sit in the margin beside each sentence.
   - The source drawer, and the share preview's chips, which open their sources (U8).
@@ -245,28 +251,24 @@ By the reviewer, on the invented matter, on 2026-10-07:
   - The server refuses a share whose note holds the internal figure (422) and accepts one that does not (201).
 - After D35's backend change (`01d6e41`), a live link served each item in its bills list as a bill or a lien.
 
-By the lead, in the browser, on the clean clone's invented matter, while taking the screenshots above:
-- The freeze fixes `b71b281`, `1b5c369` and `cfc121b` (D35):
+By the lead, in the browser, on the clean clone's invented matter:
+- **On 2026-10-08, after D38 to D40:** the lead retook the six screenshots above from the clone at `6c58e37` (`506267f`):
+  - the Overview's first screen at 1440×900;
+  - For Attorney and the provider preview as full pages;
+  - Calls with the consent step, and the draft checker, at 1440×1000;
+  - the provider page at 1280 px wide, as a full page.
+
+  The reviewer checked each against its caption.
+- **While taking the earlier set, on 2026-10-07,** the freeze fixes `b71b281`, `1b5c369` and `cfc121b` (D35):
   - the Case value range fits its tile, breaking after its dash;
   - on the provider page and the firm's preview, the list reads "Bills and liens", with a caption that liens are not added to the total;
-  - each lien row is labelled "Lien", with its amount set apart from the bills.
-- The other shots: the brief's chips, the consent step, and the draft checker's lock in the share composer.
+  - each lien row is labelled "Lien", with its amount set apart from the bills;
+  - and, in that set's other shots, the brief's chips, the consent step, and the draft checker's lock in the share composer.
 
 ### Built, lightly tested
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
 
-- **The D40 fixes, from the critic's fourth pass** (`fe07ba2` to `53523da`). These are code changes with no model call. They are described under [The views](#the-views):
-  - a met statute reads "Met";
-  - earlier stages are not marked completed;
-  - injuries show one row per body region;
-  - liability shows two facts;
-  - "Overdue" heads the Now cell when its item is overdue;
-  - the count reads "open requests";
-  - the story has no deadlines;
-  - restating records are counted once each.
-
-  **Seen by the reviewer through the API on 2026-10-08:** on the real matter, read-only, the story's 10 events include no deadline, and the incident account cites 9 records. On the clone's invented matter, the story's 10 events include no deadline either. The reviewer has read the screens' code but not seen them rendered.
 - **The D37 screens:** the types check, and the reviewer has read the code but not seen these rendered.
   - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
   - **The draft-check panel (`f267fc6`):** a `not_on_link` date is shown in a neutral tone with one chip and a count, under "Some dates are in the file but not on this link". It neither locks nor warns.
@@ -342,6 +344,7 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - A one-line prompt change and one brief call, about 5 cents, would restore them; that is optional and needs the Manager's go-ahead.
   - The open questions state their premises without chips.
 - **On the Overview, left open by D40** (critic Pass 4):
+  - **Nothing within one scroll says whether the client is still treating,** by the lead's re-count after D40 on the real matter. It is the one question of the 90-second test that the Overview misses (see [Verified](#verified)).
   - **The story so far has no litigation history** (the suit, its dismissal and renewal, the answer): those records were read as kind `other` or undated. A prompt line and a re-read of the pleadings would fix it, at a cost of cents; it waits on the Manager (D40). Finding 6.
   - **The open-request count mixes the firm's requests with demands made of the client.** About half of the 44, by the critic's count, are defense or carrier demands for the client's records, which the firm owes. A record request carries no direction. Adding one needs a re-read like the one above. Finding 7.
   - **Most of the records behind the incident account cannot be opened from the Overview.** On the real matter the account cites 9 records, one more than a margin will expand. So it shows two chips and "+7 more" as a plain count. The reviewer counted this through the API after D40. Finding 10.
