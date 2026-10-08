@@ -150,6 +150,9 @@ class ExpensePayload(FactPayload):
 class DeadlinePayload(FactPayload):
     deadline_type: str | None = None
     due_at: datetime | None = None
+    # The status of the Clio task the deadline was read from, filled when served from
+    # that task's own fact (services/fact_views.py); None for any other deadline.
+    status: Literal["open", "complete"] | None = None
 
 
 class TaskPayload(FactPayload):

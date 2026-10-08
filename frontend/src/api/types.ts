@@ -125,7 +125,15 @@ export type ExpensePayload = PayloadBase & {
   category: string | null
   vendor: string | null
 }
-export type DeadlinePayload = PayloadBase & { deadline_type: string | null; due_at: IsoDateTime | null }
+export type DeadlinePayload = PayloadBase & {
+  deadline_type: string | null
+  due_at: IsoDateTime | null
+  /**
+   * The status of the Clio task the deadline was read from, filled when served; null for
+   * any other deadline. A statute whose task is complete has been met.
+   */
+  status: 'open' | 'complete' | null
+}
 export type TaskPayload = PayloadBase & {
   status: 'open' | 'complete'
   due_at: IsoDateTime | null

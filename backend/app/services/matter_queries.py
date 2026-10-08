@@ -24,7 +24,12 @@ from app.schemas import (
 )
 from app.services import brief_view
 from app.services.clio_records import RawContact, RawMatter
-from app.services.fact_views import fact_out, fact_ref, renderable_facts
+from app.services.fact_views import (
+    deadline_status,
+    fact_out,
+    fact_ref,
+    renderable_facts,
+)
 from app.services.incident import incident_account, incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.record_requests import outstanding_record_requests
@@ -225,7 +230,8 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
     The groups do not overlap: overdue wins, then waiting, then upcoming. A record
     request raised by a task already on the board is not listed twice, and a request
     the provider has answered is not listed (`record_requests.py`). Past calendar
-    entries are not overdue; they happened.
+    entries are not overdue; they happened. A deadline whose Clio task is complete
+    has been met, so it is not upcoming either.
     """
     kinds = (
         FactKind.TASK,
@@ -250,7 +256,9 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
             continue
         due = _due_date(fact)
         if fact.kind is FactKind.DEADLINE:
-            if due is not None and due >= today:
+            # A deadline whose Clio task is complete has been met: nothing is due.
+            met = deadline_status(fact) == "complete"
+            if due is not None and due >= today and not met:
                 upcoming.append(fact)
             continue
         task = TaskPayload.model_validate(fact.value_json)
