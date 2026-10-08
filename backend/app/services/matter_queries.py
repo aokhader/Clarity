@@ -41,7 +41,9 @@ FEED_CANDIDATES_PER_ROW = 10
 # At most this many key events of one kind, so one busy kind cannot fill the list.
 KEY_EVENTS_PER_KIND = 3
 # What has happened on a case. Tasks, call notes, liability opinions and the kinds
-# that state where things stand (stage, limits, value, bills, parties) are not events.
+# that state where things stand (stage, limits, value, bills, parties) are not events,
+# and neither are deadlines: a date set for a hearing or a surgery does not say that
+# it took place.
 KEY_EVENT_KINDS = (
     FactKind.DIAGNOSIS,
     FactKind.TREATMENT_VISIT,
@@ -51,7 +53,6 @@ KEY_EVENT_KINDS = (
     FactKind.OFFER,
     FactKind.SETTLEMENT,
     FactKind.RECORDS_RECEIVED,
-    FactKind.DEADLINE,
 )
 
 
@@ -312,8 +313,7 @@ def matter_key_events(
     it, else the fact the header cites. Hundreds of incident facts can share one day in
     different words, and those do not fold into one row. Each kind gets its own
     candidate window, since one window over every kind fills with the most numerous
-    kind and leaves the others out. A deadline is an event once its day has passed, so
-    nothing listed as upcoming on the action board shows here too.
+    kind and leaves the others out.
     """
     incidents = list(
         session.scalars(
@@ -337,22 +337,13 @@ def matter_key_events(
             .order_by(Fact.significance.desc(), Fact.event_date.desc(), Fact.id)
             .limit(KEY_EVENTS_PER_KIND * FEED_CANDIDATES_PER_ROW)
         )
-        past = [f for f in candidates if _has_happened(f, today)]
-        leaders.extend(group_restatements(past)[:KEY_EVENTS_PER_KIND])
+        leaders.extend(group_restatements(list(candidates))[:KEY_EVENTS_PER_KIND])
     leaders.sort(
         key=lambda g: (-g[0].significance, -_ordinal(g[0].event_date), g[0].id)
     )
     chosen = pinned + leaders[: max(limit - len(pinned), 0)]
     chosen.sort(key=lambda g: (_ordinal(g[0].event_date), g[0].id))
     return [_with_restatements(group) for group in chosen]
-
-
-def _has_happened(fact: Fact, today: date) -> bool:
-    """A deadline is upcoming on the action board through its due day, then past."""
-    if fact.kind is not FactKind.DEADLINE:
-        return True
-    due = _due_date(fact)
-    return due is not None and due < today
 
 
 def _ordinal(day: date | None) -> int:

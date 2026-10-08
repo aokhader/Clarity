@@ -202,27 +202,21 @@ def test_only_past_dated_events_are_listed(session: Session) -> None:
     assert {row.kind for row in rows} <= {*KEY_EVENT_KINDS, FactKind.INCIDENT}
 
 
-def test_a_deadline_is_an_event_once_its_day_has_passed(session: Session) -> None:
+def test_a_deadline_is_never_a_key_event(session: Session) -> None:
+    """A date set for a hearing does not say the hearing took place (D40)."""
     _incident(session)
+    due = datetime.combine(_days_ago(1), time(17, 0), UTC).isoformat()
+    scheduled = _add(
+        session,
+        FactKind.DEADLINE,
+        "Hearing",
+        _days_ago(1),
+        100,
+        value={"deadline_type": "hearing", "due_at": due},
+    )
 
-    def deadline(day: date) -> Fact:
-        due = datetime.combine(day, time(17, 0), UTC).isoformat()
-        return _add(
-            session,
-            FactKind.DEADLINE,
-            "Hearing",
-            day,
-            90,
-            value={"deadline_type": "hearing", "due_at": due},
-        )
-
-    held = deadline(_days_ago(1))
-    due_today = deadline(TODAY)
-
-    ids = _ids(_events(session))
-
-    assert held.id in ids
-    assert due_today.id not in ids  # still upcoming on the action board
+    assert FactKind.DEADLINE not in KEY_EVENT_KINDS
+    assert scheduled.id not in _ids(_events(session))
 
 
 def test_a_restated_event_is_one_row_citing_the_other_record(
