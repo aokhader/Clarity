@@ -33,10 +33,9 @@ export function dueTone(days: number): string {
   return 'text-muted-foreground'
 }
 
-/** The fact the file weighs most, the first of equals; null for none. */
-export function mostSignificant(facts: FactOut[] | undefined): FactOut | null {
-  if (!facts || facts.length === 0) return null
-  return facts.reduce((best, fact) => (fact.significance > best.significance ? fact : best))
+/** The `count` facts the file weighs most, heaviest first; equals keep the order given. */
+export function topBySignificance<F extends FactOut>(facts: F[] | undefined, count: number): F[] {
+  return [...(facts ?? [])].sort((a, b) => b.significance - a.significance).slice(0, count)
 }
 
 export type MonthGroup = {
@@ -118,4 +117,69 @@ export function groupSameInjuries(injuries: Injury[]): InjuryGroup[] {
     else groups.set(key, { key, lead: fact, facts: [fact] })
   }
   return [...groups.values()]
+}
+
+/** Words that say which side, not which part: a left and a right knee are one region. */
+const SIDE_WORDS = /\b(left|right|bilateral|both|lt|rt|l|r)\b/g
+
+/** A body part as a region: lower case, with side words and punctuation dropped; empty when none is given. */
+export function bodyRegionOf(bodyPart: string | null | undefined): string {
+  return (bodyPart ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+    .replace(SIDE_WORDS, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function sameTitle(a: Injury, b: Injury): boolean {
+  const norm = (title: string) => title.trim().toLowerCase().replace(/\s+/g, ' ')
+  return norm(a.title) === norm(b.title)
+}
+
+/** One body region as the Overview shows it. */
+export type RegionGroup = {
+  /** The region as normalized; empty for injuries the records give no body part for. */
+  region: string
+  /** The region's most significant diagnosis, else its most significant injury. */
+  lead: Injury
+  /** The lead, then one fact for each other record that states the same finding. */
+  facts: Injury[]
+  /** How many distinct records state an injury in the region: the order of the list. */
+  recordCount: number
+}
+
+/**
+ * Injuries by body region, the region the most records state first, ties in the order
+ * given, and injuries with no body part last. Every chart visit restates its complaint,
+ * so counting records rather than facts keeps one busy chart from leading the list.
+ */
+export function groupInjuriesByRegion(injuries: Injury[]): RegionGroup[] {
+  const byRegion = new Map<string, Injury[]>()
+  for (const fact of injuries) {
+    const region = bodyRegionOf(fact.value.body_part)
+    byRegion.set(region, [...(byRegion.get(region) ?? []), fact])
+  }
+  const groups: RegionGroup[] = []
+  for (const [region, facts] of byRegion) {
+    const diagnoses = facts.filter((fact) => fact.kind === 'diagnosis')
+    const [lead] = topBySignificance(diagnoses.length > 0 ? diagnoses : facts, 1)
+    if (lead === undefined) continue
+    const cited = new Set([lead.source_id])
+    const restating = facts.filter((fact) => {
+      if (fact === lead || cited.has(fact.source_id) || !sameTitle(fact, lead)) return false
+      cited.add(fact.source_id)
+      return true
+    })
+    groups.push({
+      region,
+      lead,
+      facts: [lead, ...restating],
+      recordCount: new Set(facts.map((fact) => fact.source_id)).size,
+    })
+  }
+  return groups.sort((a, b) => {
+    if ((a.region === '') !== (b.region === '')) return a.region === '' ? 1 : -1
+    return b.recordCount - a.recordCount
+  })
 }

@@ -25,7 +25,7 @@ export function ActionBoard({ matterId }: { matterId: number }) {
   const rows: { fact: FactOut; status: ActionStatus }[] = actions.data
     ? [
         ...actions.data.overdue.map((fact) => ({ fact, status: 'Overdue' as const })),
-        ...actions.data.waiting_on_others.map((fact) => ({ fact, status: 'Waiting' as const })),
+        ...actions.data.waiting_on_others.map((fact) => ({ fact, status: 'Open request' as const })),
         ...actions.data.upcoming.map((fact) => ({ fact, status: upcomingStatus(fact) })),
       ]
     : []

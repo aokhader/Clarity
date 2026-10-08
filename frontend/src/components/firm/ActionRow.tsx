@@ -5,12 +5,13 @@ import { WAITING_ON_LABELS } from '@/lib/labels'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 import { cn } from '@/lib/utils'
 
-export type ActionStatus = 'Overdue' | 'Waiting' | 'Upcoming' | 'Scheduled'
+/** "Open request", not "Waiting": a record request does not say who it waits on (D40). */
+export type ActionStatus = 'Overdue' | 'Open request' | 'Upcoming' | 'Scheduled'
 
 /** Red is kept for what is overdue; the other statuses are told apart by their word. */
 const STATUS_STYLES: Record<ActionStatus, string> = {
   Overdue: 'bg-danger-soft text-danger',
-  Waiting: 'bg-muted text-foreground',
+  'Open request': 'bg-muted text-foreground',
   Upcoming: 'bg-muted text-foreground',
   Scheduled: 'bg-muted text-muted-foreground',
 }

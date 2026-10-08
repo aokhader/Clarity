@@ -6,10 +6,15 @@ import { SourceChipList } from '@/components/shared/SourceChipList'
 import { STAGE_LABELS, STAGE_STEPS, STEP_OF_STAGE } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 
-type StepState = 'completed' | 'current' | 'not started'
+/**
+ * A step before the current one is an earlier stage, not a completed one: a case in
+ * litigation can still be treating (D40). Only a settled or closed case completes them.
+ */
+type StepState = 'completed' | 'earlier stage' | 'current' | 'not started'
 
 const MARK_STYLES: Record<StepState, string> = {
   completed: 'bg-foreground text-background',
+  'earlier stage': 'bg-foreground text-background',
   current: 'border-2 border-foreground bg-card text-foreground',
   // The input token keeps a step not yet reached at 3:1 against the page.
   'not started': 'border-2 border-input bg-card text-muted-foreground',
@@ -17,14 +22,16 @@ const MARK_STYLES: Record<StepState, string> = {
 
 const LABEL_STYLES: Record<StepState, string> = {
   completed: 'text-foreground',
+  'earlier stage': 'text-foreground',
   current: 'font-semibold text-foreground',
   'not started': 'text-muted-foreground',
 }
 
 /**
  * The case's stage on the five-step track, shown once on every view. Which step is
- * current is said in text as well as marked, and the stage fact is cited. A settled or
- * closed matter fills the track and is named by its own label, never "Step 6 of 5".
+ * current is said in text as well as marked, and the stage fact is cited. Earlier steps
+ * are filled but carry no check mark. A settled or closed matter completes the track and
+ * is named by its own label, never "Step 6 of 5".
  */
 export function StageTrack({ stage }: { stage: StageOut }) {
   const summaryId = useId()
@@ -34,7 +41,8 @@ export function StageTrack({ stage }: { stage: StageOut }) {
   const label = STAGE_LABELS[stage.stage]
   const summary = position === 'past_end' ? label : `Step ${position} of ${STAGE_STEPS.length}: ${label}`
   const stateOf = (step: number): StepState => {
-    if (position === 'past_end' || step < position) return 'completed'
+    if (position === 'past_end') return 'completed'
+    if (step < position) return 'earlier stage'
     return step === position ? 'current' : 'not started'
   }
 

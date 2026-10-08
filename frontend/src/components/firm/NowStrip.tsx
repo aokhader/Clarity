@@ -74,8 +74,9 @@ function contactValue(on: IsoDate): ReactNode {
 function toDoText(actions: ActionsOut): ReactNode {
   return (
     <Link to={{ search: '?view=attorney' }} className="text-primary underline-offset-4 hover:underline">
-      {actions.overdue.length} overdue · {actions.upcoming.length} upcoming · {actions.waiting_on_others.length}{' '}
-      waiting on others
+      {/* "Open requests", not "waiting on others": a record request carries no direction (D40). */}
+      {actions.overdue.length} overdue · {actions.upcoming.length} upcoming · {actions.waiting_on_others.length} open
+      requests
     </Link>
   )
 }
@@ -98,7 +99,11 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
     <Section title="Now">
       <div className="@container">
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @min-[36rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] @min-[60rem]:divide-x">
-          <NowCell label="Next step" facts={next ? [next.fact] : []} detail={next && nextStepDetail(next)}>
+          <NowCell
+            label={next?.overdue ? 'Overdue' : 'Next step'}
+            facts={next ? [next.fact] : []}
+            detail={next && nextStepDetail(next)}
+          >
             {cellValue(
               actions,
               next && <span className="font-medium">{next.fact.title}</span>,

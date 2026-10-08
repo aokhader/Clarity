@@ -19,7 +19,8 @@ export function InjuriesList({ matterId }: { matterId: number }) {
   const groups = groupSameInjuries(injuries.data?.filter(isInjury) ?? [])
   const shown = expanded ? groups : groups.slice(0, COLLAPSED_INJURIES)
   return (
-    <Panel title="Injuries" aside={injuries.isSuccess ? groups.length : undefined}>
+    // Entries, not injuries: the records restate one injury in many wordings (D40).
+    <Panel title="Injuries" aside={injuries.isSuccess ? `${groups.length} entries` : undefined}>
       {injuries.isPending && <Loading label="Loading injuries"><Skeleton className="h-16" /></Loading>}
       {injuries.isError && (
         <LoadError what="the injuries" error={injuries.error} onRetry={() => void injuries.refetch()} />
@@ -42,7 +43,7 @@ export function InjuriesList({ matterId }: { matterId: number }) {
           onClick={() => setExpanded((open) => !open)}
           className="mt-3 text-sm font-medium text-primary hover:underline"
         >
-          {expanded ? 'Show fewer' : `Show all ${groups.length}`}
+          {expanded ? 'Show fewer' : `Show all ${groups.length} entries`}
         </button>
       )}
     </Panel>
