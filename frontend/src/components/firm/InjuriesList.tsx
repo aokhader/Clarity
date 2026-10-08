@@ -1,16 +1,11 @@
 import { useState } from 'react'
 
 import { useMatterInjuries } from '@/api/matters'
-import type { FactOut } from '@/api/types'
 import { InjuryRow } from '@/components/firm/InjuryRow'
 import { LoadError } from '@/components/shared/LoadError'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
-import { groupSameInjuries, type Injury } from '@/lib/facts'
-
-function isInjury(fact: FactOut): fact is Injury {
-  return fact.kind === 'injury' || fact.kind === 'diagnosis'
-}
+import { groupSameInjuries, isInjury } from '@/lib/facts'
 
 /** Injuries shown before the list is expanded; the API returns the most significant first. */
 const COLLAPSED_INJURIES = 6

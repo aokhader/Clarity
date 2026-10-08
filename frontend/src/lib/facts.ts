@@ -91,6 +91,10 @@ export function nextStep(actions: ActionsOut): { fact: FactOut; overdue: boolean
 
 export type Injury = FactOf<'injury' | 'diagnosis'>
 
+export function isInjury(fact: FactOut): fact is Injury {
+  return fact.kind === 'injury' || fact.kind === 'diagnosis'
+}
+
 /** One injury as the list shows it, with every fact that states it, the first leading. */
 export type InjuryGroup = {
   key: string
