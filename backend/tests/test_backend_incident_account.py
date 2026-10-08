@@ -1,16 +1,17 @@
-"""The header's account of the incident comes from a record the model read on the
-incident day, never from the date-of-incident field, whose title is a label (D39)."""
+"""The header's account of the incident is the one most records read on the incident day
+give, never the date-of-incident field, whose title is a label (D39)."""
 
 from datetime import date, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Confidence, Fact, FactKind, Origin, Source, SourceType
 from app.schemas import validate_payload
-from app.services.incident import incident_account
+from app.services.incident import incident_account, names_an_event
 from tests.fixtures.synthetic_matter import MATTER_ID
 
 
@@ -36,8 +37,8 @@ def _read(
     session: Session,
     on: date,
     title: str,
-    description: str | None,
     significance: int = 50,
+    description: str | None = None,
 ) -> Fact:
     """An incident fact the model read from a note."""
     source = Source(
@@ -71,6 +72,10 @@ def _account(client: TestClient) -> dict[str, Any] | None:
     return response.json()["incident_account"]
 
 
+def _written(day: date) -> str:
+    return f"{day:%B} {day.day}, {day.year}"
+
+
 def test_the_fixture_has_a_field_fact_with_no_description(seeded: Session) -> None:
     assert any(not f.value_json.get("description") for f in _fields(seeded))
 
@@ -92,54 +97,106 @@ def test_only_the_bare_field_fact_gives_no_account(
     assert _account(client) is None
 
 
-def test_the_account_is_the_described_model_read_never_the_field(
+def test_the_account_most_records_give_beats_a_more_significant_one(
     seeded: Session, client: TestClient
 ) -> None:
     day = _day(seeded)
-    described = _read(seeded, day, "Collision", "Struck from behind at a light", 40)
-    _read(seeded, day, "Crash at an intersection", None, 99)
+    group = [
+        _read(seeded, day, "Rear-end collision at a stop light", 50),
+        _read(seeded, day, "Rear-end collision at a light", 45),
+        _read(seeded, day, "Rear-end collision at stop light", 40),
+    ]
+    _read(seeded, day, "Pedestrian struck in a crosswalk", 99)
 
     account = _account(client)
 
     assert account is not None
-    assert account["fact"]["id"] == described.id
-    assert account["text"] == "Struck from behind at a light"
+    assert account["fact"]["id"] == group[0].id
+    assert account["text"] == "Rear-end collision at a stop light"
+    assert [ref["id"] for ref in account["restated_by"]] == [g.id for g in group[1:]]
     assert account["fact"]["id"] not in {f.id for f in _fields(seeded)}
 
 
-def test_without_a_description_the_most_significant_title_is_used(
+def test_titles_that_only_restate_the_date_never_win(
     seeded: Session, client: TestClient
 ) -> None:
     day = _day(seeded)
-    _read(seeded, day, "Collision", "  ", 40)
-    leading = _read(seeded, day, "Rear-end collision at a light", None, 80)
+    for title in (
+        f"Accident occurred on {_written(day)}",
+        f"Date of loss: {day.isoformat()}",
+        f"Incident on {day:%m/%d/%Y} at approximately 4:30 p.m.",
+        f"Loss occurred around 1430 hours on {_written(day)}",
+        f"Accident on {day:%A}, {_written(day)}",
+    ):
+        _read(seeded, day, title, 99)
+    told = _read(seeded, day, "Struck from behind at a light", 10)
 
     account = _account(client)
 
-    assert account is not None
-    assert account["fact"]["id"] == leading.id
-    assert account["text"] == "Rear-end collision at a light"
+    assert account is not None and account["fact"]["id"] == told.id
+
+
+def test_with_only_date_titles_there_is_no_account(
+    seeded: Session, client: TestClient
+) -> None:
+    day = _day(seeded)
+    _read(seeded, day, f"Accident occurred on {_written(day)}", 99)
+    _read(seeded, day, f"Date of incident {day.isoformat()}", 99)
+
+    assert _account(client) is None
+
+
+@pytest.mark.parametrize(
+    ("title", "names"),
+    [
+        ("Incident on Mar 3rd 2031 approx 2 pm", False),
+        ("DOI 03/03/2031 at 14:30", False),
+        ("Loss date", False),
+        ("Rear-end collision", True),
+        ("Struck by a delivery van on March 3, 2031", True),
+    ],
+)
+def test_a_title_names_an_event_only_beyond_its_date(title: str, names: bool) -> None:
+    assert names_an_event(title) is names
+
+
+def test_the_text_is_the_title_even_when_a_description_exists(
+    seeded: Session, client: TestClient
+) -> None:
+    day = _day(seeded)
+    _read(
+        seeded,
+        day,
+        "Struck from behind at a light",
+        description="Unit two northbound, report 0000",
+    )
+
+    account = _account(client)
+
+    assert account is not None and account["text"] == "Struck from behind at a light"
 
 
 def test_a_read_on_another_day_is_not_the_account(
     seeded: Session, client: TestClient
 ) -> None:
     day = _day(seeded)
-    _read(seeded, day + timedelta(days=5), "Collision", "A later collision", 99)
+    _read(seeded, day + timedelta(days=5), "Struck from behind at a light", 99)
 
     assert _account(client) is None
 
 
-def test_equal_reads_are_broken_by_the_lowest_id(seeded: Session) -> None:
+def test_a_tie_in_size_goes_to_significance_then_the_lowest_id(
+    seeded: Session,
+) -> None:
     day = _day(seeded)
-    first = _read(seeded, day, "Collision", "Struck from behind", 60)
-    second = _read(seeded, day, "Collision", "Struck from behind", 60)
-    facts = [*_fields(seeded), second, first]
+    first = _read(seeded, day, "Struck from behind at a light", 60)
+    second = _read(seeded, day, "Sideswiped while merging", 60)
+    stronger = _read(seeded, day, "Hit by a turning truck", 70)
+    fields = _fields(seeded)
 
-    chosen = incident_account(facts)
-
-    assert chosen is not None and chosen.id == first.id
+    assert incident_account([*fields, second, first]) == [first]
+    assert incident_account([*fields, first, second, stronger]) == [stronger]
 
 
 def test_no_incident_facts_give_no_account() -> None:
-    assert incident_account([]) is None
+    assert incident_account([]) == []

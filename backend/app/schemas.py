@@ -437,10 +437,11 @@ class DatedFactOut(BaseModel):
 
 
 class IncidentAccountOut(BaseModel):
-    """What happened on the incident day, as a record the model read describes it."""
+    """What happened on the incident day: the account most records read on it give."""
 
-    text: str  # the record's description of the incident, else the fact's title
-    fact: FactRef
+    text: str  # the title of the account's leading fact
+    fact: FactRef  # that fact
+    restated_by: list[FactRef]  # the other records that give the same account
 
 
 class KpiValueOut(BaseModel):
@@ -481,7 +482,7 @@ class MatterHeaderOut(BaseModel):
     stage: StageOut
     incident: DatedFactOut | None
     # Never the date-of-incident field, whose title is a label (D39). None when no
-    # record read on the incident day describes it.
+    # record read on the incident day names an event.
     incident_account: IncidentAccountOut | None
     last_client_contact: DatedFactOut | None
     kpis: list[KpiOut]

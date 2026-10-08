@@ -307,11 +307,14 @@ export type DatedFactOut = {
   fact: FactRef
 }
 
-/** What happened on the incident day, as a record the model read describes it. */
+/** What happened on the incident day: the account most records read on it give. */
 export type IncidentAccountOut = {
-  /** The record's description of the incident, else the fact's title. */
+  /** The title of the account's leading fact. */
   text: string
+  /** That fact. */
   fact: FactRef
+  /** The other records that give the same account. */
+  restated_by: FactRef[]
 }
 
 export type KpiValueOut = {
@@ -357,7 +360,7 @@ export type MatterHeaderOut = {
   incident: DatedFactOut | null
   /**
    * Never the date-of-incident field, whose title is a label (D39). Null when no record
-   * read on the incident day describes it.
+   * read on the incident day names an event.
    */
   incident_account: IncidentAccountOut | null
   last_client_contact: DatedFactOut | null

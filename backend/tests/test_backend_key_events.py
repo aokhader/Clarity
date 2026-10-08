@@ -126,6 +126,28 @@ def test_the_incident_row_is_the_model_read_account_over_the_field(
     assert _incident_rows(_events(session)) == [told.id]
 
 
+def test_the_incident_row_cites_every_record_that_gives_the_account(
+    session: Session,
+) -> None:
+    field = _incident(session)
+    group = [
+        _add(
+            session,
+            FactKind.INCIDENT,
+            "Rear-end collision at a light",
+            field.event_date,
+        )
+        for _ in range(3)
+    ]
+    _add(session, FactKind.INCIDENT, "Pedestrian struck", field.event_date, 99)
+    _add(session, FactKind.INCIDENT, "Accident on date of loss", field.event_date, 99)
+
+    row = next(r for r in _events(session) if r.kind is FactKind.INCIDENT)
+
+    assert row.id == group[0].id
+    assert [ref.id for ref in row.restated_by] == [f.id for f in group[1:]]
+
+
 def test_with_only_the_field_the_incident_row_is_the_field(
     session: Session,
 ) -> None:

@@ -25,7 +25,7 @@ from app.schemas import (
 from app.services import brief_view
 from app.services.clio_records import RawContact, RawMatter
 from app.services.fact_views import fact_out, fact_ref, renderable_facts
-from app.services.incident import account_text, incident_account, incident_fact
+from app.services.incident import incident_account, incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.record_requests import outstanding_record_requests
 from app.services.restatements import group_restatements
@@ -140,10 +140,14 @@ def _dated(fact: Fact | None) -> DatedFactOut | None:
     return DatedFactOut(on=fact.event_date, fact=fact_ref(fact))
 
 
-def _account(fact: Fact | None) -> IncidentAccountOut | None:
-    if fact is None:
+def _account(group: list[Fact]) -> IncidentAccountOut | None:
+    if not group:
         return None
-    return IncidentAccountOut(text=account_text(fact), fact=fact_ref(fact))
+    return IncidentAccountOut(
+        text=group[0].title,
+        fact=fact_ref(group[0]),
+        restated_by=[fact_ref(f) for f in group[1:]],
+    )
 
 
 def _stage(session: Session, matter_id: int, facts: list[Fact]) -> StageOut:
@@ -296,8 +300,8 @@ def matter_key_events(
     """What has happened on the case, oldest first: the incident, then the most
     significant past events, each once, at most `KEY_EVENTS_PER_KIND` of a kind.
 
-    The incident is one row: the header's account of it, a record the model read, else
-    the fact the header cites. Hundreds of incident facts can share one day in
+    The incident is one row: the header's account of it, citing the records that give
+    it, else the fact the header cites. Hundreds of incident facts can share one day in
     different words, and those do not fold into one row. Each kind gets its own
     candidate window, since one window over every kind fills with the most numerous
     kind and leaves the others out. A deadline is an event once its day has passed, so
@@ -308,10 +312,11 @@ def matter_key_events(
             renderable_facts(matter_id).where(Fact.kind == FactKind.INCIDENT)
         )
     )
-    incident = incident_account(incidents) or incident_fact(incidents)
+    cited = incident_fact(incidents)
+    incident = incident_account(incidents) or ([cited] if cited else [])
     pinned: list[list[Fact]] = []
-    if incident and incident.event_date and incident.event_date <= today:
-        pinned = [[incident]]
+    if incident and incident[0].event_date and incident[0].event_date <= today:
+        pinned = [incident]
     leaders: list[list[Fact]] = []
     for kind in KEY_EVENT_KINDS:
         candidates = session.scalars(
