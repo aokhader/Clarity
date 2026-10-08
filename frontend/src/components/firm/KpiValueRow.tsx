@@ -1,6 +1,5 @@
 import type { KpiValueOut } from '@/api/types'
 import { KpiFigure } from '@/components/firm/KpiFigure'
-import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
 import { cn } from '@/lib/utils'
 
@@ -24,9 +23,7 @@ export function KpiValueRow({ value, size }: KpiValueRowProps) {
         {value.label && <p className="text-xs text-muted-foreground">{value.label}</p>}
       </div>
       <div className="ml-auto">
-        <RevealOnHover>
-          <SourceChipList facts={value.facts} max={1} />
-        </RevealOnHover>
+        <SourceChipList facts={value.facts} max={1} />
       </div>
     </li>
   )

@@ -23,7 +23,11 @@ export function KpiFigure({ value }: { value: KpiValueOut }) {
   const { qualifier, amounts } = figureParts(value)
   return (
     <>
-      {qualifier && <span className="mr-1.5 whitespace-nowrap text-xs font-medium">{qualifier}</span>}
+      {qualifier && (
+        <>
+          <span className="whitespace-nowrap text-xs font-medium">{qualifier}</span>{' '}
+        </>
+      )}
       {amounts.map((amount, index) => (
         <Fragment key={index}>
           {index > 0 && ' '}
