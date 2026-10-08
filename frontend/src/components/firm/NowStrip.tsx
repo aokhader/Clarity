@@ -92,6 +92,8 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
   const deadlines = useMatterTimeline(matterId, 'deadline', '')
   const next = actions.data ? nextStep(actions.data) : null
   const statute = deadlines.data ? statuteDeadline(deadlines.data) : null
+  // The Clio task the statute was read from is complete: the limitation period was satisfied.
+  const statuteMet = statute?.fact.value.status === 'complete'
   const contact = header.last_client_contact
   const failed = [actions, deadlines].filter((query) => query.isError)
 
@@ -110,10 +112,27 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
               <span className="text-muted-foreground">Nothing scheduled</span>,
             )}
           </NowCell>
-          <NowCell label="Statute" facts={statute ? [statute.fact] : []} detail={statute && statuteDetail(statute.due)}>
+          {/* A met statute reads "Met" in ink with its date, never red "passed" (D40). */}
+          <NowCell
+            label="Statute"
+            facts={statute ? [statute.fact] : []}
+            detail={
+              statute &&
+              (statuteMet ? (
+                <span className="tabular-nums">{formatDate(statute.due)}</span>
+              ) : (
+                statuteDetail(statute.due)
+              ))
+            }
+          >
             {cellValue(
               deadlines,
-              statute && <span className="font-medium tabular-nums">{formatDate(statute.due)}</span>,
+              statute &&
+                (statuteMet ? (
+                  <span className="font-medium">Met</span>
+                ) : (
+                  <span className="font-medium tabular-nums">{formatDate(statute.due)}</span>
+                )),
               NOT_FOUND,
             )}
           </NowCell>
