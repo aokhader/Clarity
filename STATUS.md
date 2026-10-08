@@ -7,7 +7,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
 | backend | B11 c9135dd, B12 4817dfd, B12a af58146 (incident row is the account), B13 39c2286; 410 tests | Stand by for the lead's real-matter check | | | 2026-10-08 13:06 |
-| ui-builder | U12 953ec65, U11 5110fa6, U13 3e20b63, U15 329f923, U17 f9198aa; check.sh clean | U14, U16 once B12 lands; then A11Y | backend: /key-events (B12), FirmPageOut (B13) | | 2026-10-08 13:17 |
+| ui-builder | Money e2142ac, U14 5974267, U16 2374edd, A11Y a9abd4f; check.sh clean | Lead's 90-second test, Lighthouse, keyboard walk | | | 2026-10-08 13:51 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
 | reviewer | D37 in README and form (92cb8f1); check.sh 10ffbb3 no FAIL, 387. Clone seed-dev at 10ffbb3: http://localhost:5183/matters/1 (API :8010), up | Keep clone servers up for the lead's retakes | | | 2026-10-08 04:54 |
