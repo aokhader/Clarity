@@ -79,19 +79,19 @@ The order:
   - Also `BottomLine` (26px serif), `WhereItStands` (one sentence per row) and `OpenQuestions` (neutral).
   - Chips go in a 14rem gutter, and drop under the text below about 40rem.
   - D12 marks keep their inline chip.
-- [ ] U14 `WhatHappened`, after B11. 30 min
+- [x] U14 `WhatHappened`, after B11. 30 min
   - The incident account, up to 3 injuries, and the liability fact, each a `MarginCited` row.
 - [x] U15 `NowStrip` and the money row. 60 min
   - The cells: next step (overdue, else a task, else a deadline that isn't the statute), statute (amber within 90 days, red once passed), last client contact (words as well as amber), and the counts.
   - `KpiStrip` moves to the Overview as a compact row.
   - `CaseMetadata`, `MetadataItem` and `MatterHeader` are deleted.
-- [ ] U16 `KeyEvents`, after B12. 60 min
+- [x] U16 `KeyEvents`, after B12. 60 min
   - A numbered `<ol>`, oldest first; each lane shown as a dot plus a word.
   - "Full timeline" goes to `?view=attorney&feed=timeline`, so the feed toggle lives in the URL.
-- [ ] U17 Overview assembly. 40 min
+- [x] U17 Overview assembly. 40 min
   - `ChangesSince` shows at most 5 rows, moves to the bottom, and its copy changes to fit.
   - The For Attorney action board loses its count tiles.
-- [ ] A11Y 60 min
+- [x] A11Y 60 min
   - Reflow: the rail collapses below `lg`, and grids use `auto-fit`.
   - Drawer focus returns to the opener.
   - `role="status"` for status changes.
