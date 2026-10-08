@@ -102,7 +102,7 @@ The order:
 
 **Lead, reviewer, critic**
 - [x] L1 lead: update `docs/ui.md`, `docs/architecture.md` and `docs/project.md`.
-- [ ] L2 lead: retake all six screenshots on the synthetic matter (D33).
+- [x] L2 lead: retake all six screenshots on the synthetic matter (D33).
 - [x] V6 reviewer: README alt text and views, `docs/submission.md:49`, and `check.sh` free of FAIL.
 - [x] C4 critic: the 90-second test on the real matter from the first screen alone; every chip in the new blocks opens a source holding its text. Every chip held; four readings misled (Pass 4, 3ad4026), fixed under D40.
 
