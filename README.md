@@ -220,10 +220,9 @@ By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
 - `pytest`: 341 passed at `189e7ec`. In the main checkout, 418 pass at `389927b`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
-- **After the Overview pass, on 2026-10-08:** the clone was pulled to `389927b`, not cloned afresh, and `cli seed-dev` reloaded the invented matter in 3.1 s.
-  - Every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
-  - `key-events` returned 10 events, oldest first, the incident first.
-  - The header's `incident_account` is null there, as expected (see [Half-done](#half-done-or-stubbed)).
+- **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
+  - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
+  - At `1707584`, after the fixture gained records that give an incident account (`0deb4a1`), the header's `incident_account` carries its text and one record restating it. `key-events` returned 10 events, oldest first, with that account's fact first.
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
@@ -284,9 +283,7 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
 - **Providers:**
   - Provider access is by an unguessable, expiring link only; there is no provider login.
   - "Send update" leaves the recipient blank, because no synced field holds the provider's email (`frontend/src/components/share/SendUpdateMenu.tsx`).
-- **`cli seed-dev`** loads an invented matter for development, tests and the screenshots, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`).
-  - Its incident facts are both code facts, and only a fact a model read can give the incident account (D39). So on the invented matter the API returns no account, and What happened's Incident line reads "Not found in file". A backend test expects this (`test_with_only_field_facts_there_is_no_account`).
-- **What the sync and digest leave out:**
+- **`cli seed-dev`** loads an invented matter for development, tests and the screenshots, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`).- **What the sync and digest leave out:**
   - Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced. Bills come from documents, notes and the expense ledger.
   - A Clio request falls back to a smaller field list if Clio rejects a field name.
   - Calendar entries all become deadlines, including treatment appointments. Only legal deadlines lock a draft (D28).
