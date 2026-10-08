@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C4 done (3ad4026): met statute shows red "passed"; "All 192 injuries"; incident cited 179x, disputed | Stand by | | Met-statute status; drop past deadlines from story; litigation re-read; request direction; liability rows | 2026-10-08 14:43 |
-| reviewer | V6 done (357bcbb, 4cb81ba); check.sh no FAIL, 419. Clone seed-dev at 1707584, account in API: http://localhost:5183/matters/1 (API :8010), up | Keep clone up for L2 retakes; drop screenshot note after L2 | | | 2026-10-08 14:41 |
+| reviewer | D40 in README (0bba19d); check.sh no FAIL, 428. Clone at 0bba19d, servers restarted for D40: http://localhost:5183/matters/1 (API :8010), up | Keep clone up for L2 retakes; drop screenshot note after L2 | | | 2026-10-08 15:08 |
 
 ## Stubs and shortcuts
 
