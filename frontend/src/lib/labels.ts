@@ -74,6 +74,33 @@ export const STEP_OF_STAGE: Record<CaseStage, number | 'past_end'> = {
   closed: 'past_end',
 }
 
+/** The three lanes a key event belongs to; the word carries the meaning, the dot only echoes it. */
+export type Lane = 'case' | 'treatment' | 'negotiation'
+
+export const LANE_LABELS: Record<Lane, string> = {
+  case: 'Case',
+  treatment: 'Treatment',
+  negotiation: 'Negotiation',
+}
+
+const KIND_LANE: Partial<Record<FactKind, Lane>> = {
+  incident: 'case',
+  status_change: 'case',
+  coverage: 'case',
+  deadline: 'case',
+  records_received: 'case',
+  diagnosis: 'treatment',
+  treatment_visit: 'treatment',
+  demand: 'negotiation',
+  offer: 'negotiation',
+  settlement: 'negotiation',
+}
+
+/** A fact's lane on the story so far; a kind with no lane of its own is the case's. */
+export function laneOf(kind: FactKind): Lane {
+  return KIND_LANE[kind] ?? 'case'
+}
+
 export const WAITING_ON_LABELS: Record<WaitingOn, string> = {
   firm: 'the firm',
   client: 'the client',

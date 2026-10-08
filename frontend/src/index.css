@@ -56,6 +56,13 @@
   --success: oklch(0.47 0.1 150);
   --success-soft: oklch(0.955 0.03 150);
 
+  /* Key-event lanes: categories, not status, so no red, amber or green. Each dot also has
+     its own shape and its lane's word beside it. On card: case 16.1, treatment 4.6,
+     negotiation 6.2; on background 15.3, 4.3, 5.9. */
+  --lane-case: var(--foreground);
+  --lane-treatment: oklch(0.55 0.09 195);
+  --lane-negotiation: oklch(0.5 0.11 330);
+
   --radius: 0.375rem;
 }
 
@@ -96,6 +103,9 @@
   --color-warning-soft: var(--warning-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
+  --color-lane-case: var(--lane-case);
+  --color-lane-treatment: var(--lane-treatment);
+  --color-lane-negotiation: var(--lane-negotiation);
 
   /* Controls stay near 6px; nothing rounds past 8px. */
   --radius-sm: calc(var(--radius) * 0.6);

@@ -1,6 +1,7 @@
 import type { MatterHeaderOut } from '@/api/types'
 import { BottomLine } from '@/components/firm/BottomLine'
 import { ChangesSince } from '@/components/firm/ChangesSince'
+import { KeyEvents } from '@/components/firm/KeyEvents'
 import { KpiStrip } from '@/components/firm/KpiStrip'
 import { NowStrip } from '@/components/firm/NowStrip'
 import { WhatHappened } from '@/components/firm/WhatHappened'
@@ -8,8 +9,8 @@ import { WhereItStands } from '@/components/firm/WhereItStands'
 
 /**
  * The 90-second read, under the matter's identity: the bottom line, what happened, where
- * the case is now, the money, the brief, and what changed since the last visit. One ivory sheet
- * divided by hairlines, so no block is a card inside a card.
+ * the case is now, the money, the brief, the story so far, and what changed since the last
+ * visit. One ivory sheet divided by hairlines, so no block is a card inside a card.
  */
 export function OverviewView({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
   return (
@@ -19,6 +20,7 @@ export function OverviewView({ matterId, header }: { matterId: number; header: M
       <NowStrip matterId={matterId} header={header} />
       <KpiStrip kpis={header.kpis} />
       <WhereItStands matterId={matterId} />
+      <KeyEvents matterId={matterId} />
       <ChangesSince matterId={matterId} />
     </div>
   )

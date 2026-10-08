@@ -1,6 +1,5 @@
+import type { FeedView } from '@/lib/matterViews'
 import { cn } from '@/lib/utils'
-
-export type FeedView = 'top' | 'timeline'
 
 type FeedViewToggleProps = {
   view: FeedView

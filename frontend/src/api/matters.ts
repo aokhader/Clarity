@@ -10,6 +10,14 @@ export function useMatterBrief(matterId: number) {
   })
 }
 
+/** About ten key events, oldest first, the incident pinned (B12). */
+export function useMatterKeyEvents(matterId: number, limit = 10) {
+  return useQuery({
+    queryKey: ['matters', matterId, 'key-events', limit],
+    queryFn: () => apiGet<FactOut[]>(`/matters/${matterId}/key-events?limit=${limit}`),
+  })
+}
+
 export function useMatterInjuries(matterId: number) {
   return useQuery({
     queryKey: ['matters', matterId, 'injuries'],
