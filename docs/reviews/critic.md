@@ -2,6 +2,167 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 3, 2026-10-08 04:10 PDT
+
+This pass checks the real matter after the D36 model runs: (a), the re-digest, and (b), the re-read of 9 records under P13. I used the running API on port 8000 with no browser, the code at `f49469a`, and `data/app.db` opened read-only. The state before the runs comes from `app.db.bak-20261008T104916Z` (before (a)) and `-105033Z` (before (b)), both opened read-only and immutable. I made no model calls, created no share and wrote nothing. For the draft checker and the provider view, I used `POST .../shares/draft-check` and `POST .../shares/preview`, which build a share in memory and never save it.
+
+Traced by hand:
+- every sentence of the brief, its headline, and the 15 distinct facts they cite;
+- the 9 rows of the Coverage tile and their 25 facts;
+- the Case value and Medical specials tiles;
+- the bill totals of all ten providers;
+- each of the 9 re-read records, fact by fact, against its state before the runs.
+
+### Findings
+
+1. **The Coverage tile warns "Sources disagree" when no record disagrees. The warning makes the tile list all nine figures as equals, so the defendant's limit no longer leads (D19).**
+   - Where: Coverage tile. `backend/app/services/kpis.py:167-225`: `_conflict` and `_may_match` treat a missing policy or basis as "could be any". `frontend/src/components/firm/KpiTile.tsx:34` drops the lead figure whenever `sources_disagree` is true.
+   - Saw: two facts set the flag.
+     - **Fact 1985** (record 62, the note of the adjuster's response) is tagged as the defendant's policy with no per-person or per-occurrence basis. The note refers once to the defendant's limit, with no basis, while describing the opening offer. Its figure equals the defendant's per-person figure, which five other facts state (1952, 1993, 2003, 2015, 2019). It differs from the per-occurrence figure, so the rule calls it a conflict. **Verdict: a restatement of the tagged per-person figure, not a disagreement.**
+     - **Fact 2012** (record 109, the carrier's email saying the client's no-fault benefits are exhausted) has no policy tag. Fact 2011, from the same record, names the coverage as no-fault. The figure equals the client's no-fault limit, which three facts state (1956, 1981, 2007). With no policy tag it "could be" any limit, so it conflicts with every other figure. **Verdict: a restatement of the tagged no-fault figure that the model failed to tag, not a disagreement.**
+     - Neither case is unclear. In the whole store, every per-person and per-occurrence statement of the defendant's limit agrees: five facts state the per-person figure and four the per-occurrence figure.
+   - Expected: no warning. The tile should lead with the defendant's per-person limit and list the rest under it, labelled.
+   - Recommendation: **option (1), fix now, code only, no model call.**
+     - A limit with no policy or no basis counts as another source for a tagged row when its amount equals that row's figure and the row is one it could be. Fold it into that row: 1985 joins the defendant's per-person row, and 2012 joins the client no-fault row.
+     - If the figure equals more than one candidate row, keep it as its own unlabelled row, with no warning.
+     - Flag a conflict only when the figure equals none of the rows it could be.
+     - Also take (2): when a real conflict exists, the defendant's per-person figure still leads, and the warning attaches to the rows in conflict. A single stray figure should not flatten the whole tile.
+     - With (1) applied, the tile has 7 rows and leads with the defendant's limit.
+     - Pipeline note only: the P13 prompt should tag a basic-economic-loss figure as client no-fault. No re-read is needed once (1) lands.
+   - Owner: backend, with a test on both shapes. The README already lists this under Known issues.
+
+2. **The defense driver's personal auto policy is labelled "Client's other policy".**
+   - Where: Coverage tile, the rows "Client's other policy, per person" and "per occurrence". The facts are 1975 and 1976, from record 48, the firm's coverage note on the defense side. `PolicyLimitPayload.policy` (D21) has four values: `defendant_liability`, `client_no_fault`, `client_um_uim` and `client_other`.
+   - Saw: the enum has no value for another party's liability policy, so the model chose the nearest one. An attorney reading the tile learns that the client holds a second policy at the same figures as the defendant's. That is false. The same record says this policy is where recovery would come from if the employer leaves the case on scope of employment (fact 1977, a recovery cap; fact 2010, a possible second defendant). The label hides a second source of recovery and invents a client policy.
+   - Expected: a label such as "Other liability policy (another party)", listed after the defendant's own limit.
+   - Recommendation: Needs decision 2. In the meantime, add a README known issue. The README's "tagged by policy, all but one" should say that two more are tagged wrongly (reviewer).
+   - Owner: backend (an additive enum value in `schemas.py` and `types.ts`, and its label in `kpis.py:33`); pipeline (one line in the prompt, then a re-read of record 48).
+   - Cost: one extraction call. The changed facts also change the brief's input, so the brief is rewritten too: a few cents at D36 rates.
+
+3. **Demo moment 1: none of the brief's visible chips opens a scanned page.**
+   - Where: `frontend/src/components/firm/BriefCitations.tsx:6` (`CHIPS_PER_SENTENCE = 2`). Chips are drawn in the order the model listed the facts.
+   - Saw: the 15 distinct facts that the brief and headline cite break down as:
+     - 9 from the Clio matter record itself: its custom fields and summary (1929, 1931, 1932, 1952, 1957, 1958, 1959, 1964, 1968);
+     - 4 notes (286, 318, 320, 323);
+     - 1 task (8);
+     - 1 document page (1518).
+   - Saw: 1518 is the fourth chip on sentence 1, so it sits behind "+2 more". The first chips of the headline and of every sentence open the matter record, a note or the task.
+   - Saw: every quote is found in its source view, and 1518's page image serves.
+   - Saw: the October 2 brief led its exam sentence with document chips. The new brief is drawn mostly from the firm's own Clio fields, and a screener may read it as a restatement of the Clio summary.
+   - Expected: on screen, the brief's first chip opens a scanned page wherever the sentence cites one.
+   - Recommendation: fix now (ui-builder). In `BriefCitations`, the one place that sets the citation design, draw document-page chips first. In the meantime, the demo script opens "+2 more" on sentence 1.
+
+4. **Demo moment 3: the draft checker says the date of the accident is "not in the file".**
+   - Where: `backend/app/services/draft_check.py:153-182`. The panel's wording is in `frontend/src/components/share/DraftCheckView.tsx:16`.
+   - Saw: in a draft for the chiropractic provider's link, the incident date returns `not_in_file`, "Not found in the file", in all four forms I tried: ISO, the full month name, the short month name, and numeric. The panel then says "Some amounts or dates are not in the file". Yet the header shows the date with a chip (fact 1930), and more than 200 incident facts carry it.
+   - Saw: under D25, a date that matches only a withheld fact of a kind that is not sensitive does not lock, which is right. But it then falls through to "Not found in the file". The same happens to any internal date that is not sensitive, such as a treatment date when treatment activity is off.
+   - Saw: Pass 2 #3, the false lock, is fixed. This false "not in the file" replaced it. The model runs did not cause it.
+   - Expected: either a wording for "in the file, not on this link", or the incident date counted as supported (Pass 2, Needs decision 1).
+   - Owner: backend, with ui-builder for the wording. Fix now if the demo types a date; otherwise add a README note.
+   - Minor, same panel: the lien figure locks (correct), but the reason reads "about another provider", and no lien fact has a provider.
+
+5. **A hidden item on a share comes back after a re-digest that rebuilds its fact.**
+   - Where: `Share.hidden_fact_ids_json` (`models.py:294`), read in `services/visibility.py:118` and `services/share_values.py:75`.
+   - Saw: hidden items are stored by fact id, but a re-digest that rebuilds a record's facts gives them new ids. The two runs replaced 91 facts this way:
+     - run (a): 43 facts, those of record 1, the five expense activities and the nine bill activities (sources 189 to 202);
+     - run (b): 48 facts, those of the 8 other re-read records.
+   - Saw: every bill came back with the same source, provider and amount (204 bill and lien facts before, 204 after). Any share that hid one of those bills would now show it. No share exists on the real matter, so nothing leaked. This is a rule 4 gap that a screener reading `visibility.py` could find, and it is not in Known issues.
+   - Expected: a hidden item stays hidden after a re-digest. Either key it by something stable (source, kind, page and quote), or carry the hidden ids over when a fact is replaced.
+   - Recommendation: add a README known issue now; the fix comes after the freeze.
+   - Owner: backend.
+
+6. **The brief is right but thin. It drops the risks a trial attorney asks about first.**
+   - Where: `GET /api/matters/{id}/brief`; `backend/app/digest/prompts/brief.txt` v4 asks for "3 or 4 sentences, each at most 20 words".
+   - Saw: every amount and date checks out.
+     - The three amounts in sentence 3 each match a fact the sentence cites (1931; 1952 and 1964; 1932).
+     - The bills figure equals the specials tile's bill sum, so the stale figure from Pass 1 #1 is gone.
+     - The surgery date matches fact 1518's own date, and the due date matches task 8's due date to the day.
+     - D12 gives 3 sentences "supported" and 2 "unchecked" (no figures); the headline is "supported" through fact 1964.
+     - Each open question is unanswered in the store.
+   - Saw: compared with the October 2 brief, it no longer says:
+     - what the defense medical exams found. Facts 1859, 1861, 1864, 1923, 1924 and 1927 are still stored, with significance 93 to 95;
+     - that a limitations defense is pleaded (586, 233). It appears only inside open question 3, whose premise has no chip;
+     - that an opening offer was made (1986);
+     - that the wage claim is weak. It appears only as open question 4;
+     - that the lien comes off any recovery (1965, 1995, 2009).
+   - Saw: the headline states the recovery cap without the condition that records 48 and 84 attach to it: unless a second defendant is reached (1977, 2008, 2010).
+   - Saw: the injuries sentence comes from the Clio summary and says only "a head injury". The old brief named the diagnosed brain injuries from the records.
+   - Saw, minor: the headline says which shoulder, but none of its four facts names the side (1968 says only "second"). Sentence 2's chip, fact 286, does name it.
+   - Mitigation: the ranked feed's ten include the defense exam (1864) and the limitations rule (233), so the page shows both below the brief.
+   - Recommendation: fine for the demo, as it stands. Optionally, with the Manager's go-ahead, add one prompt line ("the biggest risk includes any defense pleaded and any defense medical exam that contradicts the claim") and run one brief call, about 5 cents. Owner: pipeline, Manager.
+
+7. **With coverage limits on, a provider's page lists 9 limits with no policy names, and several look like duplicates.**
+   - Where: `backend/app/services/provider_view.py:174-182`, which labels a limit by its basis only.
+   - Saw: with every setting on, the chiropractic provider's preview lists:
+     - "Policy limit per person" twice at one figure (1952 and 1975);
+     - "Policy limit per occurrence" twice at one figure (1953 and 1976);
+     - "Policy limit" three times (1956, 1985 and 2012);
+     - the client's own UM/UIM limits.
+   - Saw: the default leaves coverage limits off, so the default preview does not show this. Pass 1 #16 (no duplicate limits on the provider page) has come back in appearance since the limits were tagged by policy.
+   - Expected: the provider sees the defendant's liability limit, labelled, once.
+   - Owner: backend. The lead decides, since this changes the provider payload (Needs decision 3).
+
+8. **The Case value and Medical specials tiles are right per D20. One small redundancy remains.**
+   - Case value:
+     - It leads with the Clio valuation (1931), and the basis line reads as the attorney's evaluation. There is no warning.
+     - The recovery cap and the economic-damages total have left the tile. They are now facts 1964, 1977, 1994 and 2008 (recovery cap) and 1961 and 1992 (economic damages).
+     - The second row is "At least" the same figure, from fact 1991. That fact's source states a single valuation, but the model filled only the low end.
+     - Expected: one figure, with 1991 as a second source. Owner: backend, in `_case_value`: a one-ended value equal to the lead counts as another source for it. Pipeline could instead have a single valuation set both ends. Fine to leave.
+   - Medical specials:
+     - One figure, "Matches the sum of 175 bills", with six stated facts that agree (165, 183, 265, 288, 1932, 1960).
+     - Fact 201's figure is now kind `economic_damages` (1992).
+     - The nine providers with bills sum exactly to the tile's figure, and their totals have not changed. The tenth reads "No bills on file".
+   - Firm spend: 5 expenses with new ids (1933 to 1937); the total has not changed.
+
+9. **The re-read lost two caveats and moved a few facts between internal and shareable. Nothing an attorney relies on is gone.** (Before means the backup before (b), or before (a) for record 1.)
+
+   | Record | Before | After | Lost or changed |
+   |---|---|---|---|
+   | 64, case evaluation | 12 | 11 | The caveat that the client's UM/UIM adds nothing above the defendant's limit (204) is now held by no fact, though the record says it. The policing and credibility point (207) is still held by facts 321 and 738 from other records. The radiology diagnosis (209) became kind `other` (1999) |
+   | 58, no-fault exhausted | 5 | 4 | The specials fact with no amount (164), which said the specials are gross treatment value rather than a net claim. Two shareable facts (162, 163) folded into one internal fact (1983) |
+   | 1, the matter | 29 | 30 | The mechanism of the incident (506) is still stated by many record facts. The "limits confirmed" checkbox fact (527) is now covered by 2002. The lien moved from internal to shareable (519 to 1965) |
+   | 84, coverage confirmed | 8 | 9 | None. The misfiled case value (308) became a recovery cap (2008). The second defendant is new (2010) |
+   | 48, defense coverage | 7 | 7 | The driver's coverage fact (104) folded into the limits that finding 2 mislabels |
+   | 62, adjuster response | 6 | 7 | The limit lost its per-person basis (191 to 1985; finding 1) |
+   | 109, no-fault letter | 2 | 3 | The limit lost its basis and gained no policy (376 to 2012; finding 1) |
+   | 145, 146, defense emails | 4, 4 | 4, 4 | "No excess or umbrella coverage" moved from shareable coverage to internal `other` (469, 473 to 2017, 2021) |
+
+   - Both visibility shifts away from internal are safe:
+     - the limit from record 64 (203 to 1993) now shows no source to a provider (`provider_sources.py` opens only cited pages of a provider's own bills and records);
+     - no lien fact has a provider, so no link releases one.
+   - The shifts toward internal are conservative.
+
+10. **Minor.**
+    - The stored brief's `generated_at` still reads October 2. `f37a110` fixes later rewrites, and the screen does not show the date. The README already lists it.
+    - The provider's "File opened" date is still two days from the header's opened date (Pass 1 #16).
+    - The feed still lists the right-shoulder recommendation twice (196 and 1427; Pass 2 #10).
+
+### Demo moments on the real matter
+
+| # | Holds? | Notes |
+|---|---|---|
+| 1 | With a caveat | Every chip opens its source, and its quote is located in the source view. The scanned-page chip is behind "+2 more" (finding 3) |
+| 2 | No, on one tile | Case value, Medical specials, Firm spend and the ten provider totals are right. Coverage shows the false warning and no lead (finding 1), and a mislabelled policy (finding 2) |
+| 3 | Yes, with one false note | Off the link, the defendant's limit, economic damages, case value, the lien and the client's UM/UIM all lock. With coverage limits on, the shared limits are "supported". The provider's own bill total is "supported". The incident date reads "not in the file" (finding 4) |
+| 4 | Yes | The default preview carries 207 facts and the all-on preview 490: all shareable, none flagged as strategy, none another provider's. Limits with coverage on: finding 7 |
+
+### Rules that never bend
+
+- **Read-only Clio:** `check.sh` at `f49469a` passes it (8 tests).
+- **No case literals:** passes (4 tests).
+- **Nothing private committed:** passes (4 tests). Lint, 371 backend tests and the frontend types also pass. No step failed.
+- **Every fact sourced:** all 15 brief facts and all 25 Coverage facts have a source and a quote, and every quote is located. The open questions still state premises without chips (finding 6).
+- **Provider boundary:** holds in the API (finding 7 is presentation only). Finding 5 is a latent gap.
+- **No model on page load:** I made only GETs and the two in-memory POSTs, and the last digest run is still number 9.
+
+### Needs decision (for the lead)
+
+1. **Coverage conflict rule** (finding 1): **(1)**, with the lead kept as in (2). It is code only and can be done now.
+2. **A policy value for another party's liability policy** (finding 2): add `other_party_liability` to D21's enum (additive), with a prompt line and a re-read of record 48. It costs a few cents and needs the Manager's go-ahead. Otherwise, document it as a known issue.
+3. **Limits on a provider's page** (finding 7): show only the defendant's liability limit, labelled. Recommendation: yes. The client's own policies are the client's business, and they do not pay a lien.
+4. **A date that is in the file but not on the link** (finding 4): give it a wording of its own, such as "In the file, not on this link", or count the incident date as supported. Recommendation: the first, plus counting the incident date as supported.
+5. **The brief's risks** (finding 6): one prompt line and one brief call, about 5 cents. Recommendation: optional. The feed already shows both risks.
+
 ## Pass 2, 2026-10-07 01:54 PDT
 
 This pass used the real matter through the running API (port 8000), with `data/app.db` opened read-only and the committed code from `9c05e39` to `c18388b`. There was no browser. To test the draft checker, I sent invented drafts to `POST /api/matters/{id}/shares/draft-check` for the chiropractic provider's link, first with default settings and then with every setting on. The figures in those drafts were read from `GET /api/matters/{id}` when each test ran; none is written here. No share was created. As a control, I rebuilt the update the app writes itself (`providerUpdateText.ts`) for all ten providers, with default settings and with every setting on, and checked it. All 20 came back `supported`, with no lock and no false flag.
