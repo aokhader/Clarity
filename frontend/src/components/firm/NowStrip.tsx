@@ -15,7 +15,7 @@ import {
   nextStep,
   statuteDeadline,
 } from '@/lib/facts'
-import { daysFromToday, formatDate, formatDaysAgo, formatDaysUntil, formatDueIn } from '@/lib/format'
+import { daysFromToday, formatCount, formatDate, formatDaysAgo, formatDaysUntil, formatDueIn } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const NOT_FOUND = <span className="text-muted-foreground">Not found in file</span>
@@ -75,8 +75,8 @@ function toDoText(actions: ActionsOut): ReactNode {
   return (
     <Link to={{ search: '?view=attorney' }} className="text-primary underline-offset-4 hover:underline">
       {/* "Open requests", not "waiting on others": a record request carries no direction (D40). */}
-      {actions.overdue.length} overdue · {actions.upcoming.length} upcoming · {actions.waiting_on_others.length} open
-      requests
+      {actions.overdue.length} overdue · {actions.upcoming.length} upcoming ·{' '}
+      {formatCount(actions.waiting_on_others.length, 'open request')}
     </Link>
   )
 }

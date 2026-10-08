@@ -98,6 +98,11 @@ export function formatDaysUntil(days: number): string {
   return `passed ${-days} day${days === -1 ? '' : 's'} ago`
 }
 
+/** 1 record, 3 records: a count with its noun, plural unless it is one. */
+export function formatCount(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`
+}
+
 /** 12 days, 7 months, 2 years: the time elapsed since a day. */
 export function formatElapsed(iso: IsoDate | IsoDateTime): string {
   const days = Math.max(0, -daysFromToday(iso))

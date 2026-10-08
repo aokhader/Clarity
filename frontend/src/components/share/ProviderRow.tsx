@@ -6,7 +6,7 @@ import { CopyLinkButton } from '@/components/share/CopyLinkButton'
 import { SendUpdateDialog } from '@/components/share/SendUpdateDialog'
 import { ShareStatus } from '@/components/share/ShareStatus'
 import { Button } from '@/components/ui/button'
-import { formatMoney } from '@/lib/format'
+import { formatCount, formatMoney } from '@/lib/format'
 
 type ProviderRowProps = {
   matterId: number
@@ -16,10 +16,6 @@ type ProviderRowProps = {
   /** Opens the share composer. Null while no firm user is chosen: a share records who made it. */
   onShare: (() => void) | null
   now: Date
-}
-
-function count(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
 export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: ProviderRowProps) {
@@ -36,8 +32,8 @@ export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: Provi
           <p className="mt-1 tabular-nums">
             {/* Null means no bill with an amount is on file, which is not a zero bill (D16). */}
             {provider.billed_cents === null ? 'No bills on file' : `Billed ${formatMoney(provider.billed_cents)}`} ·{' '}
-            {count(provider.records_received, 'record')}
-            {provider.open_requests > 0 && ` · ${count(provider.open_requests, 'open request')}`}
+            {formatCount(provider.records_received, 'record')}
+            {provider.open_requests > 0 && ` · ${formatCount(provider.open_requests, 'open request')}`}
           </p>
           <p className="mt-0.5 text-xs">
             <ShareStatus share={provider.share} now={now} />
