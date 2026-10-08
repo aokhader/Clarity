@@ -6,7 +6,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 |---|---|---|---|---|---|
 | lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
-| backend | B11c 0deb4a1: synthetic matter has an incident account (restated_by 1); 419 tests | Stand by | reviewer: rerun cli seed-dev in the clone (:5183, API :8010) | | 2026-10-08 14:37 |
+| backend | D40: deadline status fe07ba2 (contract: DeadlinePayload.status); no deadlines 9c5b491; per-record 462c8aa; 428 | Stand by | reviewer: rerun cli seed-dev in the clone (:5183, API :8010) | | 2026-10-08 14:59 |
 | ui-builder | Basis dedupe 7eeb002; D40 items 3277eba, Met statute c9be7b4; check.sh clean | Lead checks the first screen | | | 2026-10-08 14:55 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C4 done (3ad4026): met statute shows red "passed"; "All 192 injuries"; incident cited 179x, disputed | Stand by | | Met-statute status; drop past deadlines from story; litigation re-read; request direction; liability rows | 2026-10-08 14:43 |
