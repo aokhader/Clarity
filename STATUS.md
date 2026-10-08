@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | Fold polish a56445c: 2fr next step, chips off label lines, injuries link under label | Lead measures the fold | | | 2026-10-08 14:14 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
-| reviewer | D37 in README and form (92cb8f1); check.sh 10ffbb3 no FAIL, 387. Clone seed-dev at 10ffbb3: http://localhost:5183/matters/1 (API :8010), up | Keep clone servers up for the lead's retakes | | | 2026-10-08 04:54 |
+| reviewer | V6 done (357bcbb); check.sh no FAIL, 418. Clone seed-dev at 389927b: http://localhost:5183/matters/1 (API :8010), up | Keep clone up for L2 retakes | | lead: invented matter has no incident account, so Incident reads "Not found" | 2026-10-08 14:22 |
 
 ## Stubs and shortcuts
 
