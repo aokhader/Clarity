@@ -42,12 +42,12 @@ The order:
 3. The lead checks the real matter (kind counts only) before U14 and U16 are accepted.
 
 **Backend**
-- [ ] B11 `incident_account`. 30 min
+- [x] B11 `incident_account`. 30 min
   - In `services/incident.py`, choose among the **model** incident facts on the day `incident_fact()` picks: one with a description first, then by significance.
   - Never return the Clio field fact.
   - `MatterHeaderOut.incident_account` (`IncidentAccountOut {text, fact}`), committed with `types.ts`, and the frontend typecheck run (D23).
   - Add a code incident fact with no description to the fixture.
-- [ ] B12 `GET /matters/{id}/key-events?limit=10`. 60 min
+- [x] B12 `GET /matters/{id}/key-events?limit=10`. 60 min
   - `matter_key_events(session, matter_id, today, limit)`, built from:
     - the pinned header incident;
     - event kinds only: diagnosis, treatment visit, status change, coverage, demand, offer, settlement, records received, and past deadlines;
@@ -56,32 +56,32 @@ The order:
     - at most `KEY_EVENTS_PER_KIND = 3` per kind.
   - Returned oldest first.
   - Tests in `test_backend_key_events.py` with an explicit `today`.
-- [ ] B13 `SourceOut.pages` becomes `FirmPageOut(PageRef)` with `text` from `Page.text`. `ProviderSourceOut.page` stays `PageRef`. 20 min
+- [x] B13 `SourceOut.pages` becomes `FirmPageOut(PageRef)` with `text` from `Page.text`. `ProviderSourceOut.page` stays `PageRef`. 20 min
 
 **ui-builder**
-- [ ] U10 Tokens and the rail. 120 min
+- [x] U10 Tokens and the rail. 120 min
   - The paper, ivory, ink and ink-blue palette.
   - Every status token retuned to at least 4.5:1 for text and 3:1 for borders on every surface, with the ratios in a comment.
   - Corners of 8px or less, a solid `outline-ring`, and a reduced-motion rule.
   - `Panel` loses its icons and shadow.
   - A light 15rem rail.
   - No `slate-*`, `blue-*` or gradient classes left in the firm components.
-- [ ] U11 `MatterIdentity` in `MatterShell`, in both branches. 45 min
+- [x] U11 `MatterIdentity` in `MatterShell`, in both branches. 45 min
   - The breadcrumb, the avatar, a serif h1 of the client's name, and a case line (description, matter number, incident date with a chip), plus the stage track.
   - `document.title`.
   - `ProviderView` gets a heading-level prop.
-- [ ] U12 `StageTrack`. 30 min
+- [x] U12 `StageTrack`. 30 min
   - Steps move to `lib/labels.ts`, named as `STAGE_LABELS`.
   - Visible "Step N of 5"; settled and closed never read "Step 6 of 5".
   - The inferred marker and the chip.
   - `RoadmapCard` is deleted.
-- [ ] U13 `MarginCited` rows. 60 min
+- [x] U13 `MarginCited` rows. 60 min
   - Also `BottomLine` (26px serif), `WhereItStands` (one sentence per row) and `OpenQuestions` (neutral).
   - Chips go in a 14rem gutter, and drop under the text below about 40rem.
   - D12 marks keep their inline chip.
 - [ ] U14 `WhatHappened`, after B11. 30 min
   - The incident account, up to 3 injuries, and the liability fact, each a `MarginCited` row.
-- [ ] U15 `NowStrip` and the money row. 60 min
+- [x] U15 `NowStrip` and the money row. 60 min
   - The cells: next step (overdue, else a task, else a deadline that isn't the statute), statute (amber within 90 days, red once passed), last client contact (words as well as amber), and the counts.
   - `KpiStrip` moves to the Overview as a compact row.
   - `CaseMetadata`, `MetadataItem` and `MatterHeader` are deleted.
