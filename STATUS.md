@@ -7,7 +7,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
 | backend | D37: coverage fold 8d34407; provider limits 7e77d07; contract: verdict not_on_link a98001f | Freeze fixes only | ui-builder: not_on_link in VERDICT_LINES, UNDERLINE (typecheck fails); lead: restart :8000 | | 2026-10-08 04:43 |
-| ui-builder | D37: doc chips first 8d4b1fa; Coverage lead 8341c7c; not_on_link and limits text rendered | Stand by | | | 2026-10-08 04:46 |
+| ui-builder | U10 done: tokens b5716d1, rail 8c8f67c, palette 08756c8; check.sh clean | U11 to U17 after the lead's browser check of U10 | | | 2026-10-08 12:58 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
 | reviewer | D37 in README and form (92cb8f1); check.sh 10ffbb3 no FAIL, 387. Clone seed-dev at 10ffbb3: http://localhost:5183/matters/1 (API :8010), up | Keep clone servers up for the lead's retakes | | | 2026-10-08 04:54 |
