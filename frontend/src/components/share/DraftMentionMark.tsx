@@ -67,7 +67,8 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
         {mention.verdict === 'do_not_send' && (
           <span className="inline-flex items-center gap-1 font-medium text-danger">
             <Lock aria-hidden className="size-3.5" />
-            Internal: {mention.reason}
+            {/* The server's reason already says why ("Kept internal: never shared with providers"). */}
+            {mention.reason}
           </span>
         )}
         {/* A date the file states everywhere (an incident date) can cite hundreds of facts:
