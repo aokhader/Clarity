@@ -293,22 +293,22 @@ def _with_restatements(group: list[Fact]) -> FactOut:
 def matter_key_events(
     session: Session, matter_id: int, today: date, limit: int
 ) -> list[FactOut]:
-    """What has happened on the case, oldest first: the header's incident, then the
-    most significant past events, each once, at most `KEY_EVENTS_PER_KIND` of a kind.
+    """What has happened on the case, oldest first: the incident, then the most
+    significant past events, each once, at most `KEY_EVENTS_PER_KIND` of a kind.
 
-    Only the incident fact the header cites is listed: hundreds of incident facts can
-    share one day in different words, and those do not fold into one row. Each kind
-    gets its own candidate window, since one window over every kind fills with the most
-    numerous kind and leaves the others out. A deadline is an event once its day has
-    passed, so nothing listed as upcoming on the action board shows here too.
+    The incident is one row: the header's account of it, a record the model read, else
+    the fact the header cites. Hundreds of incident facts can share one day in
+    different words, and those do not fold into one row. Each kind gets its own
+    candidate window, since one window over every kind fills with the most numerous
+    kind and leaves the others out. A deadline is an event once its day has passed, so
+    nothing listed as upcoming on the action board shows here too.
     """
-    incident = incident_fact(
-        list(
-            session.scalars(
-                renderable_facts(matter_id).where(Fact.kind == FactKind.INCIDENT)
-            )
+    incidents = list(
+        session.scalars(
+            renderable_facts(matter_id).where(Fact.kind == FactKind.INCIDENT)
         )
     )
+    incident = incident_account(incidents) or incident_fact(incidents)
     pinned: list[list[Fact]] = []
     if incident and incident.event_date and incident.event_date <= today:
         pinned = [[incident]]

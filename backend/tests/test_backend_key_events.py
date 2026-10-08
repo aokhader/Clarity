@@ -88,21 +88,50 @@ def _ids(rows: list[FactOut]) -> set[int]:
     return {row.id for row in rows}
 
 
-def test_the_header_incident_is_one_row_however_many_incident_facts(
+def _incident_rows(rows: list[FactOut]) -> list[int]:
+    return [row.id for row in rows if row.kind is FactKind.INCIDENT]
+
+
+def test_the_incident_is_one_row_however_many_incident_facts(
     session: Session,
 ) -> None:
     field = _incident(session)
     assert field.event_date is not None
-    for n in range(4):
+    told = [
         _add(session, FactKind.INCIDENT, f"Collision account {n}", field.event_date, 99)
+        for n in range(4)
+    ]
     _add(session, FactKind.INCIDENT, "Collision", _days_ago(290), 99)
     _add(session, FactKind.DIAGNOSIS, "Sprain diagnosed", _days_ago(280), 60)
 
     rows = _events(session)
 
-    incidents = [row for row in rows if row.kind is FactKind.INCIDENT]
-    assert [row.id for row in incidents] == [field.id]
+    assert _incident_rows(rows) == [told[0].id]  # the account: lowest id of equals
     assert len(rows) == 2
+
+
+def test_the_incident_row_is_the_model_read_account_over_the_field(
+    session: Session,
+) -> None:
+    field = _incident(session)
+    told = _add(
+        session,
+        FactKind.INCIDENT,
+        "Struck from behind at a light",
+        field.event_date,
+        30,
+        value={"description": "Struck from behind at a light"},
+    )
+
+    assert _incident_rows(_events(session)) == [told.id]
+
+
+def test_with_only_the_field_the_incident_row_is_the_field(
+    session: Session,
+) -> None:
+    field = _incident(session)
+
+    assert _incident_rows(_events(session)) == [field.id]
 
 
 def test_twelve_significant_diagnoses_give_three_rows(session: Session) -> None:
@@ -237,7 +266,8 @@ def test_the_route_lists_the_synthetic_matter_and_refuses_unknown_ones(
     today = datetime.now(UTC).date().isoformat()
     assert all(row["event_date"] and row["event_date"] <= today for row in rows)
     incidents = [row["id"] for row in rows if row["kind"] == "incident"]
-    assert incidents == [header["incident"]["fact"]["id"]]
+    pinned = header["incident_account"] or header["incident"]
+    assert incidents == [pinned["fact"]["id"]]
     assert [r["event_date"] for r in rows] == sorted(r["event_date"] for r in rows)
 
     assert client.get("/api/matters/999/key-events").status_code == 404
