@@ -36,17 +36,21 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
   )
   return (
     // One neutral surface for all four tiles; colour marks only the disagreement note.
-    <div className="group/src relative flex min-w-0 flex-col px-5 py-2">
-      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{KPI_LABELS[kpi.name]}</h3>
-      {lead === undefined && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
-      {leads && (
-        <>
-          {/* The lead's chips sit in the corner, so however many there are, every figure starts on the same line. */}
-          <div className="absolute top-1.5 right-5 whitespace-nowrap">
+    <div className="group/src flex min-w-0 flex-col @min-[60rem]:px-5 @min-[60rem]:first:pl-0 @min-[60rem]:last:pr-0">
+      {/* The lead's chips share the label's line, so however many there are, every figure starts on the same line. */}
+      <div className="flex min-h-5 items-start justify-between gap-2">
+        <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{KPI_LABELS[kpi.name]}</h3>
+        {leads && (
+          <span className="shrink-0 whitespace-nowrap">
             <RevealOnHover>
               <SourceChipList facts={lead.facts} max={2} />
             </RevealOnHover>
-          </div>
+          </span>
+        )}
+      </div>
+      {lead === undefined && <p className="mt-1 flex h-8 items-center text-base text-muted-foreground">Not found in file</p>}
+      {leads && (
+        <>
           <KpiLeadFigure value={lead} />
           {lead.label && <p className="text-xs text-muted-foreground">{lead.label}</p>}
           {disagreement}
@@ -66,7 +70,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
           ))}
         </ul>
       )}
-      <div className="mt-auto space-y-0.5 pt-3">
+      <div className="mt-auto space-y-0.5 pt-2">
         {!leads && disagreement}
         {kpi.basis && <p className="text-xs text-muted-foreground">{kpi.basis}</p>}
       </div>

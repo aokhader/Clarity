@@ -19,7 +19,7 @@ function ViewContent({ view, matterId, header }: { view: MatterViewId; matterId:
     case 'overview':
       return <OverviewView matterId={matterId} header={header} />
     case 'attorney':
-      return <AttorneyView matterId={matterId} header={header} />
+      return <AttorneyView matterId={matterId} />
     case 'provider':
       return <ProviderPreviewView matterId={matterId} />
     case 'documents':

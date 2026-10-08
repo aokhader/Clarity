@@ -66,8 +66,6 @@
   --font-serif: "Sitka Text", Charter, "Iowan Old Style", Georgia, serif;
 
   /* Large type for what the clip has to show on a projector. */
-  --text-kpi: 2rem;
-  --text-kpi--line-height: 2.25rem;
   --text-brief: 1.25rem;
   --text-brief--line-height: 1.9rem;
   /* The brief's headline, the bottom line of the case. */

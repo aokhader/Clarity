@@ -4,8 +4,8 @@ import { useLargestFittingSize } from '@/lib/useLargestFittingSize'
 import { cn } from '@/lib/utils'
 
 /** Largest first. A range starts a size down, since it is twice as long as an amount. */
-const AMOUNT_SIZES = ['text-kpi', 'text-2xl', 'text-xl', 'text-lg'] as const
-const RANGE_SIZES = ['text-2xl', 'text-xl', 'text-lg'] as const
+const AMOUNT_SIZES = ['text-2xl', 'text-xl', 'text-lg'] as const
+const RANGE_SIZES = ['text-xl', 'text-lg', 'text-base'] as const
 
 /**
  * A tile's lead figure, as large as fits. On a narrow tile a range takes a second line
@@ -21,10 +21,10 @@ export function KpiLeadFigure({ value }: { value: KpiValueOut }) {
     <p
       ref={ref}
       className={cn(
-        'mt-2 min-h-10 font-semibold tabular-nums',
+        'mt-1 min-h-8 font-semibold tabular-nums',
         size,
         // The padding keeps one line of a range level with an amount's.
-        single ? 'leading-10' : 'py-1 leading-8',
+        single ? 'leading-8' : 'py-0.5 leading-7',
       )}
     >
       <KpiFigure value={value} />

@@ -1,12 +1,10 @@
-import type { MatterHeaderOut } from '@/api/types'
 import { ActionBoard } from '@/components/firm/ActionBoard'
 import { InjuriesList } from '@/components/firm/InjuriesList'
-import { KpiStrip } from '@/components/firm/KpiStrip'
 import { ProvidersSection } from '@/components/firm/ProvidersSection'
 import { RankedFeed } from '@/components/firm/RankedFeed'
 
-/** What the attorney works from: what is due, what matters, the medical side, and the money. */
-export function AttorneyView({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
+/** What the attorney works from: what is due, what matters, and the medical side. */
+export function AttorneyView({ matterId }: { matterId: number }) {
   return (
     <>
       <ActionBoard matterId={matterId} />
@@ -15,7 +13,6 @@ export function AttorneyView({ matterId, header }: { matterId: number; header: M
         <InjuriesList matterId={matterId} />
         <ProvidersSection matterId={matterId} />
       </div>
-      <KpiStrip kpis={header.kpis} />
     </>
   )
 }

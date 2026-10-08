@@ -82,6 +82,22 @@ export function formatDaysAgo(iso: IsoDate | IsoDateTime): string {
   return `${days} days ago`
 }
 
+/** 3 days overdue, due today, tomorrow, in 5 days: when an action falls due, from whole days ahead. */
+export function formatDueIn(days: number): string {
+  if (days < -1) return `${-days} days overdue`
+  if (days === -1) return '1 day overdue'
+  if (days === 0) return 'due today'
+  if (days === 1) return 'tomorrow'
+  return `in ${days} days`
+}
+
+/** today, in 40 days, passed 3 days ago: a deadline's countdown, from whole days ahead. */
+export function formatDaysUntil(days: number): string {
+  if (days === 0) return 'today'
+  if (days > 0) return `in ${days} day${days === 1 ? '' : 's'}`
+  return `passed ${-days} day${days === -1 ? '' : 's'} ago`
+}
+
 /** 12 days, 7 months, 2 years: the time elapsed since a day. */
 export function formatElapsed(iso: IsoDate | IsoDateTime): string {
   const days = Math.max(0, -daysFromToday(iso))

@@ -1,6 +1,6 @@
 import type { FactOut } from '@/api/types'
-import { DUE_SOON_DAYS, dueDateOf } from '@/lib/facts'
-import { daysFromToday, formatDate } from '@/lib/format'
+import { actionDueDate, actionOwner, dueTone } from '@/lib/facts'
+import { daysFromToday, formatDate, formatDueIn } from '@/lib/format'
 import { WAITING_ON_LABELS } from '@/lib/labels'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 import { cn } from '@/lib/utils'
@@ -19,20 +19,6 @@ const STATUS_STYLES: Record<ActionStatus, string> = {
 export const ACTION_COLUMNS =
   'grid grid-cols-[minmax(0,1.8fr)_minmax(0,1.1fr)_minmax(0,0.7fr)_minmax(0,0.9fr)] gap-4'
 
-function dueText(days: number): string {
-  if (days < -1) return `${-days} days overdue`
-  if (days === -1) return '1 day overdue'
-  if (days === 0) return 'due today'
-  if (days === 1) return 'tomorrow'
-  return `in ${days} days`
-}
-
-function dueTone(days: number): string {
-  if (days < 0) return 'text-danger'
-  if (days <= DUE_SOON_DAYS) return 'text-warning'
-  return 'text-muted-foreground'
-}
-
 function noteOf(fact: FactOut): string | null {
   if (fact.kind === 'task' && fact.value.waiting_on && fact.value.waiting_on !== 'firm') {
     return `Waiting on ${WAITING_ON_LABELS[fact.value.waiting_on]}`
@@ -44,11 +30,10 @@ function noteOf(fact: FactOut): string | null {
 /** One task, deadline, or record request in the action table. The whole row opens its source. */
 export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatus }) {
   const drawer = useSourceDrawer()
-  // A record request's date is when it was sent, not when it is due.
-  const due = fact.kind === 'record_request' ? null : dueDateOf(fact)
+  const due = actionDueDate(fact)
   const days = due === null ? null : daysFromToday(due)
   const note = noteOf(fact)
-  const owner = fact.kind === 'task' ? fact.value.assignee : null
+  const owner = actionOwner(fact)
   return (
     <li className="border-b">
       <button
@@ -75,7 +60,7 @@ export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatu
         </span>
         <span className="flex flex-col gap-0.5 tabular-nums">
           <span className="text-muted-foreground">{due ? formatDate(due) : '—'}</span>
-          {days !== null && <span className={cn('text-[13px] font-medium', dueTone(days))}>{dueText(days)}</span>}
+          {days !== null && <span className={cn('text-[13px] font-medium', dueTone(days))}>{formatDueIn(days)}</span>}
         </span>
         <span className="truncate text-sm text-muted-foreground">{owner ?? '—'}</span>
         <span>
