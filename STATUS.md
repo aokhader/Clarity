@@ -4,7 +4,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | D36 runs done on Anthropic: (a) 03:49, (b) 03:50, $0.17; browser checks pass | Critic C3, README costs, pipeline fixes; then check.sh and push | | Manager: clip link; test call (C-T) now possible | 03:55 |
+| lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
 | backend | D37: coverage fold 8d34407; provider limits 7e77d07; contract: verdict not_on_link a98001f | Freeze fixes only | ui-builder: not_on_link in VERDICT_LINES, UNDERLINE (typecheck fails); lead: restart :8000 | | 2026-10-08 04:43 |
 | ui-builder | D37: doc chips first 8d4b1fa; Coverage lead 8341c7c; not_on_link and limits text rendered | Stand by | | | 2026-10-08 04:46 |
