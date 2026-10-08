@@ -5,10 +5,10 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | D35 done, shots retaken (c097f44); check.sh clean (369); kit-trial pushed | Gemini retry (D34) when the Manager prompts, after midnight PT | | Manager: clip link; test call (C-T) | 11:01 |
-| pipeline | cli auth fix e4c7db8 (names the missing CLIO_CLIENT_ID/SECRET, exits 1, no URL). Pacing and wait cap 71a9be6. Trial stopped; copy kept | Retry of (a), (b) and the trial waits on D34; the lead starts it | | | 10:15 |
+| pipeline | D34 trial on the copy stopped by rule: 3 of 5 units answered, scan page failed 5 tries (503), amounts page and merge call not tried; no 429; 14 attempts, $0.024; real DB untouched | Step 2 not run; waiting for the lead | | Retry the scan page and the rest at another hour? | 2026-10-08 02:42 |
 | backend | D35 contract: ProviderItemOut.kind 'bill' or 'lien' on bills items, else null; types.ts mirrored | Freeze fixes only; ui-builder can label lien rows (01d6e41, :8000 serves it) | | | 10:35 |
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
-| researcher | Done: briefs/draft-checker.md (backend B1, ui-builder U4); briefs/calls.md (C-B, C-P, C-U) | Idle | lead: commit both briefs; researcher has no shell | Calls: let Manager type a test number, stored locally? | 01:05 |
+| researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
 | reviewer | Done: V5, V2, V4. README final (f3f856d). Clone servers stopped; clone folder kept. check.sh at c097f44: no FAIL, 369 tests | Stopped. GateGuard prompts: 4 | lead: README cost and form placeholders after D34 runs; team size; clip link | | 10:52 |
 
