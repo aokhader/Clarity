@@ -227,6 +227,14 @@ export type PageRef = {
   image_url: string
 }
 
+/**
+ * A document page in the firm's drawer, with its text layer as the image's text
+ * alternative (WCAG 1.1.1). Null for a scan, which has no text layer.
+ */
+export type FirmPageOut = PageRef & {
+  text: string | null
+}
+
 /** One labelled value of a structured record. Exactly one of the values is set. */
 export type SourceFieldOut = {
   label: string
@@ -249,7 +257,7 @@ export type SourceOut = {
   occurred_on: IsoDate | null
   author: string | null
   text: string | null
-  pages: PageRef[]
+  pages: FirmPageOut[]
   /** Matters and tasks, laid out by aspect for reading; empty for every other source. */
   sections: SourceSectionOut[]
   /**

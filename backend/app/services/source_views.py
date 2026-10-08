@@ -13,7 +13,7 @@ from app.models import Fact, Page, Source, SourceType
 from app.schemas import (
     PAYLOAD_BY_KIND,
     FactSourceOut,
-    PageRef,
+    FirmPageOut,
     SourceFieldOut,
     SourceOut,
     SourceSectionOut,
@@ -205,7 +205,7 @@ def _readable(source: Source) -> _Readable:
 
 def source_out(session: Session, source: Source) -> SourceOut:
     readable = _readable(source)
-    pages: list[PageRef] = []
+    pages: list[FirmPageOut] = []
     if source.clio_type is SourceType.DOCUMENT:
         rendered = session.scalars(
             select(Page)
@@ -213,8 +213,11 @@ def source_out(session: Session, source: Source) -> SourceOut:
             .order_by(Page.page_no)
         )
         pages = [
-            PageRef(
-                page_id=p.id, page_no=p.page_no, image_url=f"/api/pages/{p.id}/image"
+            FirmPageOut(
+                page_id=p.id,
+                page_no=p.page_no,
+                image_url=f"/api/pages/{p.id}/image",
+                text=p.text if p.text and p.text.strip() else None,
             )
             for p in rendered
         ]

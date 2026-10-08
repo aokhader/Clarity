@@ -319,6 +319,13 @@ class PageRef(BaseModel):
     image_url: str
 
 
+class FirmPageOut(PageRef):
+    """A document page in the firm's drawer, with its text layer as the image's text
+    alternative (WCAG 1.1.1). None for a scan, which has no text layer."""
+
+    text: str | None
+
+
 class SourceFieldOut(BaseModel):
     """One labelled value of a structured record. Exactly one of the values is set."""
 
@@ -343,7 +350,7 @@ class SourceOut(BaseModel):
     occurred_on: date | None
     author: str | None  # note author or email sender
     text: str | None  # full text for notes and emails, None for documents
-    pages: list[PageRef]  # every page of a document, in order; empty otherwise
+    pages: list[FirmPageOut]  # every page of a document, in order; empty otherwise
     # Matters and tasks, laid out by aspect for reading; empty for every other source.
     sections: list[SourceSectionOut] = []
     # A document's own date (its received date in Clio), when known. For a document,
