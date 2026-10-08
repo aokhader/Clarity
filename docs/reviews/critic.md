@@ -2,6 +2,187 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 4 (D38 Overview), 2026-10-08 14:39 PDT
+
+C4, on the real matter after the D38 Overview pass. I used the running API on port 8000 and read the code at `e61aee2`. `692af64` to `4cb81ba` landed during the pass and touch only tests, fixtures and docs, so the traced path did not change. There was no browser. I read what each block renders from `OverviewView.tsx` and its components, and called the routes those components call. `data/app.db` was opened read-only. I sent only GETs: no visit recorded, no share, no model call.
+
+Traced by hand:
+- the identity header's two chips;
+- What happened:
+  - the incident account and all 179 facts behind it (8 opened in the source view);
+  - the three injury rows;
+  - the liability row;
+- the Now strip's next step, statute, last client contact and counts, including all 44 items behind "waiting on others";
+- all 10 rows of the story so far, with the candidates the selection passed over;
+- the headline, 5 sentences and 13 of their facts;
+- the money row against the brief's figures.
+
+### Findings
+
+1. **The Statute cell says the statute passed, in red, but its own chip opens a record that says it was met.**
+   - Where: the Now strip, first screen.
+     - `frontend/src/components/firm/NowStrip.tsx:60-64` turns any past date red with "passed N days ago".
+     - `frontend/src/lib/facts.ts:76-83` (`statuteDeadline`).
+     - The cause: `backend/app/digest/structured.py:95-103` builds the statute deadline fact without the Clio task's status.
+   - Saw:
+     - The cell shows the date of fact 2, red, as passed months ago.
+     - Fact 2's chip opens the Clio task it came from (source 158). The task's text says the limitation period was satisfied, since the notice was served and suit started in time, and that the entry is kept for the record.
+     - In Clio that task is `complete`, with `completed_at` set. The task fact built from the same source (fact 1) has `status: complete`, but the deadline fact (fact 2) has no status at all.
+     - The stage is Litigation, and the brief's third open question says a limitations defense is pleaded. A trial attorney reading red "passed" next to a pleaded limitations defense will think the firm missed the statute: the worst alarm the page can raise, and the source says it is false.
+   - Expected: a met statute reads "Met", in neutral or green, with its date and the same chip, and is never red.
+   - Recommendation (Needs decision 1): code only, no model call, fix now.
+     - backend: give `DeadlinePayload` an additive `status`. Fill it when the fact is served, from the sibling task fact of the same source, so no re-digest is needed.
+     - pipeline: later, set the status in `structured.py` as well.
+     - ui-builder: the wording.
+     - lead: `docs/ui.md` says "red once passed" and needs the exception for a met statute.
+   - Owner: backend, then ui-builder.
+
+2. **"All 192 injuries" is wrong by an order of magnitude.**
+   - Where: What happened, under the Injuries label (`WhatHappened.tsx:61-69`), first screen. For Attorney's Injuries panel shows the same count (`InjuriesList.tsx:22`).
+   - Saw:
+     - `groupSameInjuries` (`lib/facts.ts:110-122`) groups 319 injury and diagnosis facts by exact kind, title, body part and severity, which gives 192 groups.
+     - The groups include one complaint line per chart visit, worded a little differently each time.
+     - They also include defense-exam and expert-review findings that there is no injury, or that it has resolved, each counted as an injury.
+     - The brief's own injury sentence names four body regions.
+   - Expected: no count, or a count of something real. Either "All injuries and diagnoses" with no number, or a count by body region.
+   - Owner: ui-builder (wording now); backend, if a per-region count is wanted.
+
+3. **The Incident line shows one side's account, cited as 179 sources, on the one point the file says is in dispute.**
+   - Where: What happened, the Incident line (`header.incident_account`, `services/incident.py`), and row 1 of the story so far. The margin reads "+177 more" (`BriefCitations.tsx`, `SourceChipList.tsx`).
+   - Saw:
+     - The account is the history line of the treatment charts: the client's own description of the collision, printed on every visit page. I opened 8 of the 179 facts (1585, 1467, 1403, 816, 1282, 868, 1581, 1130), and each quote is on its page. The 179 come from only 9 records, and all 179 give one account, so the group does not mix accounts.
+     - But "+177 more" counts pages, not records. It reads as 179 independent sources for the client's version, when it is one statement copied onto every visit page of 9 records.
+     - The file disputes that version:
+       - fact 320, significance 97, from a firm note: the client gave inconsistent accounts of the collision;
+       - fact 318: liability is contested on the mechanism;
+       - fact 765, from the defense driver's report produced in discovery: the opposite account.
+     - The Liability row below shows fact 292, significance 96. It holds its text, but it states the scope-of-employment issue and not that the mechanism is contested. That is in fact 318, significance 95, from a newer note.
+     - On the first screen, only the headline's "liability contested" qualifies the line. The inconsistency is in sentence 4 of Where it stands, below the fold.
+   - Expected:
+     - The margin counts records: "+8 more records", one chip per record.
+     - The first screen shows that the incident is contested on liability whenever a liability fact says so.
+   - Owner: backend (fold `restated_by` to one per record, or add a record count); ui-builder (the "+N more" wording). The liability rule is Needs decision 5.
+
+4. **The stage track says treatment is complete. The client is still treating.**
+   - Where: `StageTrack.tsx:31-35` marks every step before the current one `completed`, with a check mark and ", completed" for screen readers. First screen.
+   - Saw:
+     - At Litigation (step 5), "Treating" shows a check mark.
+     - The file says otherwise:
+       - the action board's upcoming items include treatment appointments this week and next (deadline facts 30, 31 and 32);
+       - the latest client contact (fact 52) is about continuing therapy;
+       - a firm note says treatment is open (fact 292's record);
+       - a second surgery is recommended and not scheduled (fact 1427).
+     - The README counts "whether the client is still treating" among the 10 first-screen answers. The only first-screen signal for it is this check mark, and it gives the wrong answer.
+   - Expected: earlier steps read "passed", not "completed", or Treating stays open while treatment is ongoing.
+   - Owner: ui-builder; backend, if a "still treating" signal is wanted (for example, the next treatment appointment).
+
+5. **The story so far lists scheduled events as events that happened.**
+   - Where: `services/matter_queries.py:40-50`. `KEY_EVENT_KINDS` includes `DEADLINE`, and `_has_happened` (`:340`) treats a past deadline as an event.
+   - Saw: 3 of the 10 rows are past deadlines.
+     - Row 2 (fact 1398, a surgery scheduled, from a pre-operative note) and row 3 (fact 1518, the same surgery performed) fall on the same day, so one event is told twice.
+     - Row 7 (fact 772) is a subpoena's appearance date for a deposition, listed as an event on that day. A firm note written months later (fact 299) says that deposition is still outstanding. The story tells the attorney a deposition happened that did not.
+     - Row 6 (fact 590) says "noticed for" in its title, so it is honest.
+   - Expected: past deadlines leave the story. The rows go to the next candidates: records received (fact 479, significance 90), coverage (fact 402, 88), and so on.
+   - Owner: backend, code only, with a test that a scheduled day and a performed event on one day give one row.
+
+6. **The story so far never says a suit was filed.**
+   - Where: the same selection, together with the kinds the facts were given.
+   - Saw:
+     - The stage is Litigation, and open question 3 turns on a renewed action. Yet no row covers:
+       - the first suit (fact 566, dated, kind `other`);
+       - its dismissal and the renewal (fact 550, a `status_change` with no date; fact 572, dated, `other`);
+       - the answer (fact 580, dated, `other`);
+       - the opening offer (fact 1986, an `offer` with no date).
+     - The only status change with a date is the file opening, at significance 20.
+     - The story goes from the demand to a deposition notice, with nothing to explain why there is a deposition.
+   - Expected: filings, dismissals, renewals and answers as dated status changes.
+   - Owner: pipeline. It needs a prompt line and a re-read of the pleading records, so a cost and the Manager's go-ahead (Needs decision 3). Otherwise, a README known issue.
+
+7. **"44 waiting on others" includes about 22 demands made of the client, which the firm owes.**
+   - Where: the Now strip's To do cell (`NowStrip.tsx:74-82`), first screen; `actions.waiting_on_others`.
+   - Saw:
+     - 42 of the 44 are `record_request` facts, and `RecordRequestPayload` has no direction (`schemas.py:106`).
+     - By my count, 22 are defense or carrier demands for the client's records, authorizations and disclosures. The rest are the firm's requests to providers, the client and the defense.
+     - Several are restatements of each other.
+     - Pass 2 #8 raised the list's size (45 then). It now sits on the first screen as a number.
+   - Expected:
+     - now: the count reads "44 open requests" (ui-builder);
+     - later: a direction on each request, inbound or outbound (pipeline, a re-read; Needs decision 4).
+   - Owner: ui-builder, then pipeline.
+
+8. **Two different "Next step"s on one page.**
+   - Where: the Now strip's Next step (`lib/facts.ts:89-96`) and Where it stands, sentence 5.
+   - Saw:
+     - The strip shows the oldest overdue task, fact 3, weeks overdue.
+     - The brief's last sentence begins "Next step:" and cites a different task, fact 8, due in two days.
+     - Both tasks are about getting the same surgery date from the same office. Each is right on its own terms, but the page names two next steps with two due dates.
+   - Expected: when the strip picks an overdue item, its label reads "Overdue" (or "Most overdue"), so it does not compete with the brief's "Next step".
+   - Owner: ui-builder.
+
+9. **The three injuries do not match the brief's injury sentence.**
+   - Where: What happened, the Injuries rows (`WhatHappened.tsx:31`, the first 3 groups).
+   - Saw:
+     - The brief names four regions. The three rows show:
+       - a head-imaging finding (fact 1478);
+       - a shoulder complaint line from a chiropractic visit (fact 1163), rather than the diagnosis itself (fact 1402 is fifth);
+       - a spine finding (fact 1485), which the brief does not name.
+     - Not shown:
+       - the knees, which have treating-provider diagnoses (facts 1357 and 1353);
+       - the other shoulder, the one with the pending surgery.
+     - All three quotes are on their pages.
+   - Expected: one row per body region, with a diagnosis preferred over a complaint line.
+   - Owner: ui-builder, or backend if the server should pick.
+
+10. **Minor.**
+    - Rows 8 and 9 of the story (facts 1859 and 1861) are two diagnoses from one page of one defense-exam report: one exam, two rows. Rows 8 to 10 are defense exams, but the lane says Treatment (`lib/labels.ts:92`, where `diagnosis` maps to treatment).
+    - Those rows are dated by each report's own date of examination. A firm note (fact 221's record) and the calendar (deadline facts 21 and 22) put both exams about six months later. The file contradicts itself, and the chips support what is shown. Worth knowing before the demo.
+    - The Incident line's "+177 more" is a count, not a button (past 8 sources), so 8 of the 9 records behind the account cannot be opened from the Overview. The drawer lists no corroborating tabs for it.
+    - Pass 3 #2 (the other driver's policy labelled as the client's) is still in the Coverage disclosure. It is behind "more" now, off the first screen.
+
+### Verified correct
+
+- **Identity header.**
+  - The incident chip (fact 1930) opens the matter record, whose date-of-incident field holds the date shown.
+  - The stage chip (fact 1929) opens the same record, whose stage field reads Litigation.
+  - The stage, the headline's opening word and the brief's stage facts (1929, 215) agree.
+- **Incident account.**
+  - It is a model fact, never the Clio field (D39).
+  - All 179 facts are one account, from 9 records, on the header's incident day.
+  - Story row 1 is the same fact (1585), so What happened and the story agree.
+- **Injuries and liability:** the chips of 1478, 1163, 1485 and 292 each open a page or note that holds the text.
+- **Now strip.**
+  - Next step: fact 3 is the oldest of 4 overdue tasks, and Clio has it pending.
+  - Last client contact: fact 52 is the latest dated client contact, and its call note holds it.
+  - To do: the counts are 4, 7 and 44, as the actions route returns them.
+- **Story so far.**
+  - All 10 quotes are on their pages or notes.
+  - The rows run oldest first.
+  - The demand's two records fold into one row (388, restated by 182).
+  - Nothing is dated after today.
+- **Bottom line and Where it stands.**
+  - I spot-checked 13 cited facts (1929, 1964, 318, 1968, 1957, 1958, 1959, 1931, 1932, 1952, 286, 320, 323), and each opens a source that holds it.
+  - D12 marks: the headline and sentences 1, 3 and 5 are `supported`, and sentences 2 and 4 are `unchecked` (no figures).
+- **Money row:**
+  - the Case value lead, the Coverage lead and the Medical specials figure equal the brief's three figures;
+  - no figure on the page disagrees with another;
+  - the Coverage tile has no false warning (D37 holds).
+- **Since you last opened** is keyed to the Clio record's created or updated time (`services/visits.py:43`), so the 93 facts rebuilt by the 2026-10-08 runs do not show as news.
+- **`check.sh` at `692af64`:** lint ok, Clio read-only (8 passed), no case data (4), nothing private (4), backend tests (419 passed), frontend types ok. Other Node tests SKIPPED (none). No step failed.
+
+### Rules that never bend
+
+- Read-only Clio, no case literals and nothing private: all pass in `check.sh`.
+- Every fact sourced: every chip I opened holds its text. The open questions still state premises without chips (Pass 3 #6).
+- No model on page load: every Overview route is a GET over stored facts, and the last digest run did not move.
+
+### Needs decision (for the lead)
+
+1. **A met statute** (#1): `status` on the deadline payload, filled when served from the task fact of the same source. The cell then reads "Met" in neutral, and `docs/ui.md` gets the exception. Recommendation: now, code only.
+2. **Past deadlines in the story** (#5): drop them from `KEY_EVENT_KINDS`. Recommendation: now, code only.
+3. **The litigation in the story** (#6): either a pipeline prompt line plus a re-read of the pleading records (cents at D36 rates; the Manager's go-ahead), or a README known issue. Recommendation: the known issue now, and the re-read with any later run.
+4. **Request direction** (#7): relabel the count now. Add an inbound/outbound field later, with the same re-read as (3).
+5. **Liability on the first screen** (#3): show up to two liability rows when the next one is within a few points and from a newer record, or always prefer the newest of near-equal facts. Recommendation: two rows. Either way, count restatements per record.
+
 ## Pass 3, 2026-10-08 04:10 PDT
 
 This pass checks the real matter after the D36 model runs: (a), the re-digest, and (b), the re-read of 9 records under P13. I used the running API on port 8000 with no browser, the code at `f49469a`, and `data/app.db` opened read-only. The state before the runs comes from `app.db.bak-20261008T104916Z` (before (a)) and `-105033Z` (before (b)), both opened read-only and immutable. I made no model calls, created no share and wrote nothing. For the draft checker and the provider view, I used `POST .../shares/draft-check` and `POST .../shares/preview`, which build a share in memory and never save it.
