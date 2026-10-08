@@ -103,8 +103,13 @@ The order:
 **Lead, reviewer, critic**
 - [x] L1 lead: update `docs/ui.md`, `docs/architecture.md` and `docs/project.md`.
 - [ ] L2 lead: retake all six screenshots on the synthetic matter (D33).
-- [ ] V6 reviewer: README alt text and views, `docs/submission.md:49`, and `check.sh` free of FAIL.
-- [ ] C4 critic: the 90-second test on the real matter from the first screen alone; every chip in the new blocks opens a source holding its text.
+- [x] V6 reviewer: README alt text and views, `docs/submission.md:49`, and `check.sh` free of FAIL.
+- [x] C4 critic: the 90-second test on the real matter from the first screen alone; every chip in the new blocks opens a source holding its text. Every chip held; four readings misled (Pass 4, 3ad4026), fixed under D40.
+
+**D40, the critic's Pass 4 fixes (code only, no model call)**
+- [x] Backend: a deadline read from a Clio task carries the task's status, so a met statute is neither "passed" nor upcoming; key events drop deadlines; `restated_by` counts records, not pages.
+- [x] ui-builder: "Met" for a met statute; earlier stages not marked completed; two liability facts; injuries by body region (the treating providers' finding first, no count); "Overdue" and "open requests" labels; the coverage label not repeated.
+- [ ] Litigation history (suit, dismissal, renewal, answer) is missing from the story: needs a prompt line and a re-read of the pleadings, cents of API credit. Waits on the Manager.
 
 ## Calls (D8: option A now, B later)
 
