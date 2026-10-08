@@ -1,5 +1,5 @@
-"""Firm-view routes for a matter: header, brief, changes, feed, timeline, actions,
-injuries, and the user list. Owned by Track B; queries live in
+"""Firm-view routes for a matter: header, brief, changes, feed, key events, timeline,
+actions, injuries, and the user list. Owned by Track B; queries live in
 `services/matter_queries.py`."""
 
 from datetime import UTC, datetime
@@ -72,6 +72,16 @@ def matter_feed(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> list[FactOut]:
     return matter_queries.matter_feed(session, matter_id, limit)
+
+
+@router.get("/matters/{matter_id}/key-events")
+def matter_key_events(
+    matter_id: MatterId,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[FactOut]:
+    today = datetime.now(UTC).date()
+    return matter_queries.matter_key_events(session, matter_id, today, limit)
 
 
 @router.get("/matters/{matter_id}/timeline")
