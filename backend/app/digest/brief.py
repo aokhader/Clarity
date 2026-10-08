@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.digest import llm
 from app.digest.records import display_date, parse_date
-from app.models import Digest, DigestKind, Fact, FactKind, SourceType
+from app.models import Digest, DigestKind, Fact, FactKind, SourceType, utcnow
 from app.schemas import BriefContent
 from app.services.bills import count_bills
 
@@ -92,6 +92,8 @@ def write_brief(session: Session, matter_id: int) -> bool:
     existing.content_json = content
     existing.input_hash = input_hash
     existing.model = request.model
+    # The brief's generated_at: when this text was written, not when the row was made.
+    existing.created_at = utcnow()
     return True
 
 

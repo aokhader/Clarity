@@ -8,7 +8,7 @@ converts. A new prompt version writes the brief again even when the facts are un
 
 import json
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -235,3 +235,32 @@ def test_a_new_brief_prompt_writes_the_brief_again(
 
     assert write_brief(session, MATTER)
     assert len(calls) == 2
+
+
+def test_a_rewritten_brief_says_when_it_was_written(
+    data_dir: Path, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = _source(session, SourceType.DOCUMENT, {"name": "Invented record"})
+    fact = _fact(session, document, page_no=1)
+    _answer_with(_brief([fact.id], [fact.id]), monkeypatch)
+    assert write_brief(session, MATTER)
+    stored = session.scalars(
+        select(Digest).where(Digest.kind == DigestKind.BRIEF)
+    ).one()
+    long_ago = datetime(2020, 1, 1, tzinfo=UTC)
+    stored.created_at = long_ago
+    session.commit()
+
+    current = llm.load_prompt("brief")
+    newer = llm.Prompt(
+        name=current.name, version=f"{current.version}.1", text=current.text
+    )
+    monkeypatch.setattr(llm, "load_prompt", lambda _name: newer)
+    assert write_brief(session, MATTER)
+    session.commit()
+
+    session.expire_all()
+    rewritten = session.scalars(
+        select(Digest).where(Digest.kind == DigestKind.BRIEF)
+    ).one()
+    assert rewritten.created_at > long_ago
