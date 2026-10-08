@@ -226,3 +226,9 @@ The lead fills these in at the end; each role notes its own in its STATUS row as
     - **Screenshots double as a UI review.** Taking them on the synthetic matter found two layout bugs the real-matter views hid: a money range cut off on a tile, and a lien that reads like a second bill. Take them before the freeze.
     - **Background agents need a time limit.** A subagent that waits on its own background process waits as long as that process does. When a report is late, the lead checks the process and its log.
     - **The ownership hook needs a live self-test at `/kickoff`.** It should try one edit outside the role's paths and expect the block. Zero blocks in a day says nothing on its own.
+  - **The model runs (2026-10-08):**
+    - **Free tiers cannot carry a real run.** After the quota reset, Gemini's free tier answered 4 of 14 attempts. Its terms also let Google use the content, which is wrong for a real person's file. The paid Anthropic tier answered 22 of 22 calls on the first try, for $0.19 including the trial. Budget a paid key from the start; it costs cents.
+    - **Trial on a copy, then back up, then run.** The trial caught that Gemini dropped people facts, and passed Haiku before anything touched the real database. Keep this gate in the kit's runbook.
+    - **The critic after a model run finds what tests can't.** Pass 3 found that the re-read model left one limit untagged and another without a basis, and the tile then warned of a disagreement no record makes.
+    - **The contract rule broke again.** Backend committed a contract change knowing the frontend typecheck failed (a98001f), against D23. The kit needs a pre-commit check that runs the other side's typecheck when `schemas.py` or `types.ts` changes.
+    - **The lead printed a secret.** A masking `sed` covered `KEY=` lines but not commented-out ones, and an old key was shown in the session. Mask by matching the value, never by line shape; better, never print `.env`.
