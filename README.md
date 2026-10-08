@@ -1,6 +1,6 @@
 # Clarity
 
-Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets a brief it can read in 90 seconds: the case in sentences, the figures that matter, what is overdue, and what changed since the last visit. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the quote highlighted. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
+Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets a brief it can read in 90 seconds: the case in sentences, the figures that matter, what is overdue, and what changed since the last visit. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the quote highlighted. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
 
 Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026), then finished in a trial run by a team of agents (see [The trial](#the-trial)).
 
@@ -142,7 +142,7 @@ Seen working on the hackathon's matter, and by whom.
   - The draft checker:
     - in the composer: the "don't send" lock, and removing a sentence (U4);
     - the brief's "differs from the file" mark (U7).
-  - "No bills on file" in place of $0, and the Coverage tile's leading limit with the client's own policies labelled beneath it (U9). That was before the limits were re-read; the tile has changed since (see Known issues).
+  - "No bills on file" in place of $0, and the Coverage tile's leading limit with the client's own policies labelled beneath it (U9). That was before the limits were re-read; for the tile since D37, see below.
   - Calls:
     - the list of whom to call, with chips;
     - a typed number;
@@ -155,10 +155,14 @@ Seen working on the hackathon's matter, and by whom.
     - No sentence or headline figure is marked "differs from the file" or "not in the file". Two sentences state no amount or date, so they are "unchecked".
     - No open question asks for a date the header already shows (P11).
     - The stage label has no trailing space, and the ledger's medical charges carry the neutral title (P12).
-    - 19 of the 20 policy limits name their policy (D19).
+    - 19 of the 20 policy limits name their policy (D19). The critic found two of them labelled as the client's when they are another party's (Known issues).
     - Economic damages and recovery caps are kinds of their own (D20), and the Case value and Medical specials tiles cite neither.
     - Each provider's bill facts are unchanged by the runs: the same amounts, sources and pages as in the backup taken before them. So every provider's total is unchanged.
-  - The critic's third pass, over the rewritten brief and the re-read limits, is under way (C3).
+  - The critic's third pass (C3, `docs/reviews/critic.md`) traced the rewritten brief, the Coverage tile, the Case value and Medical specials tiles, all ten provider totals, and each re-read record. Every amount and date in the brief checks out. Its open findings are under Known issues.
+- **After the critic's third-pass fixes (D37), seen by the reviewer through the API at `10ffbb3`:**
+  - **The Coverage tile** has 7 rows, leads with the defendant's per-person limit, and shows no warning. A limit that names no policy or no per-person or per-occurrence basis is folded into the row whose figure it repeats. Where limits genuinely conflict, the tile keeps its lead and adds "Sources disagree on some limits" beneath it (read from `KpiTile.tsx`; the invented matter's two defendant figures raise the flag).
+  - **A provider's coverage limits:** with every setting on, an unsaved preview for one provider released only the defendant's liability limits. That was 10 facts, shown on the page as two labelled limits, per person and per occurrence. The client's own policies stay with the firm.
+  - **The draft checker** answers `not_on_link`, "In the file, not on this link", for the incident date in a draft to a provider whose link does not carry it. An invented date is still `not_in_file`.
 - **After the re-sync of 2026-10-07 (D30), seen by the reviewer through the API on 2026-10-08:**
   - The sync fetched again the one pleading whose download had failed on October 2, and the next digest rendered it. All 27 of its page images now load.
   - All 31 documents carry Clio's received date, which the source drawer shows as the document's own date.
@@ -175,7 +179,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 371 pass at `f37a110`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 387 pass at `10ffbb3`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - Sharing:
   - A created link returns exactly what the preview showed.
@@ -199,6 +203,10 @@ By the lead, in the browser, on the clean clone's invented matter, while taking 
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
 
+- **The D37 screens:** the types check, and the reviewer has read the code but not seen these rendered.
+  - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
+  - **The draft-check panel (`f267fc6`):** a `not_on_link` date is shown in a neutral tone with one chip and a count, under "Some dates are in the file but not on this link". It neither locks nor warns.
+  - **The share settings:** "Policy limits" now reads "The defendant's liability limits only, per person and per occurrence".
 - **Liens in the provider update (D35, `612945b`):** the "Send update" draft counts and totals bills only, and lists liens under a heading of their own. On the real matter no lien reaches a provider; see Known issues.
 
 - **Draft-checker matching (D25, D28):**
@@ -251,15 +259,25 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - The provider page does not show the firm's name; no synced record carries it.
   - A live link cannot be edited. To change what a provider sees, withdraw it and share again.
   - The `requests` setting releases only open record requests and open tasks.
+  - The `coverage_limits` setting releases only the defendant's liability limits, never the client's own policies (D37).
 
 **Known issues**
 
-The issues that waited on the re-digest, the re-read and the re-sync are resolved: the brief's unsourced figure, the headline without chips, the open question about a date on the page, the ledger bill's raw title, the missing pleading and the upload dates. Policy limits are now tagged by policy, all but one. What was seen is under [Verified](#verified). These remain:
+The issues that waited on the re-digest, the re-read and the re-sync are resolved: the brief's unsourced figure, the headline without chips, the open question about a date on the page, the ledger bill's raw title, the missing pleading and the upload dates. Policy limits are now tagged by policy, all but one, though two carry the wrong tag (below). The Coverage tile's false "Sources disagree" after the re-read is fixed too (D37). What was seen is under [Verified](#verified). These remain:
 
-- **The Coverage tile warns "Sources disagree" again, since the re-read.**
-  - One of the 20 limits names no policy, and one of the defendant's limits names neither per person nor per occurrence. The tile counts each as possibly the same limit as a different figure.
-  - So its nine figures are listed as equals under the warning, and the defendant's limit no longer leads (`backend/app/services/kpis.py`, `_coverage`).
-  - Seen through the API's `sources_disagree` flag and read from the tile's code; the critic's third pass is checking the limits.
+- **Another party's liability policy is labelled "Client's other policy"** (critic Pass 3, finding 2).
+  - The defense driver's own auto policy appears on the Coverage tile as two rows of the client's.
+  - The policy field (D21) has no value for another party's liability, so the model chose the nearest one. An attorney reading the tile would think the client holds a second policy, and would miss a second source of recovery.
+  - The fix is an added value in the contract, a prompt line and a re-read of one record. By the Manager's choice (D37), it is not made now.
+  - Providers never see this policy, since a link releases only the defendant's limits (D37).
+- **A hidden item on a share comes back after a re-digest that rebuilds its fact** (critic Pass 3, finding 5).
+  - A share stores hidden items by fact id (`Share.hidden_fact_ids_json` in `backend/app/models.py`, read in `backend/app/services/visibility.py`). A re-digest that re-reads a record gives its facts new ids. The two model runs replaced 91 facts this way.
+  - No share exists on the real matter, so nothing leaked. It is still a gap in rule 4, the provider boundary. Owner: backend, after the freeze.
+- **The rewritten brief is accurate but thin** (critic Pass 3, finding 6).
+  - Every amount and date in it checks out. But it leaves out what the defense medical exams found and the limitations defense the defendant pleaded. The old brief stated both.
+  - The ranked feed on the same page still shows both.
+  - A one-line prompt change and one brief call, about 5 cents, would restore them; that is optional and needs the Manager's go-ahead.
+  - The open questions state their premises without chips.
 - **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
 - **Pages read before a provider was known never get that provider.** Two fixes are written up in `STATUS.md`; neither is built.
   - None of the real matter's 8 lien facts has a provider attached, as found during D35 and confirmed in the database.
@@ -267,13 +285,16 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
 - **On the provider page and in the firm's lists:**
   - The "shared on" and "expires" dates are UTC days, so a link made in the evening, Pacific time, reads as made the next day (`backend/app/services/provider_view.py`).
   - A stored call records the consent wording but not which firm user confirmed it.
-  - As of the critic's second pass:
-    - the provider's "File opened" date (from a note) and the header's opened date (from Clio) differ by two days;
-    - "Waiting on others" lists 45 items, 26 of them undated.
+  - The provider's "File opened" date (from a note) and the header's opened date (from Clio) differ by two days, as of the critic's third pass.
+  - "Waiting on others" lists 45 items, 26 of them undated, as of the critic's second pass.
 - **Smaller issues:**
   - Deduplication deletes duplicate facts, so a source that had one gets new fact ids on the next run.
   - A re-sync pulls the matter named by `CLIO_MATTER_QUERY`, not necessarily the one on screen.
   - Each visit uses up the "since you last opened" block.
+  - As of the critic's third pass:
+    - the Case value tile lists the valuation a second time, as "At least" the same figure, from a fact whose low end alone was filled;
+    - the ranked feed lists one treatment recommendation twice;
+    - the re-read dropped two caveats that records state and no fact now holds. The critic found nothing lost that an attorney relies on.
   - The stored brief's `generated_at` still reads its first generation on October 2, though the runs rewrote its text on 2026-10-08. `f37a110` dates each later rewrite correctly, but this brief was written before it. The screen does not show this date.
 - **Tooling:**
   - `npm install` reports 7 high-severity advisories, all in the dependency tree of `shadcn`, whose stylesheet the app imports. They have not been triaged.
@@ -372,7 +393,7 @@ backend/app/
     brief_check.py           brief figures checked against today's facts when served (D12)
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               371 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               387 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
@@ -398,7 +419,7 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D36, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D37, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 

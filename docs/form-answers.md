@@ -40,7 +40,7 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 
 ## 5. Anything the judges should know
 
-**Differentiator.** Every sentence, date, and amount on screen links to the note, email, or PDF page it came from. The provider view is the same sourced data behind a default-deny filter the attorney controls, with a preview that is exactly what the provider receives.
+**Differentiator.** Every sentence, date, and amount on screen links to the note, email, or PDF page it came from. The provider view is the same sourced data behind a default-deny filter the attorney controls, with a preview that is exactly what the provider receives. Before anything is sent to a provider, a draft checker tests each amount and date against the file. It locks a sentence that would disclose an internal figure, and says when a date is in the file but not on that provider's link.
 
 **Where to look first.**
 - `backend/app/digest/`: page-level extraction with verbatim quotes, verification (quote check, second read on scans), then a merge step that sees only extracted facts
@@ -58,7 +58,9 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 - A live provider link cannot be edited; the firm withdraws it and shares again.
 - The draft checker checks figures only. A sentence that discloses an internal fact without an amount or a date is `unchecked`, and a figure merely near an internal amount is not flagged.
 - No full digest has run on the current models. The whole-case figure for them is an estimate.
-- Since the limits were re-read, the Coverage tile warns "Sources disagree" again. One limit names no policy, and one names neither per person nor per occurrence, so the tile cannot rule out that each is the same limit as a different figure.
+- Another party's liability policy (the defense driver's own auto policy) is labelled "Client's other policy" on the firm's Coverage tile. The policy field has no value for another party's liability. Providers never see it, since a link releases only the defendant's limits.
+- A share stores hidden items by fact id. A re-digest that re-reads a record gives its facts new ids, so an item hidden on a share would come back. No share exists on the real matter. This is a gap in the provider boundary, to fix after the freeze.
+- The brief rewritten on 2026-10-08 is accurate, but it leaves out the defense medical exam findings and the pleaded limitations defense. The ranked feed below it still shows both.
 - Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
 - A provider link's "shared on" and "expires" dates are UTC days.
 - Pages read before a provider was known never get that provider.
