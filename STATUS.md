@@ -9,7 +9,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | backend | D35 contract: ProviderItemOut.kind 'bill' or 'lien' on bills items, else null; types.ts mirrored | Freeze fixes only; ui-builder can label lien rows (01d6e41, :8000 serves it) | | | 10:35 |
 | ui-builder | D35: lien rows labelled cfc121b; update lists liens apart 612945b; checked 1440, 1280 | Stand by | | | 10:42 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
-| critic | C2 done: Case value leads with recovery cap; lock bypassed; incident date falsely locked | Pass 3 after the re-digest (D13) | | Incident date shareable? Near-figure flag; coincident dates warn, not lock | 01:58 |
+| critic | C3 done (72d74de): Coverage false disagree (1985, 2012); driver policy labelled client's; brief chips skip pages | Stand by | | Coverage rule (1); party-policy enum; provider limits defendant-only; in-file-not-on-link wording | 2026-10-08 04:11 |
 | reviewer | README and form: D36 run costs, ~$1.40 case estimate, resolved issues moved. check.sh f37a110: no FAIL, 371 | Stopped | | lead: Coverage tile "Sources disagree" again since re-read (backend kpis.py or pipeline); stale P9 stub line | 2026-10-08 04:06 |
 
 ## Stubs and shortcuts
