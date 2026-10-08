@@ -245,19 +245,51 @@ def test_damages_and_caps_are_internal_by_default_deny(
     assert fact not in _visible(seeded, _share())
 
 
-def test_a_limits_policy_does_not_change_whether_it_is_released(
-    seeded: Session,
+# D37: the client's own policies are the client's business, and a limit whose policy
+# the file does not name may be one of them.
+NOT_THE_DEFENDANTS = ["client_no_fault", "client_um_uim", "client_other", None]
+
+
+def _limit(session: Session, policy: str | None, per: str | None = "person") -> Fact:
+    value = {"amount_cents": 2_500_00, "per": per, "policy": policy}
+    return _new_fact(session, FactKind.POLICY_LIMIT, value, None)
+
+
+@pytest.mark.parametrize("policy", NOT_THE_DEFENDANTS)
+def test_only_the_defendants_liability_limits_are_released(
+    seeded: Session, policy: str | None
 ) -> None:
-    limit = _new_fact(
-        seeded,
-        FactKind.POLICY_LIMIT,
-        {"amount_cents": 2_500_00, "per": "person", "policy": "client_um_uim"},
-        None,
-    )
+    theirs = _limit(seeded, policy)
+    defendants = _limit(seeded, "defendant_liability")
     limits_off = ALL_ON.model_copy(update={"coverage_limits": False})
 
-    assert limit in _visible(seeded, _share())
-    assert limit not in _visible(seeded, _share(settings=limits_off))
+    visible = _visible(seeded, _share())
+
+    assert defendants in visible
+    assert theirs not in visible
+    assert defendants not in _visible(seeded, _share(settings=limits_off))
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID])
+def test_a_providers_page_never_lists_a_client_policy_or_an_untagged_limit(
+    seeded: Session, provider: int
+) -> None:
+    others = [
+        _limit(seeded, policy, per)
+        for policy in NOT_THE_DEFENDANTS
+        for per in ("person", "occurrence", None)
+    ]
+
+    payload = provider_payload(seeded, _share(provider=provider), NOW)
+
+    assert payload.coverage is not None and payload.coverage.limits
+    listed = {item.fact_id for item in payload.coverage.limits}
+    assert listed.isdisjoint(fact.id for fact in others)
+    for fact_id in listed:
+        assert seeded.get_one(Fact, fact_id).value_json["policy"] == (
+            "defendant_liability"
+        )
+    assert 2_500_00 not in {item.amount_cents for item in payload.coverage.limits}
 
 
 # --- Calls: notes from a call's transcript are internal (default-deny) ----------------

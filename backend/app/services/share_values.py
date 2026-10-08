@@ -26,6 +26,7 @@ from app.services.text_mentions import DatePrecision, find_amounts, find_dates
 from app.services.visibility import (
     PROVIDER_SCOPED_SETTINGS,
     SETTING_BY_KIND,
+    is_shared_limit,
 )
 
 _SETTING_WORDS: dict[ShareSetting, str] = {
@@ -121,6 +122,7 @@ def _withheld_because(
         setting is None
         or fact.visibility is Visibility.INTERNAL
         or fact.mentions_strategy
+        or (setting == "coverage_limits" and not is_shared_limit(fact))
     ):
         return _NEVER_SHARED, 0
     if (

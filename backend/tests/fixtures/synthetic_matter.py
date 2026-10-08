@@ -50,6 +50,8 @@ ORTHO_ID = 201  # first medical provider
 THERAPY_ID = 202  # second medical provider
 INSURER_ID = 301
 DOCUMENT_ID = "1001"
+# Both limits on file are the other driver's carrier's, and they disagree (D37).
+DEFENDANT = "defendant_liability"
 
 # Mirrors the visibility table in docs/architecture.md. Default-deny.
 _SHAREABLE_KINDS = {
@@ -402,7 +404,7 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             FactKind.POLICY_LIMIT,
             "Policy limit $100,000 per person",
             "matter",
-            {"amount_cents": 10_000_000, "per": "person"},
+            {"amount_cents": 10_000_000, "per": "person", "policy": DEFENDANT},
             "100000",
             92,
             origin=code,
@@ -411,7 +413,7 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             FactKind.POLICY_LIMIT,
             "Adjuster cited a $50,000 limit",
             "note",
-            {"amount_cents": 5_000_000, "per": "person"},
+            {"amount_cents": 5_000_000, "per": "person", "policy": DEFENDANT},
             "Adjuster mentioned a $50,000 per person limit",
             90,
             on(-198),

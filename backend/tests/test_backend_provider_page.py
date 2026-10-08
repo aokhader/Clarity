@@ -94,44 +94,78 @@ def _limit(session: Session, value: dict[str, Any], on: date | None) -> Fact:
     return fact
 
 
+def _limits_only(session: Session) -> None:
+    for fact in session.scalars(select(Fact).where(Fact.kind == FactKind.POLICY_LIMIT)):
+        session.delete(fact)
+    session.commit()
+
+
+def _defendants(cents: int, per: str | None) -> dict[str, Any]:
+    return {"amount_cents": cents, "per": per, "policy": "defendant_liability"}
+
+
+def _listed(client: TestClient, user_id: int) -> list[tuple[int, str]]:
+    limits = _payload(client, user_id, coverage_limits=True)["coverage"]["limits"]
+    return [(item["amount_cents"], item["label"]) for item in limits]
+
+
 def test_a_limit_stated_by_several_records_is_listed_once(
     seeded: Session, client: TestClient, user_id: int
 ) -> None:
-    stated = {
-        (f.value_json["amount_cents"], f.value_json["per"])
-        for f in seeded.scalars(select(Fact).where(Fact.kind == FactKind.POLICY_LIMIT))
-    }
-    amount, per = next(iter(stated))
-    _limit(seeded, {"amount_cents": amount, "per": per}, date(2031, 7, 1))
-    _limit(seeded, {"amount_cents": amount, "per": per}, None)
-    _limit(seeded, {"amount_cents": amount, "per": "occurrence"}, None)
+    _limits_only(seeded)
+    _limit(seeded, _defendants(1_000_00, "person"), date(2031, 7, 1))
+    _limit(seeded, _defendants(1_000_00, "person"), None)
+    _limit(seeded, _defendants(1_000_00, "occurrence"), None)
 
-    limits = _payload(client, user_id, coverage_limits=True)["coverage"]["limits"]
-
-    listed = [(item["amount_cents"], item["label"]) for item in limits]
-    assert (
-        len(listed)
-        == len(set(listed))
-        == len(stated) + (1 if (amount, "occurrence") not in stated else 0)
-    )
+    assert _listed(client, user_id) == [
+        (1_000_00, "Liability limit per person"),
+        (1_000_00, "Liability limit per occurrence"),
+    ]
 
 
 def test_a_restated_limit_cites_its_earliest_statement(
     seeded: Session, client: TestClient, user_id: int
 ) -> None:
-    for fact in seeded.scalars(select(Fact).where(Fact.kind == FactKind.POLICY_LIMIT)):
-        seeded.delete(fact)
-    seeded.commit()
-    _limit(seeded, {"amount_cents": 1_000_00, "per": "person"}, date(2031, 7, 1))
-    earlier = _limit(
-        seeded,
-        {"amount_cents": 1_000_00, "per": "person"},
-        date(2031, 6, 1),
-    )
+    _limits_only(seeded)
+    _limit(seeded, _defendants(1_000_00, "person"), date(2031, 7, 1))
+    earlier = _limit(seeded, _defendants(1_000_00, "person"), date(2031, 6, 1))
 
     limits = _payload(client, user_id, coverage_limits=True)["coverage"]["limits"]
 
     assert [item["fact_id"] for item in limits] == [earlier.id]
+
+
+# --- D37: the provider sees the defendant's liability limits, labelled by basis -------
+
+
+def test_the_provider_sees_the_defendants_limits_per_person_first(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    _limits_only(seeded)
+    _limit(seeded, _defendants(3_000_00, "occurrence"), date(2031, 6, 1))
+    _limit(seeded, _defendants(1_000_00, "person"), date(2031, 7, 1))
+    # Beside limits that state a basis, one without is a restatement or a stray.
+    _limit(seeded, _defendants(1_000_00, None), None)
+    _limit(seeded, _defendants(2_000_00, None), None)
+    for policy in ("client_no_fault", "client_um_uim", "client_other", None):
+        _limit(
+            seeded, {"amount_cents": 500_00, "per": "person", "policy": policy}, None
+        )
+
+    assert _listed(client, user_id) == [
+        (1_000_00, "Liability limit per person"),
+        (3_000_00, "Liability limit per occurrence"),
+    ]
+
+
+def test_a_defendant_limit_with_no_basis_is_listed_when_none_states_one(
+    seeded: Session, client: TestClient, user_id: int
+) -> None:
+    _limits_only(seeded)
+    _limit(seeded, _defendants(1_000_00, None), date(2031, 7, 1))
+    _limit(seeded, _defendants(1_000_00, None), None)
+
+    assert _listed(client, user_id) == [(1_000_00, "Liability limit")]
 
 
 # --- K4: last movement never dates the case from an older event ----------------------

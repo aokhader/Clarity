@@ -53,10 +53,13 @@ ITEM_KIND_BY_FACT_KIND: dict[FactKind, ProviderItemKind] = {
     FactKind.MEDICAL_BILL: "bill",
     FactKind.LIEN: "lien",
 }
-_LIMIT_LABELS = {
-    "person": "Policy limit per person",
-    "occurrence": "Policy limit per occurrence",
+# The only limits a link releases are the defendant's liability limits (D37).
+_LIMIT_LABELS: dict[str | None, str] = {
+    "person": "Liability limit per person",
+    "occurrence": "Liability limit per occurrence",
+    None: "Liability limit",
 }
+_LIMIT_ORDER = list(_LIMIT_LABELS)
 
 
 class ShareGone(Exception):
@@ -166,25 +169,41 @@ def _coverage(
         )
     limits = None
     if settings.coverage_limits:
-        limits = []
-        listed: set[tuple[int | None, str | None, str | None]] = set()
-        for fact in _chronological(by_setting["coverage_limits"]):
-            payload = PolicyLimitPayload.model_validate(fact.value_json)
-            # A limit several records restate is one line, citing its first statement.
-            limit = (payload.amount_cents, payload.per, payload.policy)
-            if limit in listed:
-                continue
-            listed.add(limit)
-            limits.append(
-                ProviderItemOut(
-                    fact_id=fact.id,
-                    on=fact.event_date,
-                    label=_LIMIT_LABELS.get(payload.per or "", "Policy limit"),
-                    amount_cents=payload.amount_cents,
-                    has_source=False,
-                )
-            )
+        limits = _limits(by_setting["coverage_limits"])
     return ProviderCoverageOut(confirmed=confirmed, limits=limits)
+
+
+def _limits(facts: list[Fact]) -> list[ProviderItemOut]:
+    """The defendant's liability limits, the only ones a link releases (D37), each once
+    and labelled by its basis, per person first.
+
+    A limit several records restate is one line, citing its first statement. A limit
+    with no basis is listed only when none states one: beside limits that do, it is a
+    restatement, or a stray figure the firm's Coverage tile warns about.
+    """
+    stated = [
+        (fact, PolicyLimitPayload.model_validate(fact.value_json))
+        for fact in _chronological(facts)
+    ]
+    based = any(payload.per for _, payload in stated)
+    stated.sort(key=lambda s: _LIMIT_ORDER.index(s[1].per))  # stable: dates kept
+    limits = []
+    listed: set[tuple[int | None, str | None]] = set()
+    for fact, payload in stated:
+        limit = (payload.amount_cents, payload.per)
+        if limit in listed or (based and payload.per is None):
+            continue
+        listed.add(limit)
+        limits.append(
+            ProviderItemOut(
+                fact_id=fact.id,
+                on=fact.event_date,
+                label=_LIMIT_LABELS[payload.per],
+                amount_cents=payload.amount_cents,
+                has_source=False,
+            )
+        )
+    return limits
 
 
 def _own_item(
