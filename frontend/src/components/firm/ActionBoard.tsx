@@ -62,13 +62,13 @@ export function ActionBoard({ matterId }: { matterId: number }) {
               Icon={CalendarDays}
               value={String(actions.data.upcoming.length)}
               label="Upcoming"
-              tone="info"
+              tone="neutral"
             />
             <ActionCountTile
               Icon={Users}
               value={String(actions.data.waiting_on_others.length)}
               label="Waiting on others"
-              tone="warning"
+              tone="neutral"
             />
             <ActionCountTile
               Icon={Hourglass}
@@ -81,7 +81,7 @@ export function ActionBoard({ matterId }: { matterId: number }) {
             <div
               className={cn(
                 ACTION_COLUMNS,
-                'border-y border-slate-100 bg-slate-50 px-6 py-3.5 text-sm font-semibold text-slate-700',
+                'border-y bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground',
               )}
             >
               <span>Task</span>
@@ -99,7 +99,7 @@ export function ActionBoard({ matterId }: { matterId: number }) {
               <button
                 type="button"
                 onClick={() => setExpanded((open) => !open)}
-                className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-slate-50"
+                className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-muted focus-visible:-outline-offset-2"
               >
                 {expanded ? 'Show fewer' : `Show all ${rows.length}`}
               </button>

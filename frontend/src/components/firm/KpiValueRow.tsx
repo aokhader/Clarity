@@ -8,12 +8,10 @@ type KpiValueRowProps = {
   value: KpiValueOut
   /** Large for values that disagree and stand as equals; small for entries under a lead figure. */
   size: 'large' | 'small'
-  /** The tile's tint for the label line. */
-  labelClass: string
 }
 
 /** One of several values on a KPI tile: the figure, what it is, and its source. */
-export function KpiValueRow({ value, size, labelClass }: KpiValueRowProps) {
+export function KpiValueRow({ value, size }: KpiValueRowProps) {
   return (
     // The figure's side never shrinks below its widest amount, so when the figure and the
     // chip do not both fit on a narrow tile, the chip moves under it instead of covering it.
@@ -23,7 +21,7 @@ export function KpiValueRow({ value, size, labelClass }: KpiValueRowProps) {
         <p className={cn('font-semibold tabular-nums', size === 'large' ? 'text-xl' : 'text-base')}>
           <KpiFigure value={value} />
         </p>
-        {value.label && <p className={cn('text-xs', labelClass)}>{value.label}</p>}
+        {value.label && <p className="text-xs text-muted-foreground">{value.label}</p>}
       </div>
       <div className="ml-auto">
         <RevealOnHover>

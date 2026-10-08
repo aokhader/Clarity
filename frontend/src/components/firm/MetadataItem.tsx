@@ -42,7 +42,7 @@ export function MetadataItem({
         aria-hidden
         className={cn(
           'flex size-10 shrink-0 items-center justify-center rounded-lg [&_svg]:size-[1.05rem]',
-          urgent ? 'bg-red-100 text-danger' : 'bg-slate-100 text-slate-600',
+          urgent ? 'bg-card text-danger' : 'bg-muted text-muted-foreground',
         )}
       >
         {icon}
@@ -62,16 +62,16 @@ export function MetadataItem({
       {source && (
         <ChevronRight
           aria-hidden
-          className="size-4 shrink-0 self-center text-slate-300 transition-colors group-hover:text-primary"
+          className="size-4 shrink-0 self-center text-muted-foreground transition-colors group-hover:text-primary"
         />
       )}
     </>
   )
 
-  const card = 'flex h-full w-full items-start gap-3 rounded-xl border p-4 text-left'
+  const card = 'flex h-full w-full items-start gap-3 rounded-lg border p-4 text-left'
   if (!source) {
     return (
-      <div title={fullText} className={cn(card, 'border-slate-100 bg-slate-50/60', className)}>
+      <div title={fullText} className={cn(card, 'border-transparent bg-muted', className)}>
         {content}
       </div>
     )
@@ -85,8 +85,8 @@ export function MetadataItem({
         card,
         'group cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-ring',
         urgent
-          ? 'border-red-100 bg-red-50/60 hover:border-red-200 hover:bg-red-50'
-          : 'border-slate-200 bg-card hover:border-blue-200 hover:bg-blue-50/40',
+          ? 'border-danger/40 bg-danger-soft hover:border-danger'
+          : 'bg-card hover:border-primary hover:bg-muted',
         className,
       )}
     >

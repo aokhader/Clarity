@@ -8,7 +8,7 @@ export function KpiStrip({ kpis }: { kpis: KpiOut[] }) {
       {kpis.length === 0 ? (
         <p className="text-sm text-muted-foreground">No figures found in the file.</p>
       ) : (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="-mx-5 grid grid-cols-4 divide-x">
           {kpis.map((kpi) => (
             <KpiTile key={kpi.name} kpi={kpi} />
           ))}

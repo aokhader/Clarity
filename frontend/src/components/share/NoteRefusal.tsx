@@ -22,7 +22,7 @@ export function NoteRefusal({ note, lock }: NoteRefusalProps) {
         <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
         Don&apos;t send: {lock.message.replace(/\.$/, '')}. Edit the marked figures to create the link.
       </p>
-      <div className="rounded-sm bg-danger-soft px-2 py-1 text-sm leading-7 break-words whitespace-pre-wrap ring-1 ring-danger/40">
+      <div className="rounded-sm bg-danger-soft px-2 py-1 text-sm leading-7 break-words whitespace-pre-wrap ring-1 ring-danger">
         <MarkedText text={note} mentions={locked} from={0} to={note.length} markSupported={false} />
       </div>
     </div>

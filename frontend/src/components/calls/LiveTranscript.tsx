@@ -25,7 +25,7 @@ export function LiveTranscript({ status, segments, interim, problem, onResume }:
   const Icon = status === 'listening' ? Mic : MicOff
   return (
     <section aria-label="Live transcript" className="space-y-3">
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+      <p className="rounded-md border bg-muted px-3 py-2 text-sm">
         What this computer&apos;s microphone hears is transcribed. On a speakerphone that can include the other
         person&apos;s voice.
       </p>

@@ -9,15 +9,15 @@ export function MatterHeader({ header }: { header: MatterHeaderOut }) {
   return (
     <section
       aria-label="Client"
-      className="flex items-center gap-6 rounded-2xl border bg-linear-to-r from-blue-50 via-blue-50/40 to-card p-6"
+      className="flex items-center gap-6 rounded-xl border bg-card p-6"
     >
       <ClientAvatar name={name} avatarUrl={header.client?.avatar_url ?? null} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-3xl font-bold tracking-tight">{name}</h2>
+          <h2 className="font-serif text-3xl font-semibold">{name}</h2>
           <StagePill stage={header.stage} />
         </div>
-        {subtitle && <p className="text-sm text-slate-600">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
       </div>
     </section>
   )

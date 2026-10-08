@@ -32,7 +32,7 @@ export function HighlightedText({ text, quote, quoteSpan = null }: HighlightedTe
         {span ? (
           <>
             {readable.slice(0, span[0])}
-            <mark ref={markRef} className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary/40">
+            <mark ref={markRef} className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary">
               {readable.slice(span[0], span[1])}
             </mark>
             {readable.slice(span[1])}

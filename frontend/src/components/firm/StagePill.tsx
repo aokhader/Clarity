@@ -6,7 +6,7 @@ import { STAGE_LABELS } from '@/lib/labels'
 export function StagePill({ stage }: { stage: StageOut }) {
   if (stage.stage === null) {
     return (
-      <span className="rounded-full bg-muted px-3 py-1 text-[13px] text-muted-foreground">Stage not found in file</span>
+      <span className="rounded-sm bg-muted px-2 py-0.5 text-[13px] text-muted-foreground">Stage not found in file</span>
     )
   }
   return (
@@ -14,7 +14,7 @@ export function StagePill({ stage }: { stage: StageOut }) {
       className="group/src inline-flex items-center gap-2"
       title={stage.label ? `Recorded as "${stage.label}"` : undefined}
     >
-      <span className="rounded-full bg-blue-100 px-3 py-1 text-[13px] font-semibold text-blue-700">
+      <span className="rounded-sm border px-2 py-0.5 text-[13px] font-medium text-foreground">
         {STAGE_LABELS[stage.stage]}
         {stage.inferred && <span className="ml-1.5 font-normal text-warning">inferred</span>}
       </span>

@@ -55,12 +55,12 @@ export function DocumentsView({ matterId }: { matterId: number }) {
               aria-pressed={filter === type}
               onClick={() => setFilter(type)}
               className={cn(
-                'flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-                filter === type ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted',
+                'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
+                filter === type ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-card hover:bg-muted',
               )}
             >
               {type === null ? 'All' : SOURCE_LABELS[type]}
-              <span className="rounded-full bg-black/5 px-1.5 text-xs font-semibold">{count}</span>
+              <span className="rounded-sm bg-current/10 px-1.5 text-xs font-semibold">{count}</span>
             </button>
           )
         })}

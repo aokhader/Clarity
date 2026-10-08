@@ -16,11 +16,11 @@ export function StatusTracker({ status }: { status: ProviderStatusOut }) {
           const current = stage === status.current
           return (
             <li key={stage} className="flex items-center gap-1" aria-current={current ? 'step' : undefined}>
-              {index > 0 && <ChevronRight aria-hidden className="size-3.5 text-muted-foreground/60" />}
+              {index > 0 && <ChevronRight aria-hidden className="size-3.5 text-muted-foreground" />}
               <span
                 className={cn(
                   'rounded-md px-2 py-1',
-                  current ? 'border border-foreground/30 bg-card font-semibold' : 'text-muted-foreground',
+                  current ? 'border border-input bg-card font-semibold' : 'text-muted-foreground',
                 )}
               >
                 {STAGE_LABELS[stage]}

@@ -36,7 +36,7 @@ export function DraftSentence({ text, sentence, onEdit }: DraftSentenceProps) {
 
   if (sentence.verdict !== 'do_not_send') return <span>{parts}</span>
   return (
-    <span className="rounded-sm bg-danger-soft px-0.5 ring-1 ring-danger/40">
+    <span className="rounded-sm bg-danger-soft px-0.5 ring-1 ring-danger">
       <span className="mr-1 inline-flex items-center gap-1 align-middle text-xs font-semibold text-danger">
         <Lock aria-hidden className="size-3.5" />
         Don&apos;t send
@@ -46,7 +46,7 @@ export function DraftSentence({ text, sentence, onEdit }: DraftSentenceProps) {
         <button
           type="button"
           onClick={() => onEdit(sentence.start, sentence.end, '')}
-          className="ml-1 rounded-sm border border-danger/50 px-1.5 align-middle text-xs font-medium text-danger hover:bg-card focus-visible:outline-2 focus-visible:outline-ring"
+          className="ml-1 rounded-sm border border-danger px-1.5 align-middle text-xs font-medium text-danger hover:bg-card focus-visible:outline-2 focus-visible:outline-ring"
         >
           Remove sentence
         </button>

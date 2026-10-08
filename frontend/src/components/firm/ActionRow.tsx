@@ -7,11 +7,12 @@ import { cn } from '@/lib/utils'
 
 export type ActionStatus = 'Overdue' | 'Waiting' | 'Upcoming' | 'Scheduled'
 
+/** Red is kept for what is overdue; the other statuses are told apart by their word. */
 const STATUS_STYLES: Record<ActionStatus, string> = {
-  Overdue: 'bg-red-100 text-red-700',
-  Waiting: 'bg-orange-100 text-orange-700',
-  Upcoming: 'bg-blue-100 text-blue-700',
-  Scheduled: 'bg-slate-100 text-slate-700',
+  Overdue: 'bg-danger-soft text-danger',
+  Waiting: 'bg-muted text-foreground',
+  Upcoming: 'bg-muted text-foreground',
+  Scheduled: 'bg-muted text-muted-foreground',
 }
 
 /** Columns shared by the table's heading and its rows. */
@@ -28,7 +29,7 @@ function dueText(days: number): string {
 
 function dueTone(days: number): string {
   if (days < 0) return 'text-danger'
-  if (days <= DUE_SOON_DAYS) return 'text-orange-700'
+  if (days <= DUE_SOON_DAYS) return 'text-warning'
   return 'text-muted-foreground'
 }
 
@@ -49,13 +50,13 @@ export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatu
   const note = noteOf(fact)
   const owner = fact.kind === 'task' ? fact.value.assignee : null
   return (
-    <li className="border-b border-slate-100">
+    <li className="border-b">
       <button
         type="button"
         onClick={() => drawer.open(fact.id)}
         className={cn(
           ACTION_COLUMNS,
-          'w-full cursor-pointer items-center px-6 py-4 text-left text-[15px] transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+          'w-full cursor-pointer items-center px-6 py-4 text-left text-[15px] transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
         )}
       >
         <span className="flex min-w-0 flex-col gap-0.5">
@@ -73,12 +74,12 @@ export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatu
           )}
         </span>
         <span className="flex flex-col gap-0.5 tabular-nums">
-          <span className="text-slate-600">{due ? formatDate(due) : '—'}</span>
+          <span className="text-muted-foreground">{due ? formatDate(due) : '—'}</span>
           {days !== null && <span className={cn('text-[13px] font-medium', dueTone(days))}>{dueText(days)}</span>}
         </span>
-        <span className="truncate text-sm text-slate-600">{owner ?? '—'}</span>
+        <span className="truncate text-sm text-muted-foreground">{owner ?? '—'}</span>
         <span>
-          <span className={cn('inline-block rounded-full px-2.5 py-1 text-[13px] font-medium', STATUS_STYLES[status])}>
+          <span className={cn('inline-block rounded-sm px-2 py-0.5 text-[13px] font-medium', STATUS_STYLES[status])}>
             {status}
           </span>
         </span>

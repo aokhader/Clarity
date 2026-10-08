@@ -39,7 +39,7 @@ export function ConsentDialog({ name, onAgreed, onDeclined, onClose }: ConsentDi
             California requires every party to a confidential call to agree before it is recorded, and Clarity treats
             transcription as recording. Read this to everyone on the call with {name}:
           </Dialog.Description>
-          <blockquote className="border-l-2 border-primary bg-muted px-4 py-3 font-serif text-base leading-relaxed">
+          <blockquote className="border-l-2 border-muted-foreground bg-muted px-4 py-3 font-serif text-base leading-relaxed">
             {CONSENT_TEXT}
           </blockquote>
           <label htmlFor={checkboxId} className="flex items-start gap-2 text-sm">

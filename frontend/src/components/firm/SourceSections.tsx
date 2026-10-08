@@ -96,7 +96,7 @@ export function SourceSections({ sections, title, quote }: SourceSectionsProps) 
                     className={cn(
                       'min-w-0 rounded-md',
                       (field.value?.length ?? 0) > LONG_VALUE && 'col-span-2',
-                      quoted && '-mx-2 bg-primary/10 px-2 py-1.5 ring-1 ring-primary/40',
+                      quoted && '-mx-2 bg-primary/10 px-2 py-1.5 ring-1 ring-primary',
                     )}
                   >
                     <dt className="text-xs text-muted-foreground">

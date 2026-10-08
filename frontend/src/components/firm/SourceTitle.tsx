@@ -13,7 +13,7 @@ export function SourceTitle({ title, quote }: SourceTitleProps) {
       {span ? (
         <>
           {title.slice(0, span[0])}
-          <mark className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary/40">
+          <mark className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary">
             {title.slice(span[0], span[1])}
           </mark>
           {title.slice(span[1])}

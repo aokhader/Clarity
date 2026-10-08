@@ -41,8 +41,8 @@ export function RoadmapCard({ stage }: { stage: StageOut }) {
         <p className="text-sm text-muted-foreground">Stage not found in file.</p>
       ) : (
         <div className="relative pt-2 pb-2">
-          <div className="absolute inset-x-0 top-5 h-[3px] rounded-full bg-slate-100" />
-          <div className="absolute top-5 left-0 h-[3px] rounded-full bg-blue-500" style={{ width: `${fill}%` }} />
+          <div className="absolute inset-x-0 top-5 h-[3px] rounded-full bg-input" />
+          <div className="absolute top-5 left-0 h-[3px] rounded-full bg-foreground" style={{ width: `${fill}%` }} />
           <ol className="relative grid grid-cols-5">
             {STEPS.map((label, index) => {
               const step = index + 1
@@ -53,17 +53,17 @@ export function RoadmapCard({ stage }: { stage: StageOut }) {
                   <span
                     className={cn(
                       'flex items-center justify-center rounded-full text-xs font-bold',
-                      done && 'size-[26px] border-3 border-blue-100 bg-primary text-white',
-                      isCurrent && '-mt-0.5 size-[30px] border-3 border-blue-200 bg-card text-primary ring-3 ring-blue-50',
-                      !done && !isCurrent && 'size-[26px] border-3 border-card bg-slate-100 text-slate-400',
+                      done && 'size-[26px] border-3 border-card bg-foreground text-background',
+                      isCurrent && '-mt-0.5 size-[30px] border-3 border-foreground bg-card text-foreground',
+                      !done && !isCurrent && 'size-[26px] border-2 border-input bg-card text-muted-foreground',
                     )}
                   >
                     {done ? <Check aria-hidden className="size-3.5" strokeWidth={3} /> : step}
                   </span>
                   <span
                     className={cn(
-                      'text-[15px] font-medium',
-                      isCurrent ? 'text-primary' : done ? 'text-slate-800' : 'text-slate-400',
+                      'text-[15px]',
+                      isCurrent ? 'font-semibold text-foreground' : done ? 'font-medium text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     {label}

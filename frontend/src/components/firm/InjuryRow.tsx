@@ -9,7 +9,7 @@ export function InjuryRow({ group }: { group: InjuryGroup }) {
   const { body_part: bodyPart, severity } = lead.value
   const details = [KIND_LABELS[lead.kind], bodyPart, severity].filter(Boolean)
   return (
-    <li className="group/src flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+    <li className="group/src flex items-start justify-between gap-3 rounded-lg bg-muted px-4 py-3">
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-[15px] font-medium">{lead.title}</p>
         <p className="text-[13px] text-muted-foreground">{details.join(' · ')}</p>

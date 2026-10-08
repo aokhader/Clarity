@@ -65,7 +65,7 @@ export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps)
           src={page.image_url}
           alt={`Page ${page.page_no}`}
           onError={() => setUnloaded((previous) => new Set(previous).add(page.page_id))}
-          className="w-full rounded-sm border bg-white"
+          className="w-full rounded-sm border bg-card"
         />
       )}
     </div>

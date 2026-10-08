@@ -11,7 +11,7 @@ import { KIND_LABELS } from '@/lib/labels'
 export function FeedRow({ fact }: { fact: FactOut }) {
   return (
     <li className="group/src grid grid-cols-[7.5rem_8rem_minmax(0,1fr)] items-center gap-4 py-3">
-      <span className={fact.event_date ? 'text-sm tabular-nums text-slate-600' : 'text-sm text-slate-400'}>
+      <span className={fact.event_date ? 'text-sm tabular-nums text-muted-foreground' : 'text-sm text-muted-foreground italic'}>
         {fact.event_date ? formatDate(fact.event_date) : 'Undated'}
       </span>
       <span className="text-[11.5px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">

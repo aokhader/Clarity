@@ -1,5 +1,3 @@
-import { CircleHelp } from 'lucide-react'
-
 import { ApiError } from '@/api/client'
 import { useMatterBrief } from '@/api/matters'
 import { BriefSentence } from '@/components/firm/BriefSentence'
@@ -61,9 +59,9 @@ export function Brief({ matterId }: { matterId: number }) {
         </p>
       )}
       {openQuestions.length > 0 && (
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
-          <h3 className="flex items-center gap-2 text-xs font-semibold tracking-[0.08em] text-amber-700 uppercase">
-            <CircleHelp aria-hidden className="size-4" />
+        // Neutral, not amber: a gap in the file is not a status (docs/ui.md).
+        <div className="mt-5 border-t pt-4">
+          <h3 className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
             Not answered by the file
           </h3>
           <ul className="mt-2.5 list-disc space-y-1 pl-5 text-[15px]">

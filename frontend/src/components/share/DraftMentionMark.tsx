@@ -77,7 +77,7 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
           <button
             type="button"
             onClick={() => onUseFileValue(replacement)}
-            className="rounded-sm border border-warning/50 px-1.5 font-medium text-warning hover:bg-warning-soft focus-visible:outline-2 focus-visible:outline-ring"
+            className="rounded-sm border border-warning px-1.5 font-medium text-warning hover:bg-warning-soft focus-visible:outline-2 focus-visible:outline-ring"
           >
             Use the file&apos;s value
           </button>
