@@ -132,18 +132,28 @@ export function bodyRegionOf(bodyPart: string | null | undefined): string {
     .trim()
 }
 
-function sameTitle(a: Injury, b: Injury): boolean {
-  const norm = (title: string) => title.trim().toLowerCase().replace(/\s+/g, ' ')
-  return norm(a.title) === norm(b.title)
+/** How many distinct source records state these facts. */
+function recordsStating(facts: Injury[]): number {
+  return new Set(facts.map((fact) => fact.source_id)).size
+}
+
+/** The first fact from each source record, in the order given. */
+function onePerRecord(facts: Injury[]): Injury[] {
+  const seen = new Set<number>()
+  return facts.filter((fact) => {
+    if (seen.has(fact.source_id)) return false
+    seen.add(fact.source_id)
+    return true
+  })
 }
 
 /** One body region as the Overview shows it. */
 export type RegionGroup = {
   /** The region as normalized; empty for injuries the records give no body part for. */
   region: string
-  /** The region's most significant diagnosis, else its most significant injury. */
+  /** The region's leading finding, stated by the most records (groupInjuriesByRegion). */
   lead: Injury
-  /** The lead, then one fact for each other record that states the same finding. */
+  /** That finding's facts, one per record, the lead first. */
   facts: Injury[]
   /** How many distinct records state an injury in the region: the order of the list. */
   recordCount: number
@@ -153,6 +163,11 @@ export type RegionGroup = {
  * Injuries by body region, the region the most records state first, ties in the order
  * given, and injuries with no body part last. Every chart visit restates its complaint,
  * so counting records rather than facts keeps one busy chart from leading the list.
+ *
+ * A region's row is chosen as the incident account is (D39): its facts are grouped by
+ * finding (groupSameInjuries), and the finding the most records state leads, ties going
+ * to the order served, which puts treating providers first. Significance alone would
+ * pick a single negative or defense finding over what the treating records say (D40).
  */
 export function groupInjuriesByRegion(injuries: Injury[]): RegionGroup[] {
   const byRegion = new Map<string, Injury[]>()
@@ -162,20 +177,15 @@ export function groupInjuriesByRegion(injuries: Injury[]): RegionGroup[] {
   }
   const groups: RegionGroup[] = []
   for (const [region, facts] of byRegion) {
-    const diagnoses = facts.filter((fact) => fact.kind === 'diagnosis')
-    const [lead] = topBySignificance(diagnoses.length > 0 ? diagnoses : facts, 1)
-    if (lead === undefined) continue
-    const cited = new Set([lead.source_id])
-    const restating = facts.filter((fact) => {
-      if (fact === lead || cited.has(fact.source_id) || !sameTitle(fact, lead)) return false
-      cited.add(fact.source_id)
-      return true
-    })
+    // groupSameInjuries keeps the served order; a stable sort keeps it among equal counts.
+    const findings = groupSameInjuries(facts).sort((a, b) => recordsStating(b.facts) - recordsStating(a.facts))
+    const [leading] = findings
+    if (leading === undefined) continue
     groups.push({
       region,
-      lead,
-      facts: [lead, ...restating],
-      recordCount: new Set(facts.map((fact) => fact.source_id)).size,
+      lead: leading.lead,
+      facts: onePerRecord(leading.facts),
+      recordCount: recordsStating(facts),
     })
   }
   return groups.sort((a, b) => {
