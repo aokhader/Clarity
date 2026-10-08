@@ -287,9 +287,12 @@ def test_the_route_lists_the_synthetic_matter_and_refuses_unknown_ones(
     assert rows and len(rows) <= 10
     today = datetime.now(UTC).date().isoformat()
     assert all(row["event_date"] and row["event_date"] <= today for row in rows)
-    incidents = [row["id"] for row in rows if row["kind"] == "incident"]
-    pinned = header["incident_account"] or header["incident"]
-    assert incidents == [pinned["fact"]["id"]]
+    incidents = [row for row in rows if row["kind"] == "incident"]
+    # The synthetic matter's account is restated by a second record (the fixture).
+    account = header["incident_account"]
+    assert account and account["restated_by"]
+    assert [row["id"] for row in incidents] == [account["fact"]["id"]]
+    assert incidents[0]["restated_by"] == account["restated_by"]
     assert [r["event_date"] for r in rows] == sorted(r["event_date"] for r in rows)
 
     assert client.get("/api/matters/999/key-events").status_code == 404

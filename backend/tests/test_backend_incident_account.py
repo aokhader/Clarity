@@ -27,6 +27,26 @@ def _fields(session: Session) -> list[Fact]:
     return facts
 
 
+def _reads(session: Session) -> list[Fact]:
+    return list(
+        session.scalars(
+            select(Fact).where(
+                Fact.kind == FactKind.INCIDENT, Fact.origin == Origin.MODEL
+            )
+        )
+    )
+
+
+@pytest.fixture
+def bare(seeded: Session) -> Session:
+    """The synthetic matter without its model reads of the incident: field facts only,
+    so a test's own reads are all there is to choose from."""
+    for fact in _reads(seeded):
+        seeded.delete(fact)
+    seeded.commit()
+    return seeded
+
+
 def _day(session: Session) -> date:
     day = max(_fields(session), key=lambda f: f.significance).event_date
     assert day is not None
@@ -81,32 +101,50 @@ def test_the_fixture_has_a_field_fact_with_no_description(seeded: Session) -> No
 
 
 def test_with_only_field_facts_there_is_no_account(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
     assert _account(client) is None
 
 
 def test_only_the_bare_field_fact_gives_no_account(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
-    for fact in _fields(seeded):
+    for fact in _fields(bare):
         if fact.value_json.get("description"):
-            seeded.delete(fact)
-    seeded.commit()
+            bare.delete(fact)
+    bare.commit()
 
     assert _account(client) is None
 
 
-def test_the_account_most_records_give_beats_a_more_significant_one(
+def test_the_synthetic_matter_gives_one_account_citing_both_records(
     seeded: Session, client: TestClient
 ) -> None:
-    day = _day(seeded)
+    reads = {f.title: f for f in _reads(seeded)}
+    lead = reads["Rear-end collision at a stoplight"]
+    again = reads["Client in a rear-end collision at a stoplight"]
+    date_only = [f for f in reads.values() if not names_an_event(f.title)]
+
+    account = _account(client)
+
+    assert account is not None
+    assert account["fact"]["id"] == lead.id and account["text"] == lead.title
+    assert [ref["id"] for ref in account["restated_by"]] == [again.id]
+    assert date_only  # the fixture holds one, and the account leaves it out
+    cited = {account["fact"]["id"]} | {ref["id"] for ref in account["restated_by"]}
+    assert not cited & {f.id for f in date_only}
+
+
+def test_the_account_most_records_give_beats_a_more_significant_one(
+    bare: Session, client: TestClient
+) -> None:
+    day = _day(bare)
     group = [
-        _read(seeded, day, "Rear-end collision at a stop light", 50),
-        _read(seeded, day, "Rear-end collision at a light", 45),
-        _read(seeded, day, "Rear-end collision at stop light", 40),
+        _read(bare, day, "Rear-end collision at a stop light", 50),
+        _read(bare, day, "Rear-end collision at a light", 45),
+        _read(bare, day, "Rear-end collision at stop light", 40),
     ]
-    _read(seeded, day, "Pedestrian struck in a crosswalk", 99)
+    _read(bare, day, "Pedestrian struck in a crosswalk", 99)
 
     account = _account(client)
 
@@ -114,13 +152,13 @@ def test_the_account_most_records_give_beats_a_more_significant_one(
     assert account["fact"]["id"] == group[0].id
     assert account["text"] == "Rear-end collision at a stop light"
     assert [ref["id"] for ref in account["restated_by"]] == [g.id for g in group[1:]]
-    assert account["fact"]["id"] not in {f.id for f in _fields(seeded)}
+    assert account["fact"]["id"] not in {f.id for f in _fields(bare)}
 
 
 def test_titles_that_only_restate_the_date_never_win(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
-    day = _day(seeded)
+    day = _day(bare)
     for title in (
         f"Accident occurred on {_written(day)}",
         f"Date of loss: {day.isoformat()}",
@@ -128,8 +166,8 @@ def test_titles_that_only_restate_the_date_never_win(
         f"Loss occurred around 1430 hours on {_written(day)}",
         f"Accident on {day:%A}, {_written(day)}",
     ):
-        _read(seeded, day, title, 99)
-    told = _read(seeded, day, "Struck from behind at a light", 10)
+        _read(bare, day, title, 99)
+    told = _read(bare, day, "Struck from behind at a light", 10)
 
     account = _account(client)
 
@@ -137,11 +175,11 @@ def test_titles_that_only_restate_the_date_never_win(
 
 
 def test_with_only_date_titles_there_is_no_account(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
-    day = _day(seeded)
-    _read(seeded, day, f"Accident occurred on {_written(day)}", 99)
-    _read(seeded, day, f"Date of incident {day.isoformat()}", 99)
+    day = _day(bare)
+    _read(bare, day, f"Accident occurred on {_written(day)}", 99)
+    _read(bare, day, f"Date of incident {day.isoformat()}", 99)
 
     assert _account(client) is None
 
@@ -161,11 +199,11 @@ def test_a_title_names_an_event_only_beyond_its_date(title: str, names: bool) ->
 
 
 def test_the_text_is_the_title_even_when_a_description_exists(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
-    day = _day(seeded)
+    day = _day(bare)
     _read(
-        seeded,
+        bare,
         day,
         "Struck from behind at a light",
         description="Unit two northbound, report 0000",
@@ -177,10 +215,10 @@ def test_the_text_is_the_title_even_when_a_description_exists(
 
 
 def test_a_read_on_another_day_is_not_the_account(
-    seeded: Session, client: TestClient
+    bare: Session, client: TestClient
 ) -> None:
-    day = _day(seeded)
-    _read(seeded, day + timedelta(days=5), "Struck from behind at a light", 99)
+    day = _day(bare)
+    _read(bare, day + timedelta(days=5), "Struck from behind at a light", 99)
 
     assert _account(client) is None
 

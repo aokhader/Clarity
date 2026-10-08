@@ -29,12 +29,12 @@ def _field(session: Session) -> Fact:
     return _fields(session)[0]
 
 
-def _drop_fields(session: Session) -> date:
-    """Remove the field facts, leaving the matter with model reads only; their day."""
-    fields = _fields(session)
-    day = fields[0].event_date
+def _drop_incident_facts(session: Session) -> date:
+    """Remove every incident fact the fixture holds, so a test's own reads are all the
+    matter has; the field's day."""
+    day = _field(session).event_date
     assert day is not None
-    for fact in fields:
+    for fact in session.scalars(select(Fact).where(Fact.kind == FactKind.INCIDENT)):
         session.delete(fact)
     session.commit()
     return day
@@ -94,7 +94,7 @@ def test_the_clio_field_is_cited_over_a_more_significant_read(
 def test_without_the_field_a_quote_that_shows_the_date_is_cited(
     seeded: Session, client: TestClient
 ) -> None:
-    day = _drop_fields(seeded)
+    day = _drop_incident_facts(seeded)
     _add(seeded, day, "The other car struck the rear bumper.", 99)
     showing = _add(seeded, day, f"Rear-ended on {_written(day)} at a light.", 40)
 
@@ -104,7 +104,7 @@ def test_without_the_field_a_quote_that_shows_the_date_is_cited(
 def test_without_the_field_the_date_most_records_state_wins(
     seeded: Session, client: TestClient
 ) -> None:
-    day = _drop_fields(seeded)
+    day = _drop_incident_facts(seeded)
     later = day + timedelta(days=3)
     _add(seeded, later, f"Collision on {_written(later)}.", 99)
     agreeing = [_add(seeded, day, f"Collision on {_written(day)}.") for _ in range(2)]

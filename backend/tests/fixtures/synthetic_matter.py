@@ -70,6 +70,7 @@ _SHAREABLE_KINDS = {
 _PAGE_ONE = """NORTHSIDE ORTHOPEDICS (DEMO)
 Office visit note
 Patient: Jordan Avery
+History: rear-ended at a stoplight while stopped in traffic.
 Assessment: Cervical strain with radiating neck pain after a vehicle collision.
 Plan: Physical therapy twice weekly for six weeks.
 Records enclosed: 2 pages."""
@@ -202,7 +203,11 @@ def _sources(today: date) -> dict[str, _SourceSpec]:
             SourceType.NOTE,
             501,
             {"id": 501, "subject": "Intake call"}
-            | {"detail": _NOTE, "date": on(-198), "author": {"name": "Firm Intake"}},
+            | {
+                "detail": f"{_NOTE} Date of loss: {on(-210)}.",
+                "date": on(-198),
+                "author": {"name": "Firm Intake"},
+            },
             198,
         ),
         (
@@ -397,6 +402,37 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             70,
             on(-210),
             origin=code,
+        ),
+        # Two records read on that day give one account of what happened, so the
+        # header's account cites both (services/incident.py).
+        "incident_note": f(
+            FactKind.INCIDENT,
+            "Rear-end collision at a stoplight",
+            "note",
+            {"description": "Client was rear-ended at a stoplight."},
+            "Client was rear-ended at a stoplight",
+            75,
+            on(-210),
+        ),
+        "incident_page": f(
+            FactKind.INCIDENT,
+            "Client in a rear-end collision at a stoplight",
+            "document",
+            {"description": "Rear-ended while stopped in traffic"},
+            "rear-ended at a stoplight while stopped in traffic",
+            65,
+            on(-210),
+            page_no=1,
+        ),
+        # A read that only restates the date, which the account leaves out.
+        "incident_date_only": f(
+            FactKind.INCIDENT,
+            f"Date of loss: {on(-210).isoformat()}",
+            "note",
+            {},
+            f"Date of loss: {on(-210).isoformat()}",
+            60,
+            on(-210),
         ),
         "value": f(
             FactKind.CASE_VALUE,
