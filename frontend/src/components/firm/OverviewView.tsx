@@ -9,8 +9,11 @@ import { WhereItStands } from '@/components/firm/WhereItStands'
 
 /**
  * The 90-second read, under the matter's identity: the bottom line, what happened, where
- * the case is now, the money, the brief, the story so far, and what changed since the last
- * visit. One ivory sheet divided by hairlines, so no block is a card inside a card.
+ * the case is now, the money, the story so far, what changed since the last visit, and the
+ * brief. The story and the changes come before the brief because the first screen already
+ * carries most of the brief's points; one scroll then shows what has happened, in order,
+ * and what is new (the changes block is hidden when nothing is). One ivory sheet divided
+ * by hairlines, so no block is a card inside a card.
  */
 export function OverviewView({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
   return (
@@ -19,9 +22,9 @@ export function OverviewView({ matterId, header }: { matterId: number; header: M
       <WhatHappened matterId={matterId} account={header.incident_account} />
       <NowStrip matterId={matterId} header={header} />
       <KpiStrip kpis={header.kpis} />
-      <WhereItStands matterId={matterId} />
       <KeyEvents matterId={matterId} />
       <ChangesSince matterId={matterId} />
+      <WhereItStands matterId={matterId} />
     </div>
   )
 }

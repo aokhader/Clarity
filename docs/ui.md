@@ -44,10 +44,10 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 |          | NOW   Next step | Statute | Last client contact | counts         |
 | Viewing  | MONEY Case value | Coverage | Medical specials | Firm spend      |
 | as       +----------------------------------------------- end of screen ----+
+|          | THE STORY SO FAR  key events, oldest first, numbered | [src]     |
+|          | SINCE YOU LAST OPENED  at most five rows (hidden if none)        |
 |          | WHERE IT STANDS  the brief's sentences, one per row  | [src]     |
 |          |   Not answered by the file                                       |
-|          | THE STORY SO FAR  key events, oldest first, numbered | [src]     |
-|          | SINCE YOU LAST OPENED  at most five rows                         |
 |          | Synced from Clio at 10:42 - Digest cost $0.00 - [Re-sync]        |
 +----------+------------------------------------------------------------------+
 ```
