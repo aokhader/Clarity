@@ -23,6 +23,11 @@ const ENTRY_NOUNS: Record<KpiOut['name'], { one: string; many: string }> = {
   firm_spend: { one: 'figure', many: 'figures' },
 }
 
+/** Whether two lines say the same thing, so the line under a figure does not repeat itself. */
+function sameText(a: string, b: string | null): boolean {
+  return b !== null && a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
 /**
  * One KPI. With no values: "Not found in file". When the values are figures for the same
  * thing that disagree, all are listed as equals under a warning. Otherwise the first leads,
@@ -63,7 +68,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
           {/* What the figure is and how it was reached, then its sources, on one line under it. */}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             {folded.lead.label && <span>{folded.lead.label}</span>}
-            {kpi.basis && <span>{kpi.basis}</span>}
+            {kpi.basis && !sameText(kpi.basis, folded.lead.label) && <span>{kpi.basis}</span>}
             <SourceChipList facts={folded.lead.facts} max={2} describedBy={`${labelId} ${figureId}`} />
           </p>
           {disagreement}
