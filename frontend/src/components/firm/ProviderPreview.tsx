@@ -1,6 +1,7 @@
 import { useDraftPreview } from '@/api/shares'
 import { ProviderView } from '@/components/share/ProviderView'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 
@@ -14,10 +15,10 @@ export function ProviderPreview({ matterId, providerId }: { matterId: number; pr
   const drawer = useSourceDrawer()
   if (preview.isPending) {
     return (
-      <div className="space-y-4" aria-label="Loading the provider preview">
+      <Loading label="Loading the provider preview" className="space-y-4">
         <Skeleton className="h-24" />
         <Skeleton className="h-40" />
-      </div>
+      </Loading>
     )
   }
   if (preview.isError) {

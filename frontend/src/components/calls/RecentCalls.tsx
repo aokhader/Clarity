@@ -1,6 +1,7 @@
 import { useMatterCalls } from '@/api/calls'
 import type { NotesStatus } from '@/api/types'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,7 +28,7 @@ export function RecentCalls({ matterId, openCallId, onOpen }: RecentCallsProps) 
   if (calls.isSuccess && calls.data.length === 0) return null
   return (
     <Panel title="Recent calls">
-      {calls.isPending && <Skeleton className="h-16 w-full" aria-label="Loading recent calls" />}
+      {calls.isPending && <Loading label="Loading recent calls"><Skeleton className="h-16 w-full" /></Loading>}
       {calls.isError && <LoadError what="recent calls" error={calls.error} onRetry={() => void calls.refetch()} />}
       {calls.isSuccess && (
         <ul className="-my-2 divide-y">

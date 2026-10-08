@@ -21,7 +21,12 @@ import { cn } from '@/lib/utils'
 const NOT_FOUND = <span className="text-muted-foreground">Not found in file</span>
 // A failed request is not an empty file, so it never reads "Not found".
 const UNAVAILABLE = <span className="text-muted-foreground">Could not load</span>
-const LOADING = <span aria-label="Loading" className="inline-block h-5 w-36 animate-pulse rounded-md bg-muted align-middle" />
+const LOADING = (
+  <span role="status">
+    <span className="sr-only">Loading</span>
+    <span aria-hidden className="inline-block h-5 w-36 animate-pulse rounded-md bg-muted align-middle" />
+  </span>
+)
 
 /** A cell's value from its request: loading, failed, the value, or what an empty file says. */
 function cellValue(query: { isPending: boolean; isError: boolean }, value: ReactNode, empty: ReactNode): ReactNode {

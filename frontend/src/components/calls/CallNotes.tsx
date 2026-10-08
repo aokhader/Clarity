@@ -1,6 +1,7 @@
 import { useCallDetail } from '@/api/calls'
 import type { CallNoteKind, NotesStatus } from '@/api/types'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -24,7 +25,7 @@ const STATUS_TEXT: Record<NotesStatus, string | null> = {
 /** After the call: notes drawn from the transcript, each opening the words it came from. */
 export function CallNotes({ callId }: { callId: number }) {
   const detail = useCallDetail(callId)
-  if (detail.isPending) return <Skeleton className="h-32 w-full" aria-label="Loading the call" />
+  if (detail.isPending) return <Loading label="Loading the call"><Skeleton className="h-32 w-full" /></Loading>
   if (detail.isError) {
     return <LoadError what="the call's notes" error={detail.error} onRetry={() => void detail.refetch()} />
   }

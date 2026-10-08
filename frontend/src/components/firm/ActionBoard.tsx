@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { useMatterActions } from '@/api/matters'
 import type { FactOut } from '@/api/types'
-import { ACTION_COLUMNS, ActionRow, type ActionStatus } from '@/components/firm/ActionRow'
+import { ActionRow, type ActionStatus } from '@/components/firm/ActionRow'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 
 /** Tasks still to do are upcoming; calendar entries and deadlines are scheduled. */
 function upcomingStatus(fact: FactOut): ActionStatus {
@@ -20,6 +20,7 @@ const COLLAPSED_ROWS = 8
 export function ActionBoard({ matterId }: { matterId: number }) {
   const actions = useMatterActions(matterId)
   const [expanded, setExpanded] = useState(false)
+  const rowsId = useId()
   // Overdue first, then what others owe the firm, then what is coming up.
   const rows: { fact: FactOut; status: ActionStatus }[] = actions.data
     ? [
@@ -31,47 +32,56 @@ export function ActionBoard({ matterId }: { matterId: number }) {
   const shown = expanded ? rows : rows.slice(0, COLLAPSED_ROWS)
 
   return (
-    <Panel title="Action board" className="overflow-hidden">
+    <Panel title="Action board">
       {actions.isPending && (
-        <div className="space-y-3 pb-2" aria-label="Loading the action board">
+        <Loading label="Loading the action board" className="space-y-3 pb-2">
           <Skeleton className="h-12" />
           <Skeleton className="h-12" />
-        </div>
+        </Loading>
       )}
       {actions.isError && (
         <LoadError what="the action board" error={actions.error} onRetry={() => void actions.refetch()} />
       )}
       {actions.isSuccess && (
-        <>
-          <div className="-mx-6 -my-4">
-            <div
-              className={cn(
-                ACTION_COLUMNS,
-                'border-b bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground',
-              )}
-            >
-              <span>Task</span>
-              <span>Due date</span>
-              <span>Owner</span>
-              <span>Status</span>
-            </div>
-            <ul>
+        // A data table may scroll sideways on a narrow screen rather than reflow (WCAG 1.4.10).
+        <div className="-mx-6 -my-4 overflow-x-auto">
+          <table className="w-full min-w-[40rem] border-collapse text-left">
+            <caption className="sr-only">Open tasks, deadlines and record requests, overdue first</caption>
+            <thead>
+              <tr className="border-b bg-muted text-sm text-muted-foreground">
+                <th scope="col" className="w-[42%] px-6 py-3 font-semibold">
+                  Task
+                </th>
+                <th scope="col" className="w-[22%] px-3 py-3 font-semibold">
+                  Due date
+                </th>
+                <th scope="col" className="w-[16%] px-3 py-3 font-semibold">
+                  Owner
+                </th>
+                <th scope="col" className="py-3 pr-6 pl-3 font-semibold">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody id={rowsId}>
               {shown.map(({ fact, status }) => (
                 <ActionRow key={fact.id} fact={fact} status={status} />
               ))}
-            </ul>
-            {rows.length === 0 && <p className="px-6 py-4 text-sm text-muted-foreground">Nothing open on this matter.</p>}
-            {rows.length > COLLAPSED_ROWS && (
-              <button
-                type="button"
-                onClick={() => setExpanded((open) => !open)}
-                className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-muted focus-visible:-outline-offset-2"
-              >
-                {expanded ? 'Show fewer' : `Show all ${rows.length}`}
-              </button>
-            )}
-          </div>
-        </>
+            </tbody>
+          </table>
+          {rows.length === 0 && <p className="px-6 py-4 text-sm text-muted-foreground">Nothing open on this matter.</p>}
+          {rows.length > COLLAPSED_ROWS && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={rowsId}
+              onClick={() => setExpanded((open) => !open)}
+              className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-muted focus-visible:-outline-offset-2"
+            >
+              {expanded ? 'Show fewer' : `Show all ${rows.length}`}
+            </button>
+          )}
+        </div>
       )}
     </Panel>
   )

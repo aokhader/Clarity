@@ -117,8 +117,12 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
         </Dialog.Close>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[26rem_minmax(0,1fr)]">
-        <fieldset disabled={created !== null} className="min-h-0 space-y-6 overflow-y-auto border-r p-6">
+      {/* Two panes side by side on a wide screen; stacked, with one scroll, on a narrow one (WCAG 1.4.10). */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[26rem_minmax(0,1fr)] lg:overflow-visible">
+        <fieldset
+          disabled={created !== null}
+          className="space-y-6 border-b p-6 lg:min-h-0 lg:overflow-y-auto lg:border-r lg:border-b-0"
+        >
           <SettingToggles
             settings={settings}
             onChange={(setting, on) => setSettings((current) => ({ ...current, [setting]: on }))}
@@ -165,11 +169,11 @@ export function ShareComposerForm({ matterId, userId, provider }: ShareComposerF
           </fieldset>
         </fieldset>
 
-        <div className="min-h-0 overflow-y-auto bg-background p-8">
+        <div className="bg-background p-4 sm:p-8 lg:min-h-0 lg:overflow-y-auto">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Preview: what {provider.name} sees
           </p>
-          <div className="mx-auto max-w-2xl rounded-lg border bg-card p-8">
+          <div className="mx-auto max-w-2xl rounded-lg border bg-card p-4 sm:p-8">
             {preview.isPending ? (
               <ProviderViewSkeleton />
             ) : preview.isError ? (

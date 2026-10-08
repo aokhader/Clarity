@@ -74,7 +74,7 @@ export function DocumentsView({ matterId }: { matterId: number }) {
               {ofType.map((source) => {
                 const date = firstDate(source.facts)
                 return (
-                  <li key={source.sourceId} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-4 py-3">
+                  <li key={source.sourceId} className="grid grid-cols-1 gap-x-4 gap-y-1 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
                     <span className={cn('text-sm tabular-nums', date ? 'text-foreground/80' : 'text-muted-foreground')}>
                       {date ? formatDate(date) : 'Undated'}
                     </span>

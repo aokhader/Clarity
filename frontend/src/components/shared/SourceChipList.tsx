@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { FactRef } from '@/api/types'
 import { SourceChip } from '@/components/shared/SourceChip'
@@ -15,10 +15,17 @@ type SourceChipListProps = {
 
 export function SourceChipList({ facts, max = 3, expandable = false, describedBy }: SourceChipListProps) {
   const [expanded, setExpanded] = useState(false)
+  const listRef = useRef<HTMLSpanElement>(null)
   const shown = expanded ? facts : facts.slice(0, max)
   const hidden = facts.length - shown.length
+
+  // The "+N more" button goes away once pressed, so focus moves to the first chip it revealed.
+  useEffect(() => {
+    if (expanded) listRef.current?.querySelectorAll<HTMLButtonElement>('button')[max]?.focus()
+  }, [expanded, max])
+
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span ref={listRef} className="inline-flex flex-wrap items-center gap-1">
       {shown.map((fact) => (
         <SourceChip key={fact.id} fact={fact} describedBy={describedBy} />
       ))}

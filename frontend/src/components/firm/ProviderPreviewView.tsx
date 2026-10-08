@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useMatterProviders } from '@/api/shares'
 import { ProviderPreview } from '@/components/firm/ProviderPreview'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +12,7 @@ export function ProviderPreviewView({ matterId }: { matterId: number }) {
   const providers = useMatterProviders(matterId)
   const [chosenId, setChosenId] = useState<number | null>(null)
 
-  if (providers.isPending) return <Skeleton className="h-64 w-full" aria-label="Loading providers" />
+  if (providers.isPending) return <Loading label="Loading providers"><Skeleton className="h-64 w-full" /></Loading>
   if (providers.isError) {
     return <LoadError what="the providers" error={providers.error} onRetry={() => void providers.refetch()} />
   }

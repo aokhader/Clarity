@@ -58,17 +58,20 @@ export function MatterFooter({ header }: { header: MatterHeaderOut }) {
 
   return (
     <footer className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm text-muted-foreground">
-      <span className="tabular-nums">
-        {sync?.finished_at
-          ? `Synced from Clio ${formatDateTime(sync.finished_at)}`
-          : sync
-            ? 'A sync has started but not finished'
-            : 'Not synced from Clio yet'}
-      </span>
-      <span className="tabular-nums">
-        {cost.isSuccess &&
-          `Digest cost ${formatMicroDollars(cost.data.cost_micro_usd)} (${cost.data.model_calls} model calls, ${cost.data.cache_hits} answered from cache)`}
-        {cost.isError && 'Digest cost unavailable'}
+      {/* Announced when a re-sync or digest finishes and the line changes. */}
+      <span role="status" className="flex flex-wrap gap-x-6 gap-y-2">
+        <span className="tabular-nums">
+          {sync?.finished_at
+            ? `Synced from Clio ${formatDateTime(sync.finished_at)}`
+            : sync
+              ? 'A sync has started but not finished'
+              : 'Not synced from Clio yet'}
+        </span>
+        <span className="tabular-nums">
+          {cost.isSuccess &&
+            `Digest cost ${formatMicroDollars(cost.data.cost_micro_usd)} (${cost.data.model_calls} model calls, ${cost.data.cache_hits} answered from cache)`}
+          {cost.isError && 'Digest cost unavailable'}
+        </span>
       </span>
       {failures.map((failure) => (
         <span

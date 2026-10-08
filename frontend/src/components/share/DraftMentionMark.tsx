@@ -40,14 +40,16 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
       <span className={cn('underline decoration-2 underline-offset-4', UNDERLINE[mention.verdict])}>
         {mention.text}
       </span>{' '}
-      <span title={mention.reason} className="inline-flex flex-wrap items-center gap-1 align-middle text-xs whitespace-normal">
+      {/* The reason is written out, not left in a tooltip that touch and keyboard users never see. */}
+      <span className="inline-flex flex-wrap items-center gap-1 align-middle text-xs whitespace-normal">
         {mention.verdict === 'supported' && (
-          <CircleCheck role="img" aria-label="Matches the file" className="size-3.5 text-success" />
+          <CircleCheck role="img" aria-label={mention.reason} className="size-3.5 text-success" />
         )}
         {mention.verdict === 'differs' && (
           <span className="inline-flex items-center gap-1 font-medium text-warning">
             <TriangleAlert aria-hidden className="size-3.5" />
-            Differs{replacement && <>: the file says {replacement}</>}
+            {mention.reason}
+            {replacement && <>: the file says {replacement}</>}
           </span>
         )}
         {mention.verdict === 'not_in_file' && (
@@ -65,7 +67,7 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
         {mention.verdict === 'do_not_send' && (
           <span className="inline-flex items-center gap-1 font-medium text-danger">
             <Lock aria-hidden className="size-3.5" />
-            Internal
+            Internal: {mention.reason}
           </span>
         )}
         {/* A date the file states everywhere (an incident date) can cite hundreds of facts:

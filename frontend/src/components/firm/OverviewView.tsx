@@ -14,7 +14,7 @@ import { WhereItStands } from '@/components/firm/WhereItStands'
  */
 export function OverviewView({ matterId, header }: { matterId: number; header: MatterHeaderOut }) {
   return (
-    <div className="divide-y rounded-xl border bg-card px-8">
+    <div className="divide-y rounded-xl border bg-card px-4 sm:px-8">
       <BottomLine matterId={matterId} />
       <WhatHappened matterId={matterId} account={header.incident_account} />
       <NowStrip matterId={matterId} header={header} />

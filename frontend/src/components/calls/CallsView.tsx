@@ -22,7 +22,7 @@ export function CallsView({ matterId }: { matterId: number }) {
   // While a call is on, nothing else can take its place in the right pane.
   const choose = onCall ? null : (target: CallTargetOut) => setPane({ kind: 'call', target })
   return (
-    <div className="grid grid-cols-[minmax(0,26rem)_minmax(0,1fr)] items-start gap-6">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <div className="flex flex-col gap-6">
         <CallTargetList
           matterId={matterId}

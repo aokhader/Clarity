@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useMatterKeyEvents } from '@/api/matters'
 import { KeyEventRow } from '@/components/firm/KeyEventRow'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Section } from '@/components/shared/Section'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -15,11 +16,11 @@ export function KeyEvents({ matterId }: { matterId: number }) {
   return (
     <Section title="The story so far" aside="oldest first">
       {events.isPending && (
-        <div className="space-y-2" aria-label="Loading the key events">
+        <Loading label="Loading the key events" className="space-y-2">
           <Skeleton className="h-6" />
           <Skeleton className="h-6" />
           <Skeleton className="h-6 w-2/3" />
-        </div>
+        </Loading>
       )}
       {events.isError && (
         <LoadError what="the key events" error={events.error} onRetry={() => void events.refetch()} />

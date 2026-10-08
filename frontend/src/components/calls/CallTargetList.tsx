@@ -3,6 +3,7 @@ import { ApiError } from '@/api/client'
 import type { CallTargetOut } from '@/api/types'
 import { CallTargetRow } from '@/components/calls/CallTargetRow'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -18,7 +19,7 @@ export function CallTargetList({ matterId, chosenId, onChoose }: CallTargetListP
   const targets = useCallTargets(matterId)
   return (
     <Panel title="Who to call next" aside={targets.data?.length}>
-      {targets.isPending && <Skeleton className="h-24 w-full" aria-label="Loading who to call" />}
+      {targets.isPending && <Loading label="Loading who to call"><Skeleton className="h-24 w-full" /></Loading>}
       {targets.isError &&
         (targets.error instanceof ApiError && targets.error.status === 404 ? (
           <p className="text-sm text-muted-foreground">

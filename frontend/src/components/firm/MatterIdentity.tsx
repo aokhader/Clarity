@@ -72,7 +72,10 @@ export function MatterIdentity({ header, viewLabel }: MatterIdentityProps) {
       <div className="flex items-center gap-4">
         <ClientAvatar name={name} avatarUrl={header.client?.avatar_url ?? null} />
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="font-serif text-3xl leading-tight font-semibold text-pretty">{name}</h1>
+          {/* Focusable from script only: focus lands here when the drawer closes with no chip to return to. */}
+          <h1 tabIndex={-1} className="font-serif text-3xl leading-tight font-semibold text-pretty">
+            {name}
+          </h1>
           {caseLine.length > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               {caseLine.map((part, index) => (

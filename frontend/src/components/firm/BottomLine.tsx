@@ -3,6 +3,7 @@ import { useMatterBrief } from '@/api/matters'
 import { BriefSentence } from '@/components/firm/BriefSentence'
 import { MarginCited } from '@/components/firm/MarginCited'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Section } from '@/components/shared/Section'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -16,10 +17,10 @@ export function BottomLine({ matterId }: { matterId: number }) {
   return (
     <Section title="The bottom line">
       {brief.isPending && (
-        <div className="space-y-2" aria-label="Loading the brief">
+        <Loading label="Loading the brief" className="space-y-2">
           <Skeleton className="h-8 w-4/5" />
           <Skeleton className="h-8 w-3/5" />
-        </div>
+        </Loading>
       )}
       {brief.isError &&
         (brief.error instanceof ApiError && brief.error.status === 404 ? (

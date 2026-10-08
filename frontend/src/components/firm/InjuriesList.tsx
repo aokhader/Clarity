@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { useMatterInjuries } from '@/api/matters'
 import { InjuryRow } from '@/components/firm/InjuryRow'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { groupSameInjuries, isInjury } from '@/lib/facts'
@@ -14,11 +15,12 @@ const COLLAPSED_INJURIES = 6
 export function InjuriesList({ matterId }: { matterId: number }) {
   const injuries = useMatterInjuries(matterId)
   const [expanded, setExpanded] = useState(false)
+  const listId = useId()
   const groups = groupSameInjuries(injuries.data?.filter(isInjury) ?? [])
   const shown = expanded ? groups : groups.slice(0, COLLAPSED_INJURIES)
   return (
     <Panel title="Injuries" aside={injuries.isSuccess ? groups.length : undefined}>
-      {injuries.isPending && <Skeleton className="h-16" aria-label="Loading injuries" />}
+      {injuries.isPending && <Loading label="Loading injuries"><Skeleton className="h-16" /></Loading>}
       {injuries.isError && (
         <LoadError what="the injuries" error={injuries.error} onRetry={() => void injuries.refetch()} />
       )}
@@ -26,7 +28,7 @@ export function InjuriesList({ matterId }: { matterId: number }) {
         <p className="text-sm text-muted-foreground">No injuries or diagnoses found in the file.</p>
       )}
       {groups.length > 0 && (
-        <ul className="flex flex-col gap-3">
+        <ul id={listId} className="flex flex-col gap-3">
           {shown.map((group) => (
             <InjuryRow key={group.key} group={group} />
           ))}
@@ -35,6 +37,8 @@ export function InjuriesList({ matterId }: { matterId: number }) {
       {groups.length > COLLAPSED_INJURIES && (
         <button
           type="button"
+          aria-expanded={expanded}
+          aria-controls={listId}
           onClick={() => setExpanded((open) => !open)}
           className="mt-3 text-sm font-medium text-primary hover:underline"
         >

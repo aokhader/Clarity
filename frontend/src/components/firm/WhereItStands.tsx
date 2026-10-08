@@ -2,6 +2,7 @@ import { useMatterBrief } from '@/api/matters'
 import { BriefSentence } from '@/components/firm/BriefSentence'
 import { MarginCited } from '@/components/firm/MarginCited'
 import { OpenQuestions } from '@/components/firm/OpenQuestions'
+import { Loading } from '@/components/shared/Loading'
 import { Section } from '@/components/shared/Section'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -17,11 +18,11 @@ export function WhereItStands({ matterId }: { matterId: number }) {
   return (
     <Section title="Where it stands">
       {brief.isPending ? (
-        <div className="space-y-3" aria-label="Loading the brief">
+        <Loading label="Loading the brief" className="space-y-3">
           <Skeleton className="h-6" />
           <Skeleton className="h-6" />
           <Skeleton className="h-6 w-2/3" />
-        </div>
+        </Loading>
       ) : (
         <>
           {brief.data.sentences.length > 0 ? (

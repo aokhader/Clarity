@@ -6,6 +6,7 @@ import type { MatterHeaderOut } from '@/api/types'
 import { DigestPrompt } from '@/components/firm/DigestPrompt'
 import { MatterIdentity } from '@/components/firm/MatterIdentity'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type MatterShellProps = {
@@ -22,11 +23,11 @@ export function MatterShell({ matterId, viewLabel, children }: MatterShellProps)
 
   if (header.isPending) {
     return (
-      <div aria-label="Loading the matter" className="space-y-4">
+      <Loading label="Loading the matter" className="space-y-4">
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-28 w-full" />
         <Skeleton className="h-96 w-full" />
-      </div>
+      </Loading>
     )
   }
 

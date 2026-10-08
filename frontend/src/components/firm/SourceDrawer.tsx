@@ -5,11 +5,12 @@ import { FactSummary } from '@/components/firm/FactSummary'
 import { LoadError } from '@/components/shared/LoadError'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useSourceDrawer } from '@/lib/useSourceDrawer'
+import { returnFocusFromDrawer, useSourceDrawer } from '@/lib/useSourceDrawer'
 
 /**
  * The right-hand drawer every source chip opens. It follows `?fact=ID`, so a source
- * view can be linked, and Escape, a click outside, or the back button closes it.
+ * view can be linked, and Escape, a click outside, or the back button closes it. Focus
+ * then returns to the chip that opened it.
  */
 export function SourceDrawer() {
   const { factId, close } = useSourceDrawer()
@@ -20,6 +21,11 @@ export function SourceDrawer() {
       <SheetContent
         side="right"
         className="w-[720px] gap-0 overflow-y-auto data-[side=right]:sm:max-w-[min(720px,95vw)]"
+        // The drawer has no trigger of its own, so focus goes back to the chip that opened it.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          returnFocusFromDrawer()
+        }}
       >
         {source.isSuccess ? (
           <>

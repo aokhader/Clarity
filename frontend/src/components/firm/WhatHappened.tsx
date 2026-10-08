@@ -4,6 +4,7 @@ import { useMatterInjuries, useMatterTimeline } from '@/api/matters'
 import type { IncidentAccountOut } from '@/api/types'
 import { MarginCited } from '@/components/firm/MarginCited'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Section } from '@/components/shared/Section'
 import { Skeleton } from '@/components/ui/skeleton'
 import { groupSameInjuries, isInjury, mostSignificant } from '@/lib/facts'
@@ -39,7 +40,7 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
         )}
 
         <h3 className={SUBHEADING}>Injuries</h3>
-        {injuries.isPending && <Skeleton className="mt-2 h-12" aria-label="Loading injuries" />}
+        {injuries.isPending && <Loading label="Loading injuries"><Skeleton className="mt-2 h-12" /></Loading>}
         {injuries.isError && (
           <div className="mt-2">
             <LoadError what="the injuries" error={injuries.error} onRetry={() => void injuries.refetch()} />
@@ -71,7 +72,7 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
         )}
 
         <h3 className={SUBHEADING}>Liability</h3>
-        {liability.isPending && <Skeleton className="mt-2 h-6" aria-label="Loading liability" />}
+        {liability.isPending && <Loading label="Loading liability"><Skeleton className="mt-2 h-6" /></Loading>}
         {liability.isError && (
           <div className="mt-2">
             <LoadError what="the liability facts" error={liability.error} onRetry={() => void liability.refetch()} />

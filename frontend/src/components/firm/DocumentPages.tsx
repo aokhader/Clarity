@@ -1,11 +1,11 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
-import type { PageRef } from '@/api/types'
+import type { FirmPageOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
 
 type DocumentPagesProps = {
-  pages: PageRef[]
+  pages: FirmPageOut[]
   /** The page the fact was read from; the viewer opens there. */
   citedPageNo: number | null
   quote: string | null
@@ -68,6 +68,15 @@ export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps)
           className="w-full rounded-sm border bg-card"
         />
       )}
+      {/* The page's text is the image's text alternative (WCAG 1.1.1). */}
+      <details key={`text-${page.page_id}`} className="rounded-sm border bg-card px-3 py-2 text-sm">
+        <summary className="cursor-pointer font-medium">Page text</summary>
+        {page.text ? (
+          <p className="mt-2 whitespace-pre-wrap text-foreground">{page.text}</p>
+        ) : (
+          <p className="mt-2 text-muted-foreground">This page is a scan with no text layer.</p>
+        )}
+      </details>
     </div>
   )
 }
