@@ -386,6 +386,18 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             on(-210),
             origin=code,
         ),
+        # The date-of-incident field as a Clio sync maps it: the field's label for a
+        # title and no description, so it can date the incident but not describe it.
+        "incident_field": f(
+            FactKind.INCIDENT,
+            "Loss date",
+            "matter",
+            {},
+            on(-210).isoformat(),
+            70,
+            on(-210),
+            origin=code,
+        ),
         "value": f(
             FactKind.CASE_VALUE,
             "Case valued at $75,000 to $150,000",

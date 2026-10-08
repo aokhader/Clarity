@@ -299,6 +299,13 @@ export type DatedFactOut = {
   fact: FactRef
 }
 
+/** What happened on the incident day, as a record the model read describes it. */
+export type IncidentAccountOut = {
+  /** The record's description of the incident, else the fact's title. */
+  text: string
+  fact: FactRef
+}
+
 export type KpiValueOut = {
   amount_cents: number | null
   /** A low end alone means "at least". */
@@ -340,6 +347,11 @@ export type MatterHeaderOut = {
   opened_on: IsoDate | null
   stage: StageOut
   incident: DatedFactOut | null
+  /**
+   * Never the date-of-incident field, whose title is a label (D39). Null when no record
+   * read on the incident day describes it.
+   */
+  incident_account: IncidentAccountOut | null
   last_client_contact: DatedFactOut | null
   kpis: KpiOut[]
   digested: boolean

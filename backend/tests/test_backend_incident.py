@@ -11,13 +11,33 @@ from app.models import Confidence, Fact, FactKind, Origin, Source, SourceType
 from tests.fixtures.synthetic_matter import MATTER_ID
 
 
+def _fields(session: Session) -> list[Fact]:
+    """The synthetic matter's date-of-incident facts, mapped in code from Clio."""
+    facts = list(
+        session.scalars(
+            select(Fact)
+            .where(Fact.kind == FactKind.INCIDENT, Fact.origin == Origin.CODE)
+            .order_by(Fact.significance.desc())
+        )
+    )
+    assert facts and all(f.event_date is not None for f in facts)
+    return facts
+
+
 def _field(session: Session) -> Fact:
-    """The synthetic matter's date-of-incident field, mapped in code from Clio."""
-    fact = session.scalars(
-        select(Fact).where(Fact.kind == FactKind.INCIDENT, Fact.origin == Origin.CODE)
-    ).one()
-    assert fact.event_date is not None
-    return fact
+    """The field fact that decides the day: the most significant one."""
+    return _fields(session)[0]
+
+
+def _drop_fields(session: Session) -> date:
+    """Remove the field facts, leaving the matter with model reads only; their day."""
+    fields = _fields(session)
+    day = fields[0].event_date
+    assert day is not None
+    for fact in fields:
+        session.delete(fact)
+    session.commit()
+    return day
 
 
 def _add(session: Session, on: date, quote: str, significance: int = 50) -> Fact:
@@ -74,11 +94,7 @@ def test_the_clio_field_is_cited_over_a_more_significant_read(
 def test_without_the_field_a_quote_that_shows_the_date_is_cited(
     seeded: Session, client: TestClient
 ) -> None:
-    field = _field(seeded)
-    day = field.event_date
-    assert day is not None
-    seeded.delete(field)
-    seeded.commit()
+    day = _drop_fields(seeded)
     _add(seeded, day, "The other car struck the rear bumper.", 99)
     showing = _add(seeded, day, f"Rear-ended on {_written(day)} at a light.", 40)
 
@@ -88,11 +104,7 @@ def test_without_the_field_a_quote_that_shows_the_date_is_cited(
 def test_without_the_field_the_date_most_records_state_wins(
     seeded: Session, client: TestClient
 ) -> None:
-    field = _field(seeded)
-    day = field.event_date
-    assert day is not None
-    seeded.delete(field)
-    seeded.commit()
+    day = _drop_fields(seeded)
     later = day + timedelta(days=3)
     _add(seeded, later, f"Collision on {_written(later)}.", 99)
     agreeing = [_add(seeded, day, f"Collision on {_written(day)}.") for _ in range(2)]

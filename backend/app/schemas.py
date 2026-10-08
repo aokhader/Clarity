@@ -429,6 +429,13 @@ class DatedFactOut(BaseModel):
     fact: FactRef
 
 
+class IncidentAccountOut(BaseModel):
+    """What happened on the incident day, as a record the model read describes it."""
+
+    text: str  # the record's description of the incident, else the fact's title
+    fact: FactRef
+
+
 class KpiValueOut(BaseModel):
     amount_cents: int | None = None
     low_cents: int | None = None  # a low end alone means "at least"
@@ -466,6 +473,9 @@ class MatterHeaderOut(BaseModel):
     opened_on: date | None
     stage: StageOut
     incident: DatedFactOut | None
+    # Never the date-of-incident field, whose title is a label (D39). None when no
+    # record read on the incident day describes it.
+    incident_account: IncidentAccountOut | None
     last_client_contact: DatedFactOut | None
     kpis: list[KpiOut]
     digested: bool  # false: synced but not digested, so the page prompts for a digest
