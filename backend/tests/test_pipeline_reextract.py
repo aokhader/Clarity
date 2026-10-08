@@ -16,9 +16,18 @@ from app.cli import main
 from app.config import get_settings
 from app.digest import llm
 from app.digest.records import mark_processed
-from app.digest.reextract import mark_unread, select_units
+from app.digest.reextract import _average_cost, mark_unread, select_units
 from app.digest.run import run_digest
-from app.models import Confidence, Fact, FactKind, Origin, Page, Source, SourceType
+from app.models import (
+    Confidence,
+    Fact,
+    FactKind,
+    LlmCall,
+    Origin,
+    Page,
+    Source,
+    SourceType,
+)
 
 MATTER = 30
 PAGE_TEXT = "Invented page text"
@@ -170,3 +179,28 @@ def test_a_dry_run_lists_each_unit_by_id_and_date_without_its_text(
     assert f"page 2 of document source {document.id}: 1 fact (policy_limit)" in out
     assert f"note source {note.id}, Apr 2, 2020: 1 fact (case_value)" in out
     assert "Invented subject" not in out and NOTE_TEXT not in out
+
+
+def test_a_failed_call_does_not_pull_the_estimates_average_down(
+    data_dir: Path, session: Session
+) -> None:
+    # A failed call stores its response as JSON null, which SQL counts as not null.
+    for cost, response, error in (
+        (1000, {"facts": []}, None),
+        (3000, {"facts": []}, None),
+        (0, None, "ExtractionFailed: invented failure"),
+        (0, None, "ExtractionFailed: invented failure"),
+    ):
+        session.add(
+            LlmCall(
+                purpose="extract_record",
+                model="invented-model",
+                cache_key="invented-key",
+                cost_micro_usd=cost,
+                response_json=response,
+                error=error,
+            )
+        )
+    session.commit()
+
+    assert _average_cost(session, "extract_record") == 2000

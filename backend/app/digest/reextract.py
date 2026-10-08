@@ -205,6 +205,9 @@ def _answered_calls(session: Session, purpose: str) -> list[LlmCall]:
                 LlmCall.purpose == purpose,
                 LlmCall.cache_hit.is_(False),
                 LlmCall.response_json.is_not(None),
+                # A failed call's response is stored as JSON null, which SQL counts
+                # as not null; at $0 it would pull the average down.
+                LlmCall.error.is_(None),
             )
         )
     )
