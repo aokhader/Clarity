@@ -4,7 +4,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | D36 runs $0.17; D37 fixes in; screenshots retaken (ca080ab); check.sh clean (387) | Pushed; standing by | | Manager: clip link; test call (C-T) | 04:56 |
+| lead | D38-D40 Overview pass done: 90-second first screen (9 of 12 on the real matter at 1440x900), legal-memo restyle, margin citations; Lighthouse a11y 100 on all firm views and /p/:token; critic Pass 4 fixed (D40); six screenshots retaken (506267f) | Waiting for the reviewer's README pass, then check.sh | | Manager: litigation-history re-read (cents, D40); push; clip link; test call (C-T) | 15:18 |
 | pipeline | Freeze fixes done: 76d49cb reextract estimate skips failed calls; f37a110 rewritten brief updates created_at. 371 tests pass | Standing by | | | 2026-10-08 03:59 |
 | backend | D40: deadline status fe07ba2 (contract: DeadlinePayload.status); no deadlines 9c5b491; per-record 462c8aa; 428 | Stand by | reviewer: rerun cli seed-dev in the clone (:5183, API :8010) | | 2026-10-08 14:59 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
