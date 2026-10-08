@@ -45,6 +45,18 @@ def group_restatements(facts: list[Fact]) -> list[list[Fact]]:
     return groups
 
 
+def one_per_record(group: list[Fact]) -> list[Fact]:
+    """The group with one fact per source record, the first in the group's order, so
+    a document that states a finding on many pages counts once."""
+    seen: set[int] = set()
+    kept = []
+    for fact in group:
+        if fact.source_id not in seen:
+            seen.add(fact.source_id)
+            kept.append(fact)
+    return kept
+
+
 def _restates(fact: Fact, lead: Fact) -> bool:
     if fact.kind is not lead.kind:
         return False

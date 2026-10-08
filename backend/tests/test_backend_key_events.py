@@ -38,16 +38,14 @@ def _add(
     value: dict[str, Any] | None = None,
     origin: Origin = Origin.MODEL,
     page_cited: bool = True,
+    source: Source | None = None,
 ) -> Fact:
-    """A fact from a note, or from a document page when `page_cited` is false."""
-    source = Source(
-        matter_id=MATTER,
-        clio_type=SourceType.NOTE if page_cited else SourceType.DOCUMENT,
-        clio_id=f"key-event-{session.query(Source).count()}",
-        raw_json={},
-    )
-    session.add(source)
-    session.flush()
+    """A fact from a new note, or from a document without its page when `page_cited` is
+    false, or from `source` when one is given."""
+    if source is None:
+        source = _source(
+            session, SourceType.NOTE if page_cited else SourceType.DOCUMENT
+        )
     fact = Fact(
         matter_id=MATTER,
         kind=kind,
@@ -63,6 +61,18 @@ def _add(
     session.add(fact)
     session.commit()
     return fact
+
+
+def _source(session: Session, clio_type: SourceType = SourceType.NOTE) -> Source:
+    source = Source(
+        matter_id=MATTER,
+        clio_type=clio_type,
+        clio_id=f"key-event-{session.query(Source).count()}",
+        raw_json={},
+    )
+    session.add(source)
+    session.flush()
+    return source
 
 
 def _days_ago(days: int) -> date:
@@ -232,6 +242,54 @@ def test_a_restated_event_is_one_row_citing_the_other_record(
     assert lead.id in _ids(rows) and again.id not in _ids(rows)
     row = next(r for r in rows if r.id == lead.id)
     assert [ref.id for ref in row.restated_by] == [again.id]
+
+
+def test_a_record_restating_an_event_on_many_pages_is_cited_once(
+    session: Session,
+) -> None:
+    _incident(session)
+    day = _days_ago(50)
+    lead_record, other_record = _source(session), _source(session)
+
+    def finding(source: Source, significance: int) -> Fact:
+        return _add(
+            session,
+            FactKind.DIAGNOSIS,
+            "Wrist sprain diagnosed",
+            day,
+            significance,
+            source=source,
+        )
+
+    lead = finding(lead_record, 100)
+    finding(lead_record, 99)  # another page of the lead's own record
+    pages = [finding(other_record, 98 - n) for n in range(3)]
+
+    row = next(r for r in _events(session) if r.id == lead.id)
+
+    assert [ref.id for ref in row.restated_by] == [pages[0].id]
+
+
+def test_the_incident_row_cites_each_record_once(session: Session) -> None:
+    field = _incident(session)
+    record = _source(session)
+    lead = _add(session, FactKind.INCIDENT, "Rear-end collision", field.event_date, 60)
+    pages = [
+        _add(
+            session,
+            FactKind.INCIDENT,
+            "Rear-end collision",
+            field.event_date,
+            50,
+            source=record,
+        )
+        for _ in range(3)
+    ]
+
+    row = next(r for r in _events(session) if r.kind is FactKind.INCIDENT)
+
+    assert row.id == lead.id
+    assert [ref.id for ref in row.restated_by] == [pages[0].id]
 
 
 def test_oldest_first_within_the_limit(session: Session) -> None:

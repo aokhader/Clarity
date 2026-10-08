@@ -53,14 +53,7 @@ def _day(session: Session) -> date:
     return day
 
 
-def _read(
-    session: Session,
-    on: date,
-    title: str,
-    significance: int = 50,
-    description: str | None = None,
-) -> Fact:
-    """An incident fact the model read from a note."""
+def _note(session: Session) -> Source:
     source = Source(
         matter_id=MATTER_ID,
         clio_type=SourceType.NOTE,
@@ -69,6 +62,19 @@ def _read(
     )
     session.add(source)
     session.flush()
+    return source
+
+
+def _read(
+    session: Session,
+    on: date,
+    title: str,
+    significance: int = 50,
+    description: str | None = None,
+    source: Source | None = None,
+) -> Fact:
+    """An incident fact the model read from a new note, or from `source`."""
+    source = source or _note(session)
     fact = Fact(
         matter_id=MATTER_ID,
         kind=FactKind.INCIDENT,
@@ -153,6 +159,35 @@ def test_the_account_most_records_give_beats_a_more_significant_one(
     assert account["text"] == "Rear-end collision at a stop light"
     assert [ref["id"] for ref in account["restated_by"]] == [g.id for g in group[1:]]
     assert account["fact"]["id"] not in {f.id for f in _fields(bare)}
+
+
+def test_a_record_restating_the_account_on_many_pages_is_cited_once(
+    bare: Session, client: TestClient
+) -> None:
+    day = _day(bare)
+    lead = _read(bare, day, "Rear-end collision at a stoplight", 60)
+    record = _note(bare)
+    pages = [
+        _read(bare, day, "Rear-end collision at a stoplight", 50, source=record)
+        for _ in range(3)
+    ]
+
+    account = _account(client)
+
+    assert account is not None and account["fact"]["id"] == lead.id
+    assert [ref["id"] for ref in account["restated_by"]] == [pages[0].id]
+
+
+def test_records_are_counted_not_pages(bare: Session, client: TestClient) -> None:
+    day = _day(bare)
+    record = _note(bare)
+    for _ in range(3):
+        _read(bare, day, "Pedestrian struck in a crosswalk", 90, source=record)
+    told = [_read(bare, day, "Rear-end collision at a stoplight", 40) for _ in range(2)]
+
+    account = _account(client)
+
+    assert account is not None and account["fact"]["id"] == told[0].id
 
 
 def test_titles_that_only_restate_the_date_never_win(

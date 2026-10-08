@@ -63,13 +63,15 @@ def incident_fact(facts: list[Fact]) -> Fact | None:
 
 
 def incident_account(facts: list[Fact]) -> list[Fact]:
-    """The account of the incident most records give: the leading fact of the largest
-    group of model reads on the header's incident day that restate one another, then
-    the rest of that group. Empty when no read on that day names an event.
+    """The account of the incident most records give: the leading fact of the group
+    of model reads on the header's incident day that restate one another and come from
+    the most records, then the rest of that group. Empty when no read on that day
+    names an event.
 
-    A title that only restates the date is left out, however many records give it. A
-    tie goes to the group whose leading fact is more significant, then to the lower id.
-    Never the field fact.
+    A title that only restates the date is left out, however many records give it.
+    Records are counted, not facts, so one document restating an account on every page
+    counts once. A tie goes to the group whose leading fact is more significant, then
+    to the lower id. Never the field fact.
     """
     day = _incident_day([f for f in facts if f.event_date is not None])
     if day is None:
@@ -86,7 +88,15 @@ def incident_account(facts: list[Fact]) -> list[Fact]:
     )
     # In that order, each group's first fact is its most significant one.
     groups = group_restatements(told)
-    return min(groups, key=lambda g: (-len(g), -g[0].significance, g[0].id), default=[])
+    return min(
+        groups,
+        key=lambda g: (-_records(g), -g[0].significance, g[0].id),
+        default=[],
+    )
+
+
+def _records(group: list[Fact]) -> int:
+    return len({f.source_id for f in group})
 
 
 def names_an_event(title: str) -> bool:

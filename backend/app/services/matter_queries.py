@@ -33,7 +33,7 @@ from app.services.fact_views import (
 from app.services.incident import incident_account, incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.record_requests import outstanding_record_requests
-from app.services.restatements import group_restatements
+from app.services.restatements import group_restatements, one_per_record
 from app.services.shares import medical_provider_ids
 
 # How many candidates the feed reads per row it returns, to find restatements.
@@ -149,6 +149,7 @@ def _dated(fact: Fact | None) -> DatedFactOut | None:
 def _account(group: list[Fact]) -> IncidentAccountOut | None:
     if not group:
         return None
+    group = one_per_record(group)
     return IncidentAccountOut(
         text=group[0].title,
         fact=fact_ref(group[0]),
@@ -297,7 +298,8 @@ def matter_feed(session: Session, matter_id: int, limit: int) -> list[FactOut]:
 
 
 def _with_restatements(group: list[Fact]) -> FactOut:
-    """The group's lead fact, citing the other records that restate it."""
+    """The group's lead fact, citing the other records that restate it, one fact each."""
+    group = one_per_record(group)
     return fact_out(group[0]).model_copy(
         update={"restated_by": [fact_ref(f) for f in group[1:]]}
     )

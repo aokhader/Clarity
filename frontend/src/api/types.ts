@@ -219,8 +219,9 @@ type FactBase = {
   origin: Origin
   created_at: IsoDateTime
   /**
-   * Other facts that state the same thing from other records. Filled by the ranked feed,
-   * which lists each fact once; empty elsewhere.
+   * Other facts that state the same thing from other records, one per record, so its
+   * length counts records. Filled by the ranked feed and key events, which list each fact
+   * once; empty elsewhere.
    */
   restated_by: FactRef[]
 }
@@ -321,7 +322,7 @@ export type IncidentAccountOut = {
   text: string
   /** That fact. */
   fact: FactRef
-  /** The other records that give the same account. */
+  /** The other records that give it, one fact each, so its length counts records. */
   restated_by: FactRef[]
 }
 

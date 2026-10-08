@@ -18,15 +18,17 @@ def _add(
     value: dict[str, Any],
     on: date | None = None,
     significance: int = 100,
+    source: Source | None = None,
 ) -> Fact:
-    source = Source(
-        matter_id=MATTER_ID,
-        clio_type=SourceType.NOTE,
-        clio_id=f"feed-note-{session.query(Source).count()}",
-        raw_json={},
-    )
-    session.add(source)
-    session.flush()
+    if source is None:
+        source = Source(
+            matter_id=MATTER_ID,
+            clio_type=SourceType.NOTE,
+            clio_id=f"feed-note-{session.query(Source).count()}",
+            raw_json={},
+        )
+        session.add(source)
+        session.flush()
     fact = Fact(
         matter_id=MATTER_ID,
         kind=kind,
@@ -73,6 +75,32 @@ def test_a_figure_stated_by_three_records_is_one_row_citing_all(
     row = next(r for r in feed if r["id"] == lead.id)
     assert _restated(row) == {a.id for a in again}
     assert len(feed) == 10  # the freed slots go to the next facts
+
+
+def test_a_record_stating_a_figure_on_many_pages_is_cited_once(
+    seeded: Session, client: TestClient
+) -> None:
+    limit = {"amount_cents": 7_700_000, "per": "person"}
+    lead = _add(seeded, FactKind.POLICY_LIMIT, "Limit of $77,000", limit)
+    record = seeded.get(Source, lead.source_id)
+    assert record is not None
+    other = Source(
+        matter_id=MATTER_ID,
+        clio_type=SourceType.NOTE,
+        clio_id="feed-pages",
+        raw_json={},
+    )
+    seeded.add(other)
+    seeded.flush()
+    _add(seeded, FactKind.POLICY_LIMIT, "Limit", limit, None, 99, source=record)
+    pages = [
+        _add(seeded, FactKind.POLICY_LIMIT, "Limit", limit, None, 98 - n, source=other)
+        for n in range(3)
+    ]
+
+    row = next(r for r in _feed(client) if r["id"] == lead.id)
+
+    assert _restated(row) == {pages[0].id}
 
 
 def test_the_same_finding_in_other_words_is_one_row(

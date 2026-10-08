@@ -311,8 +311,9 @@ class FactOut(BaseModel):
     verified: bool
     origin: Origin
     created_at: datetime
-    # Other facts that state the same thing from other records. Filled by the ranked
-    # feed, which lists each fact once (services/restatements.py); empty elsewhere.
+    # Other facts that state the same thing from other records, one per record. Filled
+    # by the ranked feed and key events, which list each fact once
+    # (services/restatements.py); empty elsewhere.
     restated_by: list[FactRef] = Field(default_factory=list)
 
 
@@ -444,7 +445,7 @@ class IncidentAccountOut(BaseModel):
 
     text: str  # the title of the account's leading fact
     fact: FactRef  # that fact
-    restated_by: list[FactRef]  # the other records that give the same account
+    restated_by: list[FactRef]  # the other records that give it, one fact each
 
 
 class KpiValueOut(BaseModel):
