@@ -9,6 +9,8 @@ type MarginCitedProps = {
   facts: FactRef[]
   /** A row of a list, or `div` for a row that stands alone. */
   as?: 'li' | 'div'
+  /** Less padding, for short single-line rows such as a list of injuries. */
+  dense?: boolean
   /** Type styles for the text. */
   className?: string
   children: ReactNode
@@ -21,12 +23,13 @@ type MarginCitedProps = {
  * described by the row's text, so two chips of one type tell apart by what they back.
  * Rows sit flush, so the margin rule runs unbroken down a list.
  */
-export function MarginCited({ facts, as: Row = 'li', className, children }: MarginCitedProps) {
+export function MarginCited({ facts, as: Row = 'li', dense = false, className, children }: MarginCitedProps) {
   const textId = useId()
   return (
     <Row
       className={cn(
-        'relative grid grid-cols-1 items-baseline gap-x-4 gap-y-1 py-1.5',
+        'relative grid grid-cols-1 items-baseline gap-x-4 gap-y-1',
+        dense ? 'py-0.5' : 'py-1.5',
         '@min-[40rem]:grid-cols-[minmax(0,1fr)_14rem]',
         '@min-[40rem]:before:absolute @min-[40rem]:before:inset-y-0 @min-[40rem]:before:right-[14rem] @min-[40rem]:before:w-px @min-[40rem]:before:bg-border',
       )}

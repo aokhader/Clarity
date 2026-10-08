@@ -26,7 +26,7 @@ export function ChangesSince({ matterId }: { matterId: number }) {
 
   if (changes.isError) {
     return (
-      <div className="py-6">
+      <div className="py-5">
         <LoadError what="the changes" error={changes.error} onRetry={() => void changes.refetch()} />
       </div>
     )
@@ -36,7 +36,7 @@ export function ChangesSince({ matterId }: { matterId: number }) {
   const { last_opened_at: lastOpened, facts } = changes.data
   if (lastOpened === null) {
     return (
-      <p className="py-6 text-sm text-muted-foreground">
+      <p className="py-5 text-sm text-muted-foreground">
         First time {user.name} has opened this matter, so everything on this page is new.
       </p>
     )

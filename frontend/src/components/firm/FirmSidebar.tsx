@@ -27,21 +27,24 @@ export function FirmSidebar({ view }: { view: MatterViewId }) {
       aria-label="Clarity"
       className="border-b bg-card lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto lg:border-r lg:border-b-0"
     >
-      <div className="flex items-center gap-3 px-4 py-3 lg:border-b lg:px-5 lg:py-5">
+      <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 lg:border-b lg:px-5 lg:py-5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-foreground text-foreground">
           <Gavel aria-hidden className="size-[1.1rem]" />
         </span>
-        <div>
+        <div className="min-w-0">
           <p className="text-lg leading-tight font-semibold tracking-tight">Clarity</p>
-          {/* Sentence case in the source, capitals by style: screen readers spell out literal capitals. */}
-          <p className="text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">Case brief</p>
+          {/* Sentence case in the source, capitals by style: screen readers spell out literal capitals.
+              Left out of the narrowest top bar, so the menu button fits at 320px. */}
+          <p className="hidden text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase sm:block">
+            Case brief
+          </p>
         </div>
         <button
           type="button"
           aria-expanded={menuOpen}
           aria-controls={menuId}
           onClick={() => setMenuOpen((open) => !open)}
-          className="ml-auto flex items-center gap-2 rounded-md border border-input px-3 py-1.5 text-sm font-medium lg:hidden"
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-sm font-medium lg:hidden"
         >
           {menuOpen ? <X aria-hidden className="size-4" /> : <Menu aria-hidden className="size-4" />}
           Menu

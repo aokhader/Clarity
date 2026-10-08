@@ -75,9 +75,9 @@
   /* Large type for what the clip has to show on a projector. */
   --text-brief: 1.25rem;
   --text-brief--line-height: 1.9rem;
-  /* The brief's headline, the bottom line of the case. */
+  /* The brief's headline, the bottom line of the case: large, with a display serif's tight leading. */
   --text-headline: 1.625rem;
-  --text-headline--line-height: 2.1rem;
+  --text-headline--line-height: 1.95rem;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -83,7 +83,8 @@ export function MatterFooter({ header }: { header: MatterHeaderOut }) {
           {failure.text}
         </span>
       ))}
-      <div className="ml-auto flex items-center gap-3">
+      {/* Wraps on a narrow screen, so its buttons never push the page wider than the viewport. */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
         {resync.isError && (
           <span role="alert" className="text-danger">
             {resync.error.message}

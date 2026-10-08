@@ -17,12 +17,12 @@ type SectionProps = {
 export function Section({ title, aside, className, children }: SectionProps) {
   const headingId = useId()
   return (
-    <section aria-labelledby={headingId} className={cn('py-6', className)}>
+    <section aria-labelledby={headingId} className={cn('py-5', className)}>
       <h2 id={headingId} className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         {title}
         {aside !== undefined && <span className="ml-2 font-normal tracking-normal normal-case">{aside}</span>}
       </h2>
-      <div className="mt-3">{children}</div>
+      <div className="mt-2">{children}</div>
     </section>
   )
 }
