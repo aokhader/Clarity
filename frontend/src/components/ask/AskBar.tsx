@@ -7,7 +7,7 @@ import { AskItemChip } from '@/components/ask/AskItemChip'
 import { BudgetNote } from '@/components/ask/BudgetNote'
 import { Button } from '@/components/ui/button'
 import { askRefKey, cutLabel, factsRef } from '@/lib/askItems'
-import { useAskContext } from '@/lib/askState'
+import { ASK_BAR_ATTRIBUTE, useAskContext } from '@/lib/askState'
 import { STARTERS, starterKindOf } from '@/lib/askStarters'
 import { formatDate } from '@/lib/format'
 import { KIND_LABELS, SOURCE_LABELS } from '@/lib/labels'
@@ -75,7 +75,7 @@ export function AskBar({ matterId }: { matterId: number }) {
   }
 
   return (
-    <section aria-label="Ask about this matter" className="rounded-lg border bg-card px-4 py-3">
+    <section {...{ [ASK_BAR_ATTRIBUTE]: '' }} aria-label="Ask about this matter" className="rounded-lg border bg-card px-4 py-3">
       <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-muted-foreground">
         Search the file, or point at an item and ask about it
       </label>

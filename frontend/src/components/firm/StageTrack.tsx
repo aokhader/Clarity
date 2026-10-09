@@ -56,7 +56,8 @@ export function StageTrack({ stage }: { stage: StageOut }) {
 
   return (
     <div {...askTarget} className="flex flex-wrap items-center gap-x-6 gap-y-2">
-      <ol aria-label="Case progress" className="flex flex-wrap items-center gap-y-2">
+      {/* data-ask-skip: pointed at, the track is labelled by its summary, not its five step names (D49). */}
+      <ol data-ask-skip aria-label="Case progress" className="flex flex-wrap items-center gap-y-2">
         {STAGE_STEPS.map((step, index) => {
           const state = stateOf(index + 1)
           return (

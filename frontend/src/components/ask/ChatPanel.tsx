@@ -46,26 +46,30 @@ export function ChatPanel({ matterId }: { matterId: number }) {
         ask.dragging && 'max-xl:pointer-events-none max-xl:opacity-0',
       )}
     >
-      <header className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-3">
-        <h2 id={headingId} ref={heading} tabIndex={-1} className="mr-auto text-base font-semibold focus:outline-none">
-          Ask about this matter
-        </h2>
-        {ask.threadId !== null && (
-          <Button variant="ghost" size="xs" onClick={ask.newQuestion}>
-            New question
+      <header className="border-b px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <h2 id={headingId} ref={heading} tabIndex={-1} className="mr-auto text-base font-semibold focus:outline-none">
+            Ask about this matter
+          </h2>
+          <Button variant="ghost" size="icon-sm" onClick={ask.closePanel} aria-label="Close the Ask panel" title="Close">
+            <X aria-hidden />
           </Button>
-        )}
-        <Button asChild variant="ghost" size="xs">
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <Link
             to={{ search: '?view=ask' }}
-            onClick={() => requestAnimationFrame(() => document.querySelector<HTMLElement>('main h1')?.focus())}
+            // The panel goes with the view change, so focus moves to the page rather than being lost.
+            onClick={() => requestAnimationFrame(() => document.getElementById('main')?.focus())}
+            className="text-primary underline-offset-4 hover:underline"
           >
             Open in Ask view
           </Link>
-        </Button>
-        <Button variant="ghost" size="icon-sm" onClick={ask.closePanel} aria-label="Close the Ask panel" title="Close">
-          <X aria-hidden />
-        </Button>
+          {ask.threadId !== null && (
+            <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
+              New question
+            </button>
+          )}
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-4">
         {ask.threadId === null ? (

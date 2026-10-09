@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 
 import { MAX_ASK_ITEMS, askRefKey } from '@/lib/askItems'
 import {
+  ASK_BAR_ATTRIBUTE,
   ASK_PANEL_ATTRIBUTE,
   AskContext,
   AskPickingContext,
@@ -10,10 +11,13 @@ import {
   type AskState,
 } from '@/lib/askState'
 
-/** Focus what opened the panel, or the page's h1 when that is gone. */
+/**
+ * Focus what opened the panel. A starter or the Ask button is often gone or disabled once
+ * the question is sent, so focus then goes to the Ask bar's box, else to the page.
+ */
 function focusOpener(opener: HTMLElement | null) {
-  if (opener?.isConnected) opener.focus()
-  else document.querySelector<HTMLElement>('main h1')?.focus()
+  if (opener?.isConnected && !opener.matches(':disabled')) opener.focus()
+  else (document.querySelector<HTMLElement>(`[${ASK_BAR_ATTRIBUTE}] input`) ?? document.getElementById('main'))?.focus()
 }
 
 /**

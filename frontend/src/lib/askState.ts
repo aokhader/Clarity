@@ -5,6 +5,8 @@ import type { AskItem } from '@/lib/askItems'
 
 /** Marks the side panel, so focus that starts inside it is not taken for its opener. */
 export const ASK_PANEL_ATTRIBUTE = 'data-ask-panel'
+/** Marks the Ask bar, where focus goes when what opened the panel is gone. */
+export const ASK_BAR_ATTRIBUTE = 'data-ask-bar'
 
 export type AskState = {
   /** The side panel holding the thread. */
