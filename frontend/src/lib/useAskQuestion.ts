@@ -52,6 +52,10 @@ export function useAskQuestion(matterId: number) {
     submit,
     pending: mutation.isPending,
     blocked,
+    /** The day's budget is used up: the one refusal that lasts, so a bar says it in sight. */
+    spent,
+    /** An answer is still being written on the open thread. */
+    answering,
     /** The last refusal, in words; the budget refusal is already said by `blocked`. */
     error: mutation.error && !isBudgetRefusal(mutation.error) ? askErrorText(mutation.error) : null,
     budget: budget.data,

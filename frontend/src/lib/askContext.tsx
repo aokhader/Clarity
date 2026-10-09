@@ -46,7 +46,10 @@ export function AskProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AskContextValue>(() => {
     const openPanel = () => {
       const active = document.activeElement
-      if (active instanceof HTMLElement && active.closest(`[${ASK_PANEL_ATTRIBUTE}]`) === null) opener.current = active
+      // A starter turned off while its question was sent has already dropped focus to the
+      // body; that is no opener, so closing falls back to the Ask bar's box.
+      if (!(active instanceof HTMLElement) || active === document.body) opener.current = null
+      else if (active.closest(`[${ASK_PANEL_ATTRIBUTE}]`) === null) opener.current = active
       update({ panelOpen: true, panelWantsFocus: true })
     }
     const closePanel = () => {

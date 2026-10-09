@@ -1,6 +1,8 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { cn } from '@/lib/utils'
+
 type AskItemChipProps = {
   /** What the item is, in a few words. */
   label: string
@@ -13,7 +15,13 @@ type AskItemChipProps = {
 /** An item pointed at, attached to a question: its label, its sources once asked, and a way to drop it before. */
 export function AskItemChip({ label, onRemove, children }: AskItemChipProps) {
   return (
-    <span className="inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-sm border border-input bg-card py-0.5 pr-0.5 pl-1.5 text-xs">
+    <span
+      className={cn(
+        'inline-flex max-w-full items-center gap-x-1.5 gap-y-1 rounded-sm border border-input bg-card py-0.5 pr-0.5 pl-1.5 text-xs',
+        // Source chips may wrap under a long label; the remove button stays beside it.
+        children !== undefined && 'flex-wrap',
+      )}
+    >
       <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
       {children}
       {onRemove && (
@@ -22,7 +30,7 @@ export function AskItemChip({ label, onRemove, children }: AskItemChipProps) {
           onClick={onRemove}
           aria-label={`Remove ${label}`}
           title="Remove"
-          className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X aria-hidden className="size-3" />
         </button>

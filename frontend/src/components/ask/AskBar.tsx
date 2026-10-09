@@ -2,13 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 import { SEARCH_MIN_CHARS, useAskSearch } from '@/api/chat'
 import type { FactOut } from '@/api/types'
+import { AskAttached } from '@/components/ask/AskAttached'
 import { AskHandle } from '@/components/ask/AskHandle'
-import { AskItemChip } from '@/components/ask/AskItemChip'
 import { BudgetNote } from '@/components/ask/BudgetNote'
 import { Button } from '@/components/ui/button'
-import { askRefKey, cutLabel, factsRef } from '@/lib/askItems'
+import { cutLabel, factsRef } from '@/lib/askItems'
 import { ASK_BAR_ATTRIBUTE, useAskContext } from '@/lib/askState'
-import { STARTERS, starterKindOf } from '@/lib/askStarters'
+import { starterKindOf } from '@/lib/askStarters'
 import { formatDate } from '@/lib/format'
 import { KIND_LABELS, SOURCE_LABELS } from '@/lib/labels'
 import { useAskQuestion } from '@/lib/useAskQuestion'
@@ -25,8 +25,12 @@ function sourceOf(fact: FactOut): string {
 /**
  * The Ask bar on every firm view but Ask (D49). Typing searches the file's records at
  * once, with no model call; a hit chosen from the list is attached to the question, as
- * is anything pointed at with the handle. The newest item offers questions to start
- * from. Ask sends the question, as a follow-up when a thread is open, and opens the panel.
+ * is anything pointed at with the handle. Ask sends the question, as a follow-up when a
+ * thread is open, and opens the panel.
+ *
+ * At rest it is one line, the handle, the box and Ask, so it costs the Overview's first
+ * screen little (D50). What it does is the box's description, not a line under it; the
+ * attached items and their starter questions take a second line only while there are any.
  *
  * The box is an ARIA combobox: the arrow keys move through the hits, Enter attaches the
  * highlighted one, and Enter with none highlighted asks what is typed.
@@ -41,12 +45,12 @@ export function AskBar({ matterId }: { matterId: number }) {
   const inputId = useId()
   const listId = useId()
   const reasonId = useId()
+  const hintId = useId()
 
   const searching = ask.draft.trim().length >= SEARCH_MIN_CHARS
   const hits = searching ? (search.data ?? []).slice(0, HITS_SHOWN) : []
   const expanded = listOpen && hits.length > 0
   const optionId = (index: number) => `${listId}-${index}`
-  const newest = ask.items.at(-1)
   const askOff = question.blocked !== null || question.pending
 
   // Keep the highlighted hit in view as the arrow keys move through a long list.
@@ -75,19 +79,20 @@ export function AskBar({ matterId }: { matterId: number }) {
   }
 
   return (
-    <section {...{ [ASK_BAR_ATTRIBUTE]: '' }} aria-label="Ask about this matter" className="rounded-lg border bg-card px-4 py-3">
-      <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-muted-foreground">
-        Search the file, or point at an item and ask about it
-      </label>
+    <section {...{ [ASK_BAR_ATTRIBUTE]: '' }} aria-label="Ask about this matter" className="flex flex-col gap-2">
       <form
-        className="flex items-start gap-2"
+        className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           submit(ask.draft)
         }}
       >
         <AskHandle onPicked={() => requestAnimationFrame(() => input.current?.focus())} />
-        <div className="relative min-w-0 flex-1">
+        {/* Grows to fill the line; below its basis the controls after it wrap instead. */}
+        <div className="relative min-w-0 grow basis-28">
+          <label htmlFor={inputId} className="sr-only">
+            Search the file or ask
+          </label>
           <input
             ref={input}
             id={inputId}
@@ -99,9 +104,9 @@ export function AskBar({ matterId }: { matterId: number }) {
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}
-            aria-describedby={question.blocked ? reasonId : undefined}
+            aria-describedby={question.blocked ? `${hintId} ${reasonId}` : hintId}
             value={ask.draft}
-            placeholder="A word from a record, or a question"
+            placeholder={question.following ? 'Search, or follow up the open question' : 'Search the file, or ask a question'}
             onChange={(event) => {
               ask.setDraft(event.target.value)
               setListOpen(true)
@@ -126,9 +131,9 @@ export function AskBar({ matterId }: { matterId: number }) {
                 closeList()
               }
             }}
-            className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-2.5 text-[15px] placeholder:text-muted-foreground"
+            className="h-9 w-full min-w-0 rounded-md border border-input bg-card px-2.5 text-[15px] placeholder:text-muted-foreground"
           />
-          {/* Always in the page, so the combobox's aria-controls names an element. */}
+          {/* Always in the page, so the combobox's aria-controls names an element. It drops over the view, never pushing it. */}
           <ul
             id={listId}
             role="listbox"
@@ -157,74 +162,45 @@ export function AskBar({ matterId }: { matterId: number }) {
           </ul>
         </div>
         <Button type="submit" size="lg" disabled={askOff || ask.draft.trim() === ''}>
-          {question.pending ? 'Asking…' : 'Ask'}
+          {question.pending ? 'Asking…' : question.answering ? 'Answering…' : 'Ask'}
         </Button>
+        {question.following && (
+          <span className="flex flex-wrap items-center gap-x-3 text-sm">
+            <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
+              Start a new question
+            </button>
+            {!ask.panelOpen && (
+              <button type="button" onClick={ask.openPanel} className="text-primary underline-offset-4 hover:underline">
+                Show the answers
+              </button>
+            )}
+          </span>
+        )}
       </form>
+
+      {/* What the bar does, said to screen readers rather than shown under it. */}
+      <span id={hintId} className="sr-only">
+        {question.following ? 'Asking follows up the open question. ' : ''}
+        Type a word to find records and attach one, or type a question and press Ask. The handle before the box
+        points at an item on the page to ask about it.
+      </span>
       <p role="status" className="sr-only">
         {expanded ? `${hits.length} ${hits.length === 1 ? 'record matches' : 'records match'}. Use the arrow keys to choose.` : ''}
       </p>
 
-      {ask.items.length > 0 && (
-        <ul aria-label="Items attached to the question" className="mt-2 flex flex-wrap gap-1.5">
-          {ask.items.map((item) => (
-            <li key={askRefKey(item.ref)} className="max-w-full">
-              <AskItemChip label={item.label} onRemove={() => ask.removeItem(item.ref)} />
-            </li>
-          ))}
-        </ul>
+      <AskAttached onStart={submit} disabled={askOff} />
+      {/* A spent budget lasts the day, so it is said in sight; a passing reason is only described. */}
+      {question.blocked && (
+        <p id={reasonId} className={question.spent ? 'text-sm text-muted-foreground' : 'sr-only'}>
+          {question.blocked}
+        </p>
       )}
-      {newest && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Ask:</span>
-          {STARTERS[newest.starter].map((starter) => (
-            <Button
-              key={starter}
-              variant="outline"
-              size="xs"
-              // Starters wrap rather than run off a narrow screen.
-              className="h-auto min-h-6 py-0.5 text-left whitespace-normal"
-              disabled={askOff}
-              onClick={() => {
-                ask.setDraft(starter)
-                submit(starter)
-              }}
-            >
-              {starter}
-            </Button>
-          ))}
-        </div>
+      {question.error && (
+        <p role="alert" className="text-sm text-danger">
+          {question.error}
+        </p>
       )}
-
-      {(question.following || question.blocked || question.error) && (
-        <div className="mt-2 space-y-1 text-sm">
-          {question.following && (
-            <p className="flex flex-wrap items-center gap-x-2 text-muted-foreground">
-              Asking follows up the open question.
-              <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
-                Start a new question
-              </button>
-              {!ask.panelOpen && (
-                <button type="button" onClick={ask.openPanel} className="text-primary underline-offset-4 hover:underline">
-                  Show the answers
-                </button>
-              )}
-            </p>
-          )}
-          {question.blocked && (
-            <p id={reasonId} className="text-muted-foreground">
-              {question.blocked}
-            </p>
-          )}
-          {question.error && (
-            <p role="alert" className="text-danger">
-              {question.error}
-            </p>
-          )}
-        </div>
-      )}
-      <div className="mt-1">
-        <BudgetNote budget={question.budget} />
-      </div>
+      <BudgetNote budget={question.budget} />
     </section>
   )
 }
