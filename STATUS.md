@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D50 (1) done: Ask bar one line, 36px at rest at 1440 and 320 (was 86, 102); items and starters on a second line only while attached; tested headless, chat mocked | Lead: check in browser | | | 2026-10-09 10:25 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C5 done (0d60d65): brief omits limitations defense; story lacks first suit; court events doubled | Stand by | | Brief call for limitations; pin court rows by type; no note-date dating; refile one page | 2026-10-08 20:20 |
-| reviewer | README: ten screenshots, captions checked (aecba2f); check.sh no FAIL, 481; Node tests SKIPPED | Standing by; clone still serving :8010, :5183 | | | 2026-10-08 21:34 |
+| reviewer | H5 README done: Ask view, chat cost, data out, stubs, map, D44–D48 fixes; check.sh no FAIL, 533; Node tests SKIPPED | Standing by; clone servers stopped | | | 2026-10-09 10:50 |
 
 ## Stubs and shortcuts
 
