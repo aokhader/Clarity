@@ -112,6 +112,10 @@ class Settings(BaseSettings):
         return self.data_dir / "pages"
 
     @property
+    def backups_dir(self) -> Path:
+        return self.data_dir / "backups"
+
+    @property
     def llm_endpoint(self) -> str:
         if self.llm_base_url:
             return self.llm_base_url.rstrip("/")
