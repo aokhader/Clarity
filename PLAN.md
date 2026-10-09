@@ -135,15 +135,15 @@ The Manager's request (2026-10-09): a draggable handle dropped on any row, tile 
 **Settings:** Sonnet 5.5 through the digest's Anthropic key in `CHAT_*` settings, effort medium, the server-side refusal fallback, a $2 cap a day per matter, threads stored per matter for the whole firm. Starter questions per item type are generic and in code.
 
 The items, in order. Workers build in parallel against the contract; the lead runs the servers.
-- [ ] H0 lead: D49, the doc amendments (ui.md, project.md, architecture.md), the contract, ownership (`api/chat.ts` to ui-builder), `.env.example`. 40 min
-- [ ] H1 pipeline:
+- [x] H0 lead (d3f99ff): D49, the doc amendments (ui.md, project.md, architecture.md), the contract, ownership (`api/chat.ts` to ui-builder), `.env.example`. 40 min
+- [x] H1 pipeline (48af6d2; chat shares merge's limiter, keyed by model):
   - config `CHAT_*` and `chat_configured`;
   - the llm.py `chat` role: model, prices, effort, fallbacks, its own output limit, fallback pricing; extract and merge bodies unchanged;
   - `digest/chat.py` `answer_question` with the code checks;
   - `prompts/chat_answer.txt`;
   - `test_pipeline_chat.py`.
   60 min
-- [ ] H2 backend:
+- [x] H2 backend (bc1d300, b6aa3e1, 62e0e8f, 06b775c; 519 tests; model input 55–67k characters on the real matter, about $0.03–0.05 a question):
   - the contract in `schemas.py` and `types.ts` first (D23: run the typecheck);
   - the tables;
   - `chat_context` (overview, ranker, pages), `chat_attachments` (matter-scoped), `chat` (ask, budget, background run, the startup sweep), `chat_view` (withdraw, D12 checks);

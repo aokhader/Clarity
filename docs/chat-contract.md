@@ -58,7 +58,8 @@ class ChatAskIn(BaseModel):
 
 class AskItemOut(BaseModel):
     ref: AskItemRef
-    label: str  # built by the server from generic words, the kind and a date, e.g. "Bill, Mar 3, 2025"
+    label: str  # built by the server from generic words, the kind and a date, e.g. "Bill, Mar 3, 2025";
+                # a provider item names the contact as Clio does ("Provider, <name>"), firm routes only (lead, D49)
     facts: list[FactRef]  # what the item resolved to, at most 50
 
 ChatTurnStatus = Literal["running", "done", "failed", "no_model"]
