@@ -64,7 +64,7 @@ All GET. Scope by `matter_id` once the matter is found. Custom field definitions
 | Data | Path | Fields to request |
 |---|---|---|
 | Find the matter | `/matters.json?query={CLIO_MATTER_QUERY}` | `id,display_number,description` |
-| Matter | `/matters/{id}.json` | `id,etag,display_number,description,status,open_date,close_date,practice_area{name},matter_stage{name},client{id,name},responsible_attorney{name},custom_field_values{id,field_name,field_type,value,custom_field,picklist_option},created_at,updated_at` |
+| Matter | `/matters/{id}.json` | `id,etag,display_number,description,status,open_date,close_date,practice_area{name},matter_stage{name},matter_stage_updated_at,client{id,name},responsible_attorney{name},custom_field_values{id,field_name,field_type,value,custom_field,picklist_option},created_at,updated_at` (the stage fact is dated by `matter_stage_updated_at`, never `updated_at`, D52) |
 | Custom field definitions | `/custom_fields.json` | `id,etag,name,field_type,parent_type,picklist_options{id,option},updated_at` |
 | Relationships | `/relationships.json?matter_id={id}` | `id,etag,description,contact{id,name,type},created_at,updated_at` |
 | Contacts | `/contacts.json?ids[]=...` | `id,etag,name,type,title,email_addresses{address,name},phone_numbers{number,name},addresses{name,street,city,province,postal_code,country},custom_field_values{id,field_name,field_type,value,custom_field,picklist_option},avatar{url},updated_at` |
