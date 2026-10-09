@@ -29,10 +29,11 @@ Per-page and per-record extraction: `claude-haiku-5-5`. Field and role mapping, 
 
 This was measured from `GET /api/ops/cost` and the `llm_calls` table. A further 184 calls were rejected by the API and cost nothing.
 
-**Measured: the two update runs on 2026-10-08 cost $0.17 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
+**Measured: the three update runs on 2026-10-08 cost $0.22 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
 - The re-digest made 6 calls (36,295 input and 7,905 output tokens), for $0.0979.
 - The re-read of 9 records made 10 paid calls, and answered 4 more from the cache (49,274 input and 15,266 output tokens), for $0.0760.
-- No call failed. A trial on a copy of the database before them made 6 calls for $0.0148.
+- The re-read of 13 pleading pages for court events (D41) made 19 paid calls, and answered 3 more from the cache (87,026 input and 22,790 output tokens), for $0.0425.
+- No call failed. Each run was tried first on a copy of the database: 6 calls for $0.0148 before the first two, and 19 calls for $0.043 before the third.
 
 Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 attempts in a 2026-10-08 trial (D36).
 

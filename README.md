@@ -12,7 +12,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | **The provider's own page** | **The draft checker, in the share composer** |
 | ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). The provider page and the provider preview were taken before D41. Their "Recent updates" row shows the status change's own free-text label, where the page now writes the stage move in code, "Moved to treatment" (seen by the reviewer in the clone's preview).
 
 ## Run it
 
@@ -110,7 +110,7 @@ uvicorn app.main:app --port 8000
 - **Other commands:**
   - `cli digest --retry-failed` retries model calls that failed.
   - `cli digest --pages-only` renders pages without calling a model.
-  - `cli reextract --dry-run` prices a re-read of chosen pages before running it.
+  - `cli reextract --dry-run` prices a re-read of chosen pages before running it. `--keep-brief` re-reads them and scores their new facts but leaves the stored brief for the next digest to write.
   - `cli reset` deletes the database and every downloaded file.
 
 Without credentials, each command stops with a message, as seen in the clean clone:
@@ -155,7 +155,7 @@ The firm side has five views in the rail: Case Overview, For Attorney, For Servi
    - **Last client contact.**
    - **To do:** the overdue, upcoming and open-request counts, which link to the action board. "Open requests" replaced "waiting on others", because a record request does not say who is waiting on whom (D40).
 4. **Money:** the four tiles, Case value, Coverage limit, Medical specials and Firm spend. They moved here from For Attorney (D38).
-5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. Deadlines are left out, since a scheduled date does not say that anything happened (D40). "Full timeline" opens For Attorney with the timeline chosen.
+5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. Court events have their own kind, `litigation_event`: filed, served, answered, dismissed, renewed, a motion, an order, a hearing, a deposition, a trial, or other. Each is dated by its filing, service or decision date and is internal (D41). Up to three dated court events are pinned after the incident, whatever their score, and the other kinds fill the rest. Deadlines are left out, since a scheduled date does not say that anything happened (D40). "Full timeline" opens For Attorney with the timeline chosen.
 6. **Since you last opened:** at most five changes, then a count of the rest. Hidden when nothing is new; one line on a first visit.
 7. **Where it stands:** the brief's sentences, one per row, then "Not answered by the file", the brief's open questions.
 
@@ -192,6 +192,14 @@ Seen working on the hackathon's matter, and by whom.
   - It traced every block of the new Overview to its sources. Every chip it opened holds its text.
   - The incident account is a model fact, never the Clio field, and the money row agrees with the brief's figures.
   - Its first-screen findings were fixed in code under D40 (see the Overview pass entry above). What D40 left open is under Known issues.
+- **Court events in the story (D41), on the real matter on 2026-10-08:**
+  - **By the lead, through the API and the page:**
+    - the story shows three court rows: the earlier suit, the summons and complaint, and the answer;
+    - each is internal and opens its page;
+    - the answer's quote is in its page's text, and the two scanned pages passed their second read.
+  - **By the reviewer, through the API and the database, read-only:**
+    - the story's 10 events include 3 `litigation_event` rows (two `filed`, one `answered`), each dated, internal, verified and cited to a document page;
+    - the re-read behind them made 19 paid calls with no error (see [Cost per case](#cost-per-case)).
 - **By the lead, in the browser, during the trial (2026-10-07):**
   - The brief's sentences, each ending in source chips that open the cited page (U1). That was the October 2 brief; the model runs of 2026-10-08 rewrote it (below). Since D38 the chips sit in the margin beside each sentence.
   - The source drawer, and the share preview's chips, which open their sources (U8).
@@ -235,11 +243,12 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 428 pass at `1cfd638`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 462 pass at `889debf`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
   - At `1707584`, after the fixture gained records that give an incident account (`0deb4a1`), the header's `incident_account` carries its text and one record restating it. `key-events` returned 10 events, oldest first, with that account's fact first.
+  - At `889debf`, after D41, `seed-dev` first failed on the old schema (see Tooling, under Known issues), then passed after `upgrade_schema`. The story's 10 events then included the invented matter's court event. Both providers' previews listed one update, "Moved to treatment".
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
@@ -273,6 +282,10 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
   - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
   - **The draft-check panel (`f267fc6`):** a `not_on_link` date is shown in a neutral tone with one chip and a count, under "Some dates are in the file but not on this link". It neither locks nor warns.
   - **The share settings:** "Policy limits" now reads "The defendant's liability limits only, per person and per occurrence".
+- **Provider updates show stage moves only (D41, `764bd38`):**
+  - A provider's "Recent updates" list only moves to a named stage, in labels written in code, such as "Moved to litigation". The status label the model writes never reaches a provider.
+  - Before this, the firm's preview of a provider's link on the real matter showed a model-written label that disclosed a past dismissal and renewal. No link existed, so nothing was sent.
+  - Tests: `backend/tests/test_backend_provider_updates.py` and `test_visibility.py`. The reviewer saw the clone's preview return "Moved to treatment" for both of the invented matter's providers, through the API, not the page.
 - **Liens in the provider update (D35, `612945b`):** the "Send update" draft counts and totals bills only, and lists liens under a heading of their own. On the real matter no lien reaches a provider; see Known issues.
 
 - **Draft-checker matching (D25, D28):**
@@ -343,10 +356,13 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - What matters, the ranked feed on For Attorney, still shows both.
   - A one-line prompt change and one brief call, about 5 cents, would restore them; that is optional and needs the Manager's go-ahead.
   - The open questions state their premises without chips.
+- **Court events in the story, after D41's re-read:**
+  - **The dismissal and the renewal are read but undated,** so the story cannot place them.
+  - **Notes and emails that describe court events stay kind `other`** until the record prompt's version is bumped. That bump would also re-read the matter's custom-field record, so it was held back (`33e620d`).
+  - **The stored brief predates the court events,** since the re-read kept it (`--keep-brief`). The next full digest makes one brief call, about $0.05.
 - **On the Overview, left open by D40** (critic Pass 4):
   - **Nothing within one scroll says whether the client is still treating,** by the lead's re-count after D40 on the real matter. It is the one question of the 90-second test that the Overview misses (see [Verified](#verified)).
-  - **The story so far has no litigation history** (the suit, its dismissal and renewal, the answer): those records were read as kind `other` or undated. A prompt line and a re-read of the pleadings would fix it, at a cost of cents; it waits on the Manager (D40). Finding 6.
-  - **The open-request count mixes the firm's requests with demands made of the client.** About half of the 44, by the critic's count, are defense or carrier demands for the client's records, which the firm owes. A record request carries no direction. Adding one needs a re-read like the one above. Finding 7.
+  - **The open-request count mixes the firm's requests with demands made of the client.** About half of the 44, by the critic's count, are defense or carrier demands for the client's records, which the firm owes. A record request carries no direction. Adding one needs a prompt line and a re-read of the request records. Finding 7.
   - **Most of the records behind the incident account cannot be opened from the Overview.** On the real matter the account cites 9 records, one more than a margin will expand. So it shows two chips and "+7 more" as a plain count. The reviewer counted this through the API after D40. Finding 10.
   - **Defense medical exams sit in the Treatment lane** of the story, because a diagnosis maps to that lane. Their reports' own dates disagree with a firm note and the calendar, which put the exams about six months later. The chips support what is shown. Finding 10.
 - **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
@@ -372,6 +388,10 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - On Windows, `uvicorn --reload` sometimes keeps serving old code; restart it if a new route returns 404.
   - The Vite proxy target is fixed at port 8000 (`frontend/vite.config.ts`).
   - `cli reset` refuses to delete a data directory that holds anything it does not expect, including the backups that `upgrade_schema` makes.
+  - **A database made before a fact kind was added refuses the new kind, and no command upgrades it.**
+    - After D41, `cli seed-dev` on the reviewer's clone, seeded before D41, failed with "CHECK constraint failed: factkind". A fresh clone is not affected.
+    - The fix: stop the API, then from `backend/` run `python -c "from app.db import upgrade_schema; print(upgrade_schema())"`. It backs the database up first.
+    - In the clone it rebuilt the facts table in 1.4 s, and `seed-dev` then passed.
 
 ## Cost per case
 
@@ -389,11 +409,11 @@ That is 1,728,515 input and 329,989 output tokens. Another 184 calls were reject
 - **Reopening the matter costs nothing,** because no page load calls a model.
 - **A second digest over unchanged inputs makes no model call,** because results are cached by input hash (`backend/tests/test_pipeline_second_digest.py`).
 
-**The trial's model runs, measured on 2026-10-08 (D36).** These ran on Anthropic's paid tier:
+**The trial's model runs, measured on 2026-10-08 (D36, D41).** These ran on Anthropic's paid tier:
 - extraction on `claude-haiku-5-5`, at $0.10 per million input tokens and $0.50 per million output tokens;
 - the merge on `claude-sonnet-5-5`, at $2 and $10.
 
-They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case. Run (a) re-digested the matter. Run (b) re-read 9 named records under the new extraction prompt (P13).
+They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case. Run (a) re-digested the matter. Run (b) re-read 9 named records under the new extraction prompt (P13). Run (c) re-read 13 pleading pages under the court-event prompt with `cli reextract --keep-brief`, so the stored brief was kept (P14, D41).
 
 | Run | Purpose | Model | Tokens in / out | Cost |
 |---|---|---|---|---|
@@ -406,13 +426,17 @@ They re-ran only the calls whose prompts or inputs had changed, so they price an
 | (b) | 8 records re-read | `claude-haiku-5-5` | 23,507 / 13,744 | $0.0092 |
 | (b) | Significance | `claude-sonnet-5-5` | 5,600 / 883 | $0.0200 |
 | (b) | The brief | `claude-sonnet-5-5` | 20,167 / 639 | $0.0467 |
+| (c) | 13 pleading pages re-read | `claude-haiku-5-5` | 66,826 / 21,071 | $0.0172 |
+| (c) | 4 second reads of scanned figures | `claude-haiku-5-5` | 13,305 / 738 | $0.0017 |
+| (c) | Significance, 2 calls | `claude-sonnet-5-5` | 6,895 / 981 | $0.0236 |
 
 - **Run (a):** 6 calls, 36,295 input and 7,905 output tokens, $0.0979, and 38 s by its digest run's own record.
 - **Run (b):** 10 paid calls and 4 answered from the cache (the three mapping calls and one record), 49,274 input and 15,266 output tokens, $0.0760, and 64 s.
-- **Both runs:** 16 paid calls, $0.1738, against a $2 stop. No call failed.
+- **Run (c):** 19 paid calls and 3 answered from the cache (the three mapping calls), 87,026 input and 22,790 output tokens, $0.0425, against a $1 stop. No call failed. A backup was taken first.
+- **All three runs:** 35 paid calls, $0.2163. No call failed. Runs (a) and (b) ran against a $2 stop.
   - Pipeline reports no retries and no 429s.
-  - The trial on a copy of the database, just before the runs, made 6 calls, all answered on the first try, for $0.0148. That copy is not in `app.db`, so this figure is from pipeline's report.
-- **`GET /api/ops/cost` now reports the matter's total:** 714 calls and 14 cache hits, 1,814,084 input and 353,160 output tokens, $7.83. That covers the October 2 digest, its 184 rejected calls, and the two runs.
+  - Each run was tried first on a copy of the database: 6 calls for $0.0148 before (a) and (b), and 19 calls for $0.043 before (c), with no error. The copies are not in `app.db`, so these figures are from pipeline's reports.
+- **`GET /api/ops/cost` now reports the matter's total:** 733 calls and 17 cache hits, 1,901,110 input and 375,950 output tokens, $7.87. That covers the October 2 digest, its 184 rejected calls, and the three runs. The reviewer read run (c) from the `llm_calls` table, with the database opened read-only.
 
 **A whole case at the D36 models: about $1.40, an estimate, not measured.** No full digest has run on these models. The estimate prices the October 2 digest's tokens at the D36 rates:
 - **Extraction, about $0.48 to $0.54.** The October 2 extraction used 1,481,705 input and 289,882 output tokens. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output of the October 2 Sonnet calls (2.2 in pipeline's trial, 2.5 over the 9 records in the runs). The ratio was measured on records only, and most extraction calls read scanned pages.
@@ -466,7 +490,7 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               428 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               462 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
@@ -492,8 +516,8 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D39, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D41, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 
-The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. The commits are `git log 987c1bf..kit-trial`.
+The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. D40 fixed the critic's fourth-pass findings in code. D41 added court events to the story and limited provider updates to stage moves, with one paid re-read of the pleadings ($0.04). The commits are `git log 987c1bf..kit-trial`.
