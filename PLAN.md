@@ -27,7 +27,7 @@ Decided (details in DECISIONS.md):
 
 - **D49 (2026-10-09, past the freeze, Manager):** the "point and ask" chatbot. Details under "Chat (D49)"; the contract is `docs/chat-contract.md`.
 
-Waiting for the Manager: a firm-wide chat cap (Pass 6); closed threads' chips keyed by fact ids (Pass 7, finding 3).
+Waiting for the Manager: a firm-wide chat cap (Pass 6).
 
 ## Overview pass (D38, D39)
 
@@ -175,7 +175,12 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - pipeline 4ea0a6e: the stage is dated only when Clio's stage time is later than the record's creation; chat prompt v2.
   - backend 808c407: a cited fact's own record date counts; the matter drawer shows "Stage last changed in Clio"; the transcript marks low confidence.
   - The run: 2 Sonnet calls, $0.078 (estimate $0.080); backup `app.db.bak-20261009T210210Z-pre-d53`. The stage is now undated, the KPI tiles unchanged, the brief rewritten (all citations renderable), and the two chat sentences that gave the import time withdrawn. 553 tests.
-- [x] H10 reviewer: README for D53 (4760fa7; check.sh no FAIL, 553 tests). Left to the Manager: a closed thread's chips are fact ids, which a re-read replaces (Pass 7, finding 3).
+- [x] H10 reviewer: README for D53 (4760fa7; check.sh no FAIL, 553 tests).
+- [x] H11 D54 (Manager, 2026-10-09): a closed thread's chips open frozen sources. Backend 71a6467 and 5c501fe (figure marks' facts too); ui-builder 61213a0.
+  - Checks: 560 tests. On the invented matter, the 3 cited facts return 200 from the frozen route; an uncited fact and an open thread return 404. In the browser, a chip in the closed thread loads `/chat/threads/1/facts/24/source` with `frozen=1` and shows "As cited when this thread was closed".
+  - Backend, on copies of the real database: 65 of 65 chips returned 200, cut to the right page.
+  - Limit: page images still load from the live file.
+- [x] H12 reviewer README for D54 (cc5e9c1); check.sh no FAIL, 560 tests; `kit-trial` pushed (Manager asked, 2026-10-09). Residual: a thread closed before D54 backfills by record kind and page only, so a reused fact id could freeze the wrong record (pre-D54 chips stored no source); no such thread exists on the real matter.
 
 **Cut order for chat:**
 1. drag (pick mode keeps "point and ask");
