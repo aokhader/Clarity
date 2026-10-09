@@ -5,7 +5,7 @@ text, built here."""
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -100,15 +100,38 @@ def stage_facts(matter: Source, stage: CaseStage | None) -> list[Fact]:
             FactKind.CASE_STAGE,
             f"Stage: {label or stage}",
             quote,
-            # The day the stage last changed, or no date. `updated_at` is the record's
-            # last edit of any kind, which a reader takes for the day the case moved.
-            event_date=parse_date(matter.raw_json.get("matter_stage_updated_at")),
+            event_date=_stage_change_date(matter.raw_json),
             # Inferred when Clio has no stage and the status alone decided it.
             value_json=build_payload(
                 FactKind.CASE_STAGE, None, {"stage": stage, "inferred": not label}
             ),
         )
     ]
+
+
+def _stage_change_date(raw: dict[str, Any]) -> date | None:
+    """The day the stage moved, or None when nothing shows that it moved.
+
+    Clio stamps `matter_stage_updated_at` when the record is created, so a stage time
+    equal to `created_at` marks the record's import, not a stage move, and a reader
+    would take it for the day the case reached its stage. Only a later time is a move.
+    `updated_at` is never used: it is the record's last edit of any kind.
+    """
+    changed = _instant(raw.get("matter_stage_updated_at"))
+    created = _instant(raw.get("created_at"))
+    if changed is None or created is None or changed <= created:
+        return None
+    return parse_date(raw.get("matter_stage_updated_at"))
+
+
+def _instant(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def slot_fact(value: CustomValue, slot: FieldSlot | None) -> Fact | None:

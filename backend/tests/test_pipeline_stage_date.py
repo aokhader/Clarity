@@ -3,6 +3,9 @@
 The stage fact took `updated_at`, the Clio matter record's last edit of any kind, so a
 chat answer gave that edit as the day the case moved to its stage (critic Pass 6, #2).
 Clio's Matter carries `matter_stage_updated_at`, which the sync now requests.
+
+D53: a stage set when the record was created marks the import, not a stage move (critic
+Pass 7, #1), so only a stage time strictly later than `created_at` dates the fact.
 """
 
 from datetime import date
@@ -28,10 +31,11 @@ def _matter(raw: dict) -> Source:
     )
 
 
-def test_the_stage_fact_carries_the_day_the_stage_changed() -> None:
+def test_a_stage_change_after_the_record_was_created_dates_the_fact() -> None:
     matter = _matter(
         {
             "matter_stage": {"name": "Invented stage"},
+            "created_at": "2020-11-12T08:00:00-08:00",
             "matter_stage_updated_at": "2021-03-04T09:30:00-08:00",
             "updated_at": "2022-07-08T10:00:00-07:00",
         }
@@ -42,10 +46,58 @@ def test_the_stage_fact_carries_the_day_the_stage_changed() -> None:
     assert fact.event_date == date(2021, 3, 4)
 
 
-def test_without_a_stage_change_date_the_stage_fact_is_undated() -> None:
+def test_a_stage_set_when_the_record_was_created_is_undated() -> None:
+    """Equal times are the import: Clio set the stage as it created the record."""
+    same = "2021-03-04T09:30:00-08:00"
     matter = _matter(
         {
             "matter_stage": {"name": "Invented stage"},
+            "created_at": same,
+            "matter_stage_updated_at": same,
+            "updated_at": same,
+        }
+    )
+
+    [fact] = stage_facts(matter, CaseStage.TREATING)
+
+    assert fact.event_date is None
+
+
+def test_equal_times_in_different_offsets_are_still_the_import() -> None:
+    matter = _matter(
+        {
+            "matter_stage": {"name": "Invented stage"},
+            "created_at": "2021-03-04T17:30:00Z",
+            "matter_stage_updated_at": "2021-03-04T09:30:00-08:00",
+        }
+    )
+
+    [fact] = stage_facts(matter, CaseStage.TREATING)
+
+    assert fact.event_date is None
+
+
+def test_without_a_creation_time_the_stage_fact_is_undated() -> None:
+    """Nothing shows the stage moved after the record was made, so no date is given."""
+    matter = _matter(
+        {
+            "matter_stage": {"name": "Invented stage"},
+            "matter_stage_updated_at": "2021-03-04T09:30:00-08:00",
+            "updated_at": "2022-07-08T10:00:00-07:00",
+        }
+    )
+
+    [fact] = stage_facts(matter, CaseStage.TREATING)
+
+    assert fact.event_date is None
+
+
+def test_without_a_stage_change_date_the_stage_fact_is_undated() -> None:
+    """Never falls back to `updated_at`, the record's last edit of any kind."""
+    matter = _matter(
+        {
+            "matter_stage": {"name": "Invented stage"},
+            "created_at": "2020-11-12T08:00:00-08:00",
             "updated_at": "2022-07-08T10:00:00-07:00",
         }
     )

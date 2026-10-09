@@ -451,7 +451,7 @@ def test_chat_is_configured_only_with_a_key_a_model_and_both_prices(
 
 
 def test_the_chat_prompt_is_versioned() -> None:
-    assert llm.load_prompt("chat_answer").version == "1"
+    assert llm.load_prompt("chat_answer").version == "2"
 
 
 # --- The input's size (D50) ---------------------------------------------------------
