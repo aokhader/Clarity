@@ -9,14 +9,17 @@ import { Section } from '@/components/shared/Section'
 import { Skeleton } from '@/components/ui/skeleton'
 
 /**
- * What has happened so far, in order: about ten key events from the server, the incident
- * pinned first, numbered oldest first, then the court events the file gives no date for.
- * The full timeline is one link away.
+ * What has happened so far: about ten key events from the server, which picks them (the
+ * incident pinned) and returns them oldest first. They are shown newest first, so the
+ * latest turn of the case leads (D47), and numbered down, so each keeps its place in the
+ * story and the incident stays 1. Then the court events the file gives no date for. The
+ * full timeline is one link away.
  */
 export function KeyEvents({ matterId }: { matterId: number }) {
   const events = useMatterKeyEvents(matterId)
+  const newestFirst = events.isSuccess ? [...events.data].reverse() : []
   return (
-    <Section title="The story so far" aside="oldest first">
+    <Section title="The story so far" aside="newest first">
       {events.isPending && (
         <Loading label="Loading the key events" className="space-y-2">
           <Skeleton className="h-6" />
@@ -31,9 +34,9 @@ export function KeyEvents({ matterId }: { matterId: number }) {
         (events.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">No key events found in the file.</p>
         ) : (
-          <ol className="@container">
-            {events.data.map((fact, index) => (
-              <KeyEventRow key={fact.id} fact={fact} number={index + 1} />
+          <ol reversed className="@container">
+            {newestFirst.map((fact, index) => (
+              <KeyEventRow key={fact.id} fact={fact} number={newestFirst.length - index} />
             ))}
           </ol>
         ))}

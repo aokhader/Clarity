@@ -111,7 +111,7 @@ How features fall out of the schema:
 
 - Click-to-source: `facts.source_id`, `page_no`, `quote`
 - The ten that matter: order by `significance`
-- The story so far: dated past events, oldest first, a few per kind (D39)
+- The story so far: dated past events, oldest first, a few per kind (D39); the Overview shows them newest first (D47)
 - What changed: facts whose source has `clio_created_at` or `clio_updated_at` later than `views.last_opened_at`
 - Has anyone opened it: `share_events`
 - Adjust before sending: `shares.settings_json` and `hidden_fact_ids_json`

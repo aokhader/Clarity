@@ -44,7 +44,7 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 |          | NOW   Next step | Statute | Last client contact | counts         |
 | Viewing  | MONEY Case value | Coverage | Medical specials | Firm spend      |
 | as       +----------------------------------------------- end of screen ----+
-|          | THE STORY SO FAR  key events, oldest first, numbered | [src]     |
+|          | THE STORY SO FAR  key events, newest first, numbered | [src]     |
 |          |   Also in the file, without a date: Filed [src] - Served [src]   |
 |          | SINCE YOU LAST OPENED  at most five rows (hidden if none)        |
 |          | WHERE IT STANDS  the brief's sentences, one per row  | [src]     |
@@ -62,7 +62,7 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 - **NowStrip.** Cells divided by hairlines: the next step, labelled "Overdue" when it is (the first overdue item, else the first task, else the first deadline that is not the statute), the statute with a countdown in words (amber within 90 days, red once passed, and "Met" in neutral ink when its Clio task is complete), the last client contact (words as well as amber after 30 days), and the overdue, upcoming and open-request counts linking to For Attorney.
 - **Money row.** The four KPI tiles in one row. Each shows the value, a one-line basis, and a source chip. When two sources disagree, show both values with a warning marker. When nothing supports the KPI, show "Not found in file".
 - **WhereItStands.** The brief's sentences, one margin-cited row each, then "Not answered by the file" from `open_questions` as a neutral list. In litigation, one sentence says where the suit stands: the defenses pleaded and any earlier dismissal or refiling (brief prompt version 5, D43).
-- **KeyEvents.** About ten key events from `/key-events`, oldest first and numbered. The rows are chosen in this order:
+- **KeyEvents.** About ten key events from `/key-events`, which returns them oldest first; shown newest first and numbered down, so the incident stays 1 (D47). The rows are chosen in this order:
   - the incident account, pinned;
   - up to three dated court events (`litigation_event`), pinned by type: filed, dismissed, renewed and answered first, then the rest (D41, D43). By score alone they fall below the cutoff, yet the suit is part of what happened;
   - other dated past events, at most three per kind. Deadlines are left out, since they are scheduled, not things that happened.
