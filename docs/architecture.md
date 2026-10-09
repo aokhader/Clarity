@@ -133,9 +133,7 @@ recovery_cap      call_note          litigation_event  other
 - **`economic_damages` and `recovery_cap`** have kinds of their own (D20). Before that they were filed as specials or case value, which they are not.
 - **`call_note`** is a note taken from a call's transcript (D8).
 - **`litigation_event`** is something that happened in the lawsuit: a filing, service, an answer, a dismissal, a refiling, a motion, an order, or a hearing, deposition or trial that took place (D41). It is dated by the date the record gives for the event, never by the date of the note that reports it.
-- **`status_change`** is only a move between stages, with `to_stage` set (D41).
-
-`incident` and `medical_specials` feed the header and the KPI strip.
+- **`status_change`** is meant for a move between stages, with `to_stage` set. The extraction prompts file court events as `litigation_event` instead, and a provider sees only the status changes that name a stage (D41).
 
 `title` is the short display string, generated at extraction time. `value_json` holds the kind-specific payload below. These payloads are the contract between the pipeline and the two views, so define them as Pydantic models in `schemas.py` during M0. Money is integer cents.
 
