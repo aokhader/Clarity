@@ -49,7 +49,8 @@
       "frontend/src/App.tsx",
       "frontend/src/main.tsx",
       "frontend/src/index.css",
-      "frontend/src/api/calls.ts"
+      "frontend/src/api/calls.ts",
+      "frontend/src/api/chat.ts"
     ],
     "researcher": [
       "docs/briefs/**"

@@ -229,13 +229,22 @@ PUT   /api/calls/{id}/transcript                 save the transcript
 POST  /api/calls/{id}/end                        end the call and start the notes run
 GET   /api/calls/{id}                            the call, its notes and their status
 
+GET   /api/matters/{id}/search?q=&limit=12      the Ask bar's instant matches; no model call (D49)
+POST  /api/matters/{id}/chat/ask                 a question with its attached items; starts the
+                                                 answer run and returns the running turn (D49)
+GET   /api/matters/{id}/chat/threads             the matter's threads, newest first
+GET   /api/matters/{id}/chat/threads/{tid}       a thread, its turns, and each answer re-checked
+POST  /api/matters/{id}/chat/turns/{id}/retry    run a failed turn again
+POST  /api/matters/{id}/chat/threads/{tid}/archive
+GET   /api/matters/{id}/chat/budget              today's chat spend against the daily cap
+
 GET   /api/ops/health                            API and database up; whether .env is filled
 POST  /api/ops/sync            GET /api/ops/sync/status
 POST  /api/ops/digest          GET /api/ops/digest/status   (body: retry_failed)
 GET   /api/ops/cost                              tokens and dollars for this matter
 ```
 
-No GET route calls a model. A digest and a call's notes start a background run from a POST and are stored; the routes then serve the stored result.
+No GET route calls a model. A digest, a call's notes and a chat answer (D49) start a background run from a POST and are stored; the routes then serve the stored result. Chat routes are firm-only and never sit under `/api/p`; the contract is in `docs/chat-contract.md`.
 
 Provider routes take no header. The token is the credential.
 
@@ -247,7 +256,7 @@ GET   /api/p/{token}/pages/{id}/image            only the cited page of such a f
 
 `/api/shares/{id}/preview` and `/api/p/{token}` must call the same function so the preview cannot drift from what the provider gets.
 
-Request and response models for every route are in `backend/app/schemas.py`, mirrored in `frontend/src/api/types.ts`. Backend owns both and changes them in one commit. The routers are `api/matters.py`, `api/facts.py`, `api/shares.py` (including `/api/matters/{id}/providers`), `api/provider.py`, `api/calls.py` and `api/ops.py`. During the hackathon they were split by track (`docs/parallel.md`); in the kit trial backend owns them all.
+Request and response models for every route are in `backend/app/schemas.py`, mirrored in `frontend/src/api/types.ts`. Backend owns both and changes them in one commit. The routers are `api/matters.py`, `api/facts.py`, `api/shares.py` (including `/api/matters/{id}/providers`), `api/provider.py`, `api/calls.py`, `api/chat.py` (D49) and `api/ops.py`. During the hackathon they were split by track (`docs/parallel.md`); in the kit trial backend owns them all.
 
 ## Change detection and caching
 

@@ -33,7 +33,7 @@ It is equally explicit that existing dashboards fail because they show counts an
 
 ## Non-goals
 
-- A chat interface as the primary surface
+- A chat interface as the primary surface (the Ask panel of D49 is a secondary tool; the Overview stays the first screen)
 - Writing anything back to Clio
 - Real authentication, multi-firm tenancy, or mobile layouts
 - Sending email or push notifications (a status feed on the provider page stands in for "tell me when the case moves")

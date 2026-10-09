@@ -5,7 +5,7 @@
 1. **A brief, not a dashboard of tiles.** The first thing on screen is the story of the case in sentences. The brief says existing tools fail because they show "counts and lists" and leave the story to be assembled by hand.
 2. **Everything is clickable evidence.** Every date, amount, and claim is a chip that opens its source. Text with no source is limited to labels and headings.
 3. **Two depths.** The default view fits 90 seconds. One toggle opens the full timeline.
-4. **No chat box.** The user should not need to know what to ask.
+4. **No chat box as the way in.** The user should not need to know what to ask. The views answer the common questions on their own; the Ask bar and panel (D49) are a secondary tool, and you point at a row to ask about it rather than compose a query from nothing. Its answers follow principle 2: every sentence carries chips.
 5. **Honest uncertainty.** Low-confidence facts carry a visible marker. Disagreeing sources show both values. Missing data says "Not found in file".
 6. **Built to be filmed.** The clip is 90 seconds and the judges see it on a projector. Use large type for the brief's headline, strong contrast, and a 1440 by 900 desktop layout. There is no separate mobile design, but every view reflows down to 320 CSS px so it survives 200% and 400% zoom (WCAG 1.4.10).
 7. **The 90-second test (D38).** The Overview's first screen at 1440 by 900 answers at least 9 of these, and one scroll answers all 12: what kind of case; when it happened; what happened; the injuries; whether the client is still treating; the stage; value against coverage; the statute; what is overdue, next or waited on; the last client contact; what changed lately; what has happened so far, in order.
@@ -140,4 +140,4 @@ Every data component handles loading (skeleton, not spinner), empty (one plain s
 
 ## Out of scope for the UI
 
-Login screens, settings pages, dark mode, a separate mobile design (reflow is required, see principle 6), animations beyond the drawer transition (none under `prefers-reduced-motion`), and any chat input.
+Login screens, settings pages, dark mode, a separate mobile design (reflow is required, see principle 6), and animations beyond the drawer transition (none under `prefers-reduced-motion`). A chat input as the primary surface stays out; the Ask bar and panel (D49) are the one chat input.

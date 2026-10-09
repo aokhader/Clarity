@@ -25,7 +25,9 @@ Decided (details in DECISIONS.md):
   - The Calls view accepts a typed number, stored only in Clarity.
 - **D38 and D39 (2026-10-08, after the freeze):** one UI pass so the Overview answers, in 90 seconds, what the case is about, what has happened and where it is now. It uses the legal-memo restyle, margin citations, and moves the money tiles to the Overview. Three additive contract changes. No model call. Details are under "Overview pass".
 
-Waiting for the Manager: nothing.
+- **D49 (2026-10-09, past the freeze, Manager):** the "point and ask" chatbot. Details under "Chat (D49)"; the contract is `docs/chat-contract.md`.
+
+Waiting for the Manager: the `CHAT_*` lines in `.env` (names in `.env.example`; Sonnet 5.5 at 2 and 10), then the go-ahead for one live question (about $0.05).
 
 ## Overview pass (D38, D39)
 
@@ -125,6 +127,47 @@ The order:
 - [x] P16 pipeline: a generic brief-prompt line for where the litigation stands (defenses pleaded, earlier dismissal or refiling); re-read the one complaint page with the dated pre-suit notice; one brief call. Runbook; D42 and D43 together stop at $1. (Run 2026-10-08: trial $0.076, run $0.082, 0 errors; the brief's third sentence carries the suit, the dismissal and refiling and the pleaded limitations defense; the notice is a dated court event; KPI tiles identical. D42 and D43 together: $0.365.)
 - [x] B16 backend: the story pins court events by type (filed, dismissed, renewed, answered, then the rest); `GET /matters/{id}/key-events/undated` lists undated court events, leaving out restatements of dated facts.
 - [x] U18 ui-builder: under the story, one line naming the undated court events with their chips.
+
+## Chat (D49)
+
+The Manager's request (2026-10-09): a draggable handle dropped on any row, tile or step attaches that item's records to a question, so you point and ask rather than know what to ask. Reached from an Ask bar on every firm view and from an Ask view. The answer is Sonnet 5.5's, every sentence cited and checked in code. The contract and the rules are in `docs/chat-contract.md`.
+
+**Settings:** Sonnet 5.5 through the digest's Anthropic key in `CHAT_*` settings, effort medium, the server-side refusal fallback, a $2 cap a day per matter, threads stored per matter for the whole firm. Starter questions per item type are generic and in code.
+
+The items, in order. Workers build in parallel against the contract; the lead runs the servers.
+- [ ] H0 lead: D49, the doc amendments (ui.md, project.md, architecture.md), the contract, ownership (`api/chat.ts` to ui-builder), `.env.example`. 40 min
+- [ ] H1 pipeline:
+  - config `CHAT_*` and `chat_configured`;
+  - the llm.py `chat` role: model, prices, effort, fallbacks, its own output limit, fallback pricing; extract and merge bodies unchanged;
+  - `digest/chat.py` `answer_question` with the code checks;
+  - `prompts/chat_answer.txt`;
+  - `test_pipeline_chat.py`.
+  60 min
+- [ ] H2 backend:
+  - the contract in `schemas.py` and `types.ts` first (D23: run the typecheck);
+  - the tables;
+  - `chat_context` (overview, ranker, pages), `chat_attachments` (matter-scoped), `chat` (ask, budget, background run, the startup sweep), `chat_view` (withdraw, D12 checks);
+  - `api/chat.py` with search;
+  - `CostOut` split, and `cached_failed_calls` ignoring chat;
+  - `test_chat_api.py` and `test_backend_chat_view.py`.
+  180 min
+- [ ] H3 ui-builder:
+  - `api/chat.ts`, `AskProvider`, `ChatPanel`, `ChatTurn` (answers through the brief's sentence component), `AskView` (`?view=ask`);
+  - pick mode, then drag, through `useAskTarget` wired into the rows, tiles and steps;
+  - the `AskBar` with search, chips and starters;
+  - the budget and no-model states.
+  240 min
+- [ ] H4 lead: restart the API (new tables), walk the synthetic matter in the browser, then one live question on the real matter after the Manager's go-ahead (about $0.05).
+- [ ] H5 critic: on the real matter, every answer chip opens a source holding its sentence's text; figure marks are right; nothing reaches a provider page. Reviewer: README views, cost and "outside the machine" sections; `check.sh` with no FAIL.
+
+**Cut order for chat:**
+1. drag (pick mode keeps "point and ask");
+2. the search endpoint;
+3. the Ask view;
+4. thread history in the context;
+5. page text in the context.
+
+Never cut the citation checks, matter scoping, the firm-only routes or the cap.
 
 ## Calls (D8: option A now, B later)
 
