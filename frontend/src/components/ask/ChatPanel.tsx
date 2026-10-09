@@ -41,6 +41,9 @@ export function ChatPanel({ matterId }: { matterId: number }) {
         'fixed inset-y-0 right-0 z-40 flex w-[min(26rem,100vw)] flex-col border-l bg-card',
         'xl:sticky xl:top-0 xl:right-auto xl:bottom-auto xl:z-auto xl:h-screen xl:w-auto',
         ask.picking && 'max-xl:hidden',
+        // Dragging from the panel's own handle: the panel must stay in the page to keep the
+        // pointer, so it only turns transparent to the eye and to the pointer.
+        ask.dragging && 'max-xl:pointer-events-none max-xl:opacity-0',
       )}
     >
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-3">

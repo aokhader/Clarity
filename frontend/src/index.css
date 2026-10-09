@@ -133,13 +133,18 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  /* Point and ask (D49). In pick mode every target is outlined, so the user sees what can
-     be chosen; the one under the pointer, being dragged over, or focused gets the solid
-     ring. Outlines take no space, so nothing on the page moves. */
-  :root[data-ask-picking] [data-ask-item] {
+  /* Point and ask (D49). In pick mode and while the handle is dragged every target is
+     outlined, so the user sees what can be chosen; the one under the pointer, dragged
+     over, or focused gets the solid ring. Outlines take no space, so nothing moves. */
+  :root[data-ask-picking] [data-ask-item],
+  :root[data-ask-dragging] [data-ask-item] {
     outline: 1px dashed var(--ring);
     outline-offset: 2px;
     cursor: pointer;
+  }
+  :root[data-ask-dragging],
+  :root[data-ask-dragging] * {
+    cursor: grabbing;
   }
   :root[data-ask-picking] [data-ask-item]:hover,
   :root[data-ask-picking] [data-ask-item]:focus-visible,

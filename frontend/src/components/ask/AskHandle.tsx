@@ -1,5 +1,5 @@
 import { GripVertical } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 
 import { askItemOfElement } from '@/lib/askItems'
@@ -7,11 +7,27 @@ import { useAskContext } from '@/lib/askState'
 import { cn } from '@/lib/utils'
 
 const TARGET = '[data-ask-item]'
+const HOVER_ATTRIBUTE = 'data-ask-hover'
 const PICK_PROMPT = 'Pick an item to ask about. Escape to cancel.'
+/** A press that moves less than this is a click, which starts pick mode instead. */
+const DRAG_THRESHOLD_PX = 4
+/** The ghost chip sits this far below and right of the pointer, so the target stays in view. */
+const GHOST_OFFSET_PX = 12
 
 /** The target an event happened in, if any. */
 function targetOf(node: EventTarget | null): HTMLElement | null {
   return node instanceof Element ? node.closest<HTMLElement>(TARGET) : null
+}
+
+/** A drag in progress: where it started and last was, whether it has moved enough to count, and the target under it. */
+type Drag = {
+  pointerId: number
+  startX: number
+  startY: number
+  x: number
+  y: number
+  moved: boolean
+  hover: HTMLElement | null
 }
 
 type AskHandleProps = {
@@ -20,17 +36,26 @@ type AskHandleProps = {
 }
 
 /**
- * The grip that points at an item to ask about it (D49). Clicking it, or pressing Enter
- * on it, starts pick mode: every row, tile and step that can be asked about is outlined
- * and reachable with Tab, and the next one clicked or chosen with Enter is attached
- * (WCAG 2.5.7: a single pointer or the keyboard does what dragging does). Escape, or a
- * click anywhere else, cancels; focus then comes back here.
+ * The grip that points at an item to ask about it (D49), in two ways.
+ *
+ * Drag it onto a row, tile or step and let go: that item is attached. Pointer events
+ * only, so mouse, pen and touch all work; a drop anywhere else, Escape, or a cancelled
+ * pointer attaches nothing.
+ *
+ * Or click it, or press Enter on it, to start pick mode: every target is outlined and
+ * reachable with Tab, and the next one clicked or chosen with Enter is attached. This is
+ * the single-pointer and keyboard path WCAG 2.5.7 asks for. Escape, or a click anywhere
+ * else, cancels, and focus comes back here.
  */
 export function AskHandle({ onPicked }: AskHandleProps) {
   const ask = useAskContext()
   const button = useRef<HTMLButtonElement>(null)
+  const ghost = useRef<HTMLDivElement>(null)
+  const drag = useRef<Drag | null>(null)
   // Only the handle that started pick mode listens for the pick.
   const [owner, setOwner] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const [overTarget, setOverTarget] = useState(false)
   const picking = ask.picking && owner
 
   const start = () => {
@@ -105,9 +130,100 @@ export function AskHandle({ onPicked }: AskHandleProps) {
     }
   }, [picking])
 
-  // A handle that goes away mid-pick (a change of view) must not leave the page in pick mode.
+  /** Mark the target under the pointer, and only it, for the outline. */
+  const hover = (target: HTMLElement | null) => {
+    const current = drag.current
+    if (current === null || current.hover === target) return
+    current.hover?.removeAttribute(HOVER_ATTRIBUTE)
+    target?.setAttribute(HOVER_ATTRIBUTE, '')
+    current.hover = target
+    setOverTarget(target !== null)
+  }
+
+  /** End a drag; with `attach`, the target under the pointer is attached. */
+  const endDrag = (attach: boolean) => {
+    const current = drag.current
+    if (current === null) return
+    const target = current.hover
+    hover(null)
+    drag.current = null
+    if (button.current?.hasPointerCapture(current.pointerId)) button.current.releasePointerCapture(current.pointerId)
+    if (!current.moved) return
+    setDragging(false)
+    ask.setDragging(false)
+    // The click a drag ends with is not a click on whatever lies under the pointer.
+    const swallow = (event: MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    document.addEventListener('click', swallow, { capture: true, once: true })
+    setTimeout(() => document.removeEventListener('click', swallow, true), 0)
+    const item = attach && target ? askItemOfElement(target) : null
+    if (item) {
+      ask.addItem(item)
+      ask.announce(`Attached ${item.label}.`)
+      onPicked()
+    } else {
+      ask.announce('Nothing attached.')
+    }
+  }
+  const dropDrag = useEffectEvent(() => endDrag(false))
+
+  // Escape drops the drag without attaching anything.
+  useEffect(() => {
+    if (!dragging) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      dropDrag()
+    }
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => document.removeEventListener('keydown', onKeyDown, true)
+  }, [dragging])
+
+  /** Put the ghost chip by the pointer; it is moved directly, not re-rendered, on every move. */
+  const placeGhost = () => {
+    const current = drag.current
+    if (ghost.current && current) {
+      ghost.current.style.transform = `translate(${current.x + GHOST_OFFSET_PX}px, ${current.y + GHOST_OFFSET_PX}px)`
+    }
+  }
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    // While picking, a press on the handle is only the click that ends pick mode.
+    if (event.button !== 0 || picking) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const { pointerId, clientX: x, clientY: y } = event
+    drag.current = { pointerId, startX: x, startY: y, x, y, moved: false, hover: null }
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const current = drag.current
+    if (current === null || current.pointerId !== event.pointerId) return
+    if (!current.moved) {
+      if (Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < DRAG_THRESHOLD_PX) return
+      current.moved = true
+      setDragging(true)
+      ask.setDragging(true)
+      ask.announce('Drop the handle on an item to ask about it. Escape to cancel.')
+    }
+    current.x = event.clientX
+    current.y = event.clientY
+    placeGhost()
+    // The ghost ignores the pointer, so this finds what lies under it.
+    hover(targetOf(document.elementFromPoint(event.clientX, event.clientY)))
+  }
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (drag.current?.pointerId === event.pointerId) endDrag(true)
+  }
+
+  // A handle that goes away mid-pick or mid-drag (a change of view) must not leave the page in that state.
   const leave = useEffectEvent(() => {
     if (owner) ask.stopPicking()
+    if (drag.current?.moved) ask.setDragging(false)
+    drag.current?.hover?.removeAttribute(HOVER_ATTRIBUTE)
   })
   useEffect(() => () => leave(), [])
 
@@ -118,15 +234,35 @@ export function AskHandle({ onPicked }: AskHandleProps) {
         type="button"
         aria-pressed={picking}
         aria-label="Point at an item to ask about it"
-        title="Point at an item to ask about it"
+        title="Drag onto an item, or click and then pick one"
         onClick={() => (picking ? stop(false) : start())}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => endDrag(false)}
+        onLostPointerCapture={() => endDrag(false)}
         className={cn(
-          'inline-flex size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md border border-input bg-card text-muted-foreground hover:text-foreground',
-          picking && 'border-primary text-primary',
+          'inline-flex size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md border border-input bg-card text-muted-foreground select-none hover:text-foreground',
+          (picking || dragging) && 'border-primary text-primary',
         )}
       >
         <GripVertical aria-hidden className="size-4" />
       </button>
+      {dragging &&
+        createPortal(
+          <div
+            ref={(element) => {
+              ghost.current = element
+              placeGhost()
+            }}
+            aria-hidden
+            className="pointer-events-none fixed top-0 left-0 z-50 inline-flex items-center gap-1 rounded-sm border border-primary bg-card px-1.5 py-0.5 text-xs font-medium text-primary"
+          >
+            <GripVertical className="size-3" />
+            {overTarget ? 'Let go to attach' : 'Ask about…'}
+          </div>,
+          document.body,
+        )}
       {picking &&
         createPortal(
           // Seen, not announced: the status region already said it.

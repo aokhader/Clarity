@@ -17,6 +17,8 @@ export type AskState = {
   items: AskItem[]
   /** Pick mode: the next item clicked or chosen with Enter is attached. */
   picking: boolean
+  /** The handle is being dragged towards an item. */
+  dragging: boolean
   /** The panel was just opened on request and should take focus; it says when it has. */
   panelWantsFocus: boolean
 }
@@ -36,6 +38,7 @@ export type AskContextValue = AskState & {
   panelFocused: () => void
   startPicking: () => void
   stopPicking: () => void
+  setDragging: (dragging: boolean) => void
   /** Say something to screen readers through the page's one polite status region. */
   announce: (message: string) => void
 }

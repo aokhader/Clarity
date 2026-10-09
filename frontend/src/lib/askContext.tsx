@@ -30,6 +30,7 @@ export function AskProvider({ children }: { children: ReactNode }) {
     draft: '',
     items: [],
     picking: false,
+    dragging: false,
     panelWantsFocus: false,
   })
   const [announcement, setAnnouncement] = useState('')
@@ -72,17 +73,22 @@ export function AskProvider({ children }: { children: ReactNode }) {
       panelFocused: () => update({ panelWantsFocus: false }),
       startPicking: () => update({ picking: true }),
       stopPicking: () => update({ picking: false }),
+      setDragging: (dragging) => update({ dragging }),
       announce: setAnnouncement,
     }
   }, [state, update])
 
   const picking = useMemo<AskPickingValue>(() => ({ picking: state.picking, hintId }), [state.picking, hintId])
 
-  // Targets are outlined by index.css while this is set.
+  // Targets are outlined by index.css while either is set.
   useEffect(() => {
     document.documentElement.toggleAttribute('data-ask-picking', state.picking)
     return () => document.documentElement.removeAttribute('data-ask-picking')
   }, [state.picking])
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-ask-dragging', state.dragging)
+    return () => document.documentElement.removeAttribute('data-ask-dragging')
+  }, [state.dragging])
 
   return (
     <AskContext.Provider value={value}>
