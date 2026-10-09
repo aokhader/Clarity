@@ -29,11 +29,13 @@ Per-page and per-record extraction: `claude-haiku-5-5`. Field and role mapping, 
 
 This was measured from `GET /api/ops/cost` and the `llm_calls` table. A further 184 calls were rejected by the API and cost nothing.
 
-**Measured: the three update runs on 2026-10-08 cost $0.22 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
+**Measured: the five update runs on 2026-10-08 cost $0.40 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
 - The re-digest made 6 calls (36,295 input and 7,905 output tokens), for $0.0979.
 - The re-read of 9 records made 10 paid calls, and answered 4 more from the cache (49,274 input and 15,266 output tokens), for $0.0760.
 - The re-read of 13 pleading pages for court events (D41) made 19 paid calls, and answered 3 more from the cache (87,026 input and 22,790 output tokens), for $0.0425.
-- No call failed. Each run was tried first on a copy of the database: 6 calls for $0.0148 before the first two, and 19 calls for $0.043 before the third.
+- The re-read of 14 notes and emails about court events, with the brief rewritten (D42), made 17 paid calls, and answered 3 more from the cache (74,729 input and 18,495 output tokens), for $0.1039.
+- The re-read of one complaint page, with the brief rewritten to cover the suit (D43), made 4 paid calls, and answered 3 more from the cache (35,432 input and 5,381 output tokens), for $0.0820.
+- No call failed. Each run was tried first on a copy of the database: 6 calls for $0.0148 before the first two, 19 calls for $0.043 before the third, 17 calls for $0.1031 before the fourth, and 5 calls for $0.0760 before the fifth.
 
 Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 attempts in a 2026-10-08 trial (D36).
 
@@ -61,7 +63,7 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 - No full digest has run on the current models. The whole-case figure for them is an estimate.
 - Another party's liability policy (the defense driver's own auto policy) is labelled "Client's other policy" on the firm's Coverage tile. The policy field has no value for another party's liability. Providers never see it, since a link releases only the defendant's limits.
 - A share stores hidden items by fact id. A re-digest that re-reads a record gives its facts new ids, so an item hidden on a share would come back. No share exists on the real matter. This is a gap in the provider boundary, to fix after the freeze.
-- The brief rewritten on 2026-10-08 is accurate, but it leaves out the defense medical exam findings and the pleaded limitations defense. What matters, the ranked feed on For Attorney, still shows both.
+- Since D43 the brief states the suit, the earlier dismissal and refiling, and the pleaded limitations defense. Whether it states the defense medical exam findings has not been re-checked; What matters, the ranked feed on For Attorney, shows them.
 - Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
 - A provider link's "shared on" and "expires" dates are UTC days.
 - Pages read before a provider was known never get that provider.
