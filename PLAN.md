@@ -114,8 +114,8 @@ The order:
 **D41, litigation history and the provider updates (Manager, 2026-10-08)**
 - [x] B14 backend: kind `litigation_event` (internal by default-deny, in the key events, schema upgraded in place); provider updates show stage moves only, labelled by code.
 - [x] P14 pipeline: the extraction prompt records court events as `litigation_event` with the filing, service or decision date; `status_change` only for stage moves. Estimate, then the runbook: a trial on a copy, a backup, the run (stop at $1). (Run 2026-10-08: 13 pleading pages re-read with `cli reextract --keep-brief`; trial $0.043, run $0.043, 19 calls each, 0 errors; backup before the run; 7 litigation events, all internal; the old shareable status change replaced. The stored brief was kept, so the next full digest makes one brief call, about $0.05.)
-- [ ] B15 backend: the story pins the dated litigation events (up to three) after the incident, since by score they fall below the overall cutoff.
-- [ ] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows.
+- [x] B15 backend: the story pins the dated litigation events (up to three) after the incident, since by score they fall below the overall cutoff.
+- [x] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows. (The lead checked the three court rows on the real matter: internal, each opens its page, the answer's quote is on its page and the scans passed their second read.)
 
 ## Calls (D8: option A now, B later)
 
