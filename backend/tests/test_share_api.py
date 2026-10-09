@@ -82,7 +82,8 @@ def test_default_payload_has_status_coverage_and_own_items_only(
 
     assert payload["status"]["current"] == "treating"
     assert payload["status"]["active"] is True
-    assert [u["label"] for u in payload["updates"]] == ["Client is in treatment"]
+    # Written from the stage, not the status change's own wording (D41).
+    assert [u["label"] for u in payload["updates"]] == ["Moved to treatment"]
     assert payload["coverage"] == {"confirmed": True, "limits": None}
     assert payload["treatment_activity"] is None
     bills = {

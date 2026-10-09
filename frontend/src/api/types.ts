@@ -92,6 +92,7 @@ export type CaseStagePayload = PayloadBase & { stage: CaseStage | null; inferred
 export type StatusChangePayload = PayloadBase & {
   from_stage: CaseStage | null
   to_stage: CaseStage | null
+  /** The record's wording, for the firm; a provider never sees it (D41). */
   label: string
 }
 export type InjuryPayload = PayloadBase & {

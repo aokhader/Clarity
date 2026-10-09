@@ -342,6 +342,27 @@ def test_a_litigation_event_never_reaches_a_provider(
             assert filed not in visible and event not in visible
 
 
+# --- D41: a status change reaches a provider only as a move to a named stage ---------
+
+
+def test_a_status_change_without_a_stage_is_never_released(seeded: Session) -> None:
+    free = _new_fact(
+        seeded, FactKind.STATUS_CHANGE, {"to_stage": None, "label": "Free text"}, None
+    )
+    move = _new_fact(
+        seeded,
+        FactKind.STATUS_CHANGE,
+        {"to_stage": "litigation", "label": "Free text"},
+        None,
+    )
+    stage_off = ALL_ON.model_copy(update={"case_stage": False})
+
+    for settings in _EVERY_SETTING_COMBINATION:
+        assert free not in _visible(seeded, _share(settings=settings))
+    assert move in _visible(seeded, _share())
+    assert move not in _visible(seeded, _share(settings=stage_off))
+
+
 # --- D35: an item's kind names only a bill or lien the link already shows ------------
 
 

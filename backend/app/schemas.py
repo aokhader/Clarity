@@ -80,7 +80,7 @@ class CaseStagePayload(FactPayload):
 class StatusChangePayload(FactPayload):
     from_stage: CaseStage | None = None
     to_stage: CaseStage | None = None
-    label: str  # neutral wording, safe to show a provider
+    label: str  # the record's wording, for the firm; a provider never sees it (D41)
 
 
 class InjuryPayload(FactPayload):

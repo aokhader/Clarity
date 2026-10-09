@@ -2,9 +2,10 @@
 
 The firm's preview and the provider's own link both call `provider_payload`, so the
 preview cannot drift from what the provider gets. Case-level sections carry labels
-written here or by the pipeline as neutral wording (`status_change.label`), never a
-case-level fact's title, which may paraphrase an internal note. A provider may open
-only the cited document page of their own bill or record.
+written here in code: never a case-level fact's title, which may paraphrase an
+internal note, and never a status change's own wording, which may tell what the firm
+keeps (D41). A provider may open only the cited document page of their own bill or
+record.
 """
 
 from collections import defaultdict
@@ -52,6 +53,17 @@ _ENDED_STAGES = {CaseStage.SETTLED, CaseStage.CLOSED}
 ITEM_KIND_BY_FACT_KIND: dict[FactKind, ProviderItemKind] = {
     FactKind.MEDICAL_BILL: "bill",
     FactKind.LIEN: "lien",
+}
+# A case update names only the stage the case moved to (D41), in these words.
+_STAGE_MOVES: dict[CaseStage, str] = {
+    CaseStage.INTAKE: "Case opened",
+    CaseStage.TREATING: "Moved to treatment",
+    CaseStage.TREATMENT_COMPLETE: "Treatment complete",
+    CaseStage.DEMAND: "Moved to demand",
+    CaseStage.NEGOTIATION: "Moved to negotiation",
+    CaseStage.LITIGATION: "Moved to litigation",
+    CaseStage.SETTLED: "Case settled",
+    CaseStage.CLOSED: "Case closed",
 }
 # The only limits a link releases are the defendant's liability limits (D37).
 _LIMIT_LABELS: dict[str | None, str] = {
@@ -146,14 +158,20 @@ def _is_case_event(fact: Fact) -> bool:
 
 
 def _updates(facts: list[Fact]) -> list[ProviderUpdateOut]:
-    changes = [f for f in facts if f.kind is FactKind.STATUS_CHANGE]
-    return [
-        ProviderUpdateOut(
-            on=f.event_date,
-            label=StatusChangePayload.model_validate(f.value_json).label,
-        )
-        for f in reversed(_chronological(changes))
-    ]
+    """Each move to a stage, latest first, in words written here from the stage.
+
+    The boundary releases only status changes that name a stage (`is_stage_move`); the
+    check here keeps an update from ever being built from anything else."""
+    updates = []
+    for fact in reversed(_chronological(facts)):
+        if fact.kind is not FactKind.STATUS_CHANGE:
+            continue
+        stage = StatusChangePayload.model_validate(fact.value_json).to_stage
+        if stage is not None:
+            updates.append(
+                ProviderUpdateOut(on=fact.event_date, label=_STAGE_MOVES[stage])
+            )
+    return updates
 
 
 def _coverage(
