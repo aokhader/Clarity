@@ -4,7 +4,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
-| lead | D41 done: provider updates are stage moves only (the preview's dismissal label is gone, no link existed); litigation_event kind; pleadings re-read for $0.09 with the trial (P14); three court events in the story on the real matter, checked against their pages; provider screenshots retaken (c32693d) | Waiting for the reviewer's last README pass | | Manager: next full digest rewrites the brief (~$0.05); clip link; test call (C-T) | 19:06 |
+| lead | D42-D43 done: notes and emails re-filed under their own prompt (money tiles unchanged); the brief rewritten and covering the litigation posture; court events pinned by type, undated ones listed under the story; critic Pass 5 fixed; D42+D43 cost $0.365 with trials | Standing by | | Manager: push; clip link; test call (C-T) | 20:45 |
 | pipeline | P16 done (fbcc995): brief cites the suit and defense; notice dated; tiles unchanged; D42+D43 $0.37 | Standing by | | | 2026-10-08 20:29 |
 | backend | B16: court events by type 63e64ab; undated list c891e7a (GET .../key-events/undated); 481 | Stand by | | Lead: looser cross-kind matcher? (see report) | 2026-10-08 20:33 |
 | ui-builder | U18 a2b19cd checked; region rows keep the served-order tie-break | Stand by | | | 2026-10-08 20:38 |
