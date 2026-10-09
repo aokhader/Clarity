@@ -78,9 +78,10 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 
 A right-side panel that opens over the page from any chip.
 
-- Header: source type, title, date, author or sender
-- Notes and emails: the full text with the quote highlighted and scrolled into view
-- Documents: the page image at readable width, the page number, previous and next page controls, the quote in a callout above the image, and the page's text under it as its text alternative
+- Header: the fact, its kind, date and confidence. Under it, the cited quote in a callout, for every source type, so the passage is read before the record (D45). Then one line naming the record (source type, date, author or sender) and its title
+- Text records (notes, emails, calendar entries, calls): the full text in the sans at 16px with relaxed leading and about 68 characters to a line, split into its paragraphs; bulleted or numbered lines are real lists and a line's leading "Label:" is bold. The wording is never changed, and the quote is marked where it sits. The drawer opens at the top, so the callout is read first; its "Show in the record" button scrolls to the mark and moves focus there
+- Matter and task records: each aspect under a small heading. Short values (dates, money, yes or no) sit in a two-column grid; longer values follow it as labelled paragraphs in their original order (D45)
+- Documents: the page image at readable width, the page number, previous and next page controls, and the page's text under it as its text alternative
 - When the fact has corroborating sources, list them as tabs
 - Escape and click-outside close it, and focus returns to the chip that opened it; the URL carries `?fact=ID` so a view can be linked
 
