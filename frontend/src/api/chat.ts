@@ -17,7 +17,7 @@ const threadKey = (matterId: number, threadId: number | null) => [...chatKey(mat
 const threadsKey = (matterId: number) => [...chatKey(matterId), 'threads'] as const
 const budgetKey = (matterId: number) => [...chatKey(matterId), 'budget'] as const
 
-/** The matter's threads that are not archived, newest first. */
+/** The matter's threads: open ones first, then closed ones, in the server's order (D52). */
 export function useChatThreads(matterId: number) {
   return useQuery({
     queryKey: threadsKey(matterId),
@@ -53,12 +53,32 @@ async function storeTurn(queryClient: QueryClient, matterId: number, turn: ChatT
   queryClient.setQueryData<ChatThreadOut>(threadKey(matterId, turn.thread_id), (thread) =>
     thread
       ? { ...thread, turns: [...thread.turns.filter((t) => t.turn_id !== turn.turn_id), turn] }
-      : { thread_id: turn.thread_id, title: turn.question, created_at: turn.asked_at, updated_at: turn.asked_at, turns: [turn] },
+      : {
+          thread_id: turn.thread_id,
+          title: turn.question,
+          created_at: turn.asked_at,
+          updated_at: turn.asked_at,
+          turns: [turn],
+          closed_at: null,
+          closed_by: null,
+        },
   )
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: threadKey(matterId, turn.thread_id) }),
     queryClient.invalidateQueries({ queryKey: threadsKey(matterId) }),
     queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
+  ])
+}
+
+/**
+ * After a refused question or retry, fetch what may explain it: the budget (a 429 is the
+ * daily cap) and the threads (a 409 may mean someone else closed the thread meanwhile).
+ */
+async function refreshAfterRefusal(queryClient: QueryClient, matterId: number) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
+    queryClient.invalidateQueries({ queryKey: [...chatKey(matterId), 'thread'] }),
+    queryClient.invalidateQueries({ queryKey: threadsKey(matterId) }),
   ])
 }
 
@@ -74,8 +94,7 @@ export function useAsk(matterId: number) {
     mutationFn: ({ userId, body }: { userId: number; body: ChatAskIn }) =>
       apiPost<ChatTurnOut>(`/matters/${matterId}/chat/ask`, { userId }, body),
     onSuccess: (turn) => storeTurn(queryClient, matterId, turn),
-    // A refusal may be the daily cap: the budget shows why, wherever Ask is offered.
-    onError: () => queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
+    onError: () => refreshAfterRefusal(queryClient, matterId),
   })
 }
 
@@ -86,18 +105,33 @@ export function useRetryTurn(matterId: number) {
     mutationFn: ({ userId, turnId }: { userId: number; turnId: number }) =>
       apiPost<ChatTurnOut>(`/matters/${matterId}/chat/turns/${turnId}/retry`, { userId }),
     onSuccess: (turn) => storeTurn(queryClient, matterId, turn),
-    onError: () => queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
+    onError: () => refreshAfterRefusal(queryClient, matterId),
   })
 }
 
-/** Take a thread off the list; it stays in the database. */
-export function useArchiveThread(matterId: number) {
+/**
+ * Close a thread (D52): it takes no more questions, and the server freezes its turns as
+ * served now into a transcript. The closed thread it returns replaces the cached one, so
+ * the view turns read-only at once. A thread with an answer still being written is a 409.
+ */
+export function useCloseThread(matterId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ userId, threadId }: { userId: number; threadId: number }) =>
-      apiPost<null>(`/matters/${matterId}/chat/threads/${threadId}/archive`, { userId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: threadsKey(matterId) }),
+      apiPost<ChatThreadOut>(`/matters/${matterId}/chat/threads/${threadId}/close`, { userId }),
+    onSuccess: async (thread) => {
+      queryClient.setQueryData(threadKey(matterId, thread.thread_id), thread)
+      await queryClient.invalidateQueries({ queryKey: threadsKey(matterId) })
+    },
   })
+}
+
+/**
+ * Where a closed thread's text transcript downloads from. It is a link, not a fetch: the
+ * server names the file and the browser saves it.
+ */
+export function transcriptUrl(matterId: number, threadId: number): string {
+  return `/api/matters/${matterId}/chat/threads/${threadId}/transcript`
 }
 
 /**

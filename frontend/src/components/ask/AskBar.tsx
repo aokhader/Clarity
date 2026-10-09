@@ -164,11 +164,14 @@ export function AskBar({ matterId }: { matterId: number }) {
         <Button type="submit" size="lg" disabled={askOff || ask.draft.trim() === ''}>
           {question.pending ? 'Asking…' : question.answering ? 'Answering…' : 'Ask'}
         </Button>
-        {question.following && (
+        {/* A closed thread (D52) takes no follow-up, but can still be shown. */}
+        {ask.threadId !== null && (question.following || !ask.panelOpen) && (
           <span className="flex flex-wrap items-center gap-x-3 text-sm">
-            <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
-              Start a new question
-            </button>
+            {question.following && (
+              <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
+                Start a new question
+              </button>
+            )}
             {!ask.panelOpen && (
               <button type="button" onClick={ask.openPanel} className="text-primary underline-offset-4 hover:underline">
                 Show the answers

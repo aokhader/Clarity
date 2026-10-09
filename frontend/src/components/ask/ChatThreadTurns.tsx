@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 /**
  * A thread's turns, oldest first, polled while an answer is being written. When a turn
- * is added, the newest is scrolled into view.
+ * is added, the newest is scrolled into view. A closed thread's turns are the copy frozen
+ * when it closed (D52), drawn the same way, so their chips still open the drawer.
  */
 export function ChatThreadTurns({ matterId, threadId }: { matterId: number; threadId: number }) {
   const thread = useChatThread(matterId, threadId)
@@ -43,7 +44,7 @@ export function ChatThreadTurns({ matterId, threadId }: { matterId: number; thre
     <div className="divide-y">
       {thread.data.turns.map((turn, index) => (
         <div key={turn.turn_id} ref={index === turnCount - 1 ? lastTurn : undefined}>
-          <ChatTurn matterId={matterId} turn={turn} />
+          <ChatTurn matterId={matterId} turn={turn} closed={thread.data.closed_at != null} />
         </div>
       ))}
     </div>

@@ -1,27 +1,25 @@
-import { useArchiveThread, useChatThreads } from '@/api/chat'
-import type { ChatTurnStatus } from '@/api/types'
-import { useFirmUser } from '@/api/users'
+import { useId } from 'react'
+
+import { useChatThreads } from '@/api/chat'
+import { ChatThreadRow } from '@/components/ask/ChatThreadRow'
 import { LoadError } from '@/components/shared/LoadError'
 import { Loading } from '@/components/shared/Loading'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAskContext } from '@/lib/askState'
-import { formatCount, formatDateTime } from '@/lib/format'
-import { cn } from '@/lib/utils'
 
-const STATUS_TEXT: Record<ChatTurnStatus, string> = {
-  running: 'Answering',
-  done: 'Answered',
-  failed: 'Failed',
-  no_model: 'Not configured',
+type ChatThreadListProps = {
+  matterId: number
+  /** A thread was closed from the list (D52). */
+  onClosed: (threadId: number) => void
 }
 
-/** The matter's threads, newest first; choosing one opens it, and Archive takes it off the list. */
-export function ChatThreadList({ matterId }: { matterId: number }) {
-  const ask = useAskContext()
+/**
+ * The matter's threads in two groups, Open and Closed (D52), each in the order the server
+ * gives: open ones by their last question, closed ones by when they closed, newest first.
+ * The Closed group shows once a thread has been closed.
+ */
+export function ChatThreadList({ matterId, onClosed }: ChatThreadListProps) {
   const threads = useChatThreads(matterId)
-  const archive = useArchiveThread(matterId)
-  const user = useFirmUser()
+  const groupId = useId()
 
   if (threads.isPending) {
     return (
@@ -38,54 +36,32 @@ export function ChatThreadList({ matterId }: { matterId: number }) {
   if (threads.data.length === 0) {
     return <p className="text-sm text-muted-foreground">No questions asked on this matter yet.</p>
   }
+  const groups = [
+    { name: 'Open', threads: threads.data.filter((thread) => thread.closed_at == null) },
+    { name: 'Closed', threads: threads.data.filter((thread) => thread.closed_at != null) },
+  ].filter((group) => group.name === 'Open' || group.threads.length > 0)
+
   return (
-    <>
-      <ul className="-my-1 divide-y">
-        {threads.data.map((thread) => {
-          const chosen = thread.thread_id === ask.threadId
-          return (
-            <li
-              key={thread.thread_id}
-              className={cn('flex items-start gap-2 border-l-3 py-2.5 pr-1 pl-3', chosen ? 'border-primary bg-muted' : 'border-transparent')}
-            >
-              <button
-                type="button"
-                aria-current={chosen ? 'true' : undefined}
-                onClick={() => ask.setThreadId(thread.thread_id)}
-                className="min-w-0 flex-1 text-left"
-              >
-                <span className="block text-[15px] font-medium [overflow-wrap:anywhere] hover:text-primary">
-                  {thread.title}
-                </span>
-                <span className="block text-xs text-muted-foreground tabular-nums">
-                  {thread.asked_by ?? 'A firm user'} · {formatDateTime(thread.updated_at)} ·{' '}
-                  {formatCount(thread.turn_count, 'question')} · {STATUS_TEXT[thread.last_status]}
-                </span>
-              </button>
-              <Button
-                variant="ghost"
-                size="xs"
-                disabled={user === null || archive.isPending}
-                aria-label={`Archive ${thread.title}`}
-                onClick={() =>
-                  user &&
-                  archive.mutate(
-                    { userId: user.id, threadId: thread.thread_id },
-                    { onSuccess: () => chosen && ask.setThreadId(null) },
-                  )
-                }
-              >
-                Archive
-              </Button>
-            </li>
-          )
-        })}
-      </ul>
-      {archive.isError && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          Could not archive the thread. {archive.error.message}
-        </p>
-      )}
-    </>
+    <div className="space-y-5">
+      {groups.map((group) => (
+        <section key={group.name} aria-labelledby={`${groupId}-${group.name}`}>
+          <h3
+            id={`${groupId}-${group.name}`}
+            className="mb-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            {group.name}
+          </h3>
+          {group.threads.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No open questions.</p>
+          ) : (
+            <ul className="divide-y border-t">
+              {group.threads.map((thread) => (
+                <ChatThreadRow key={thread.thread_id} matterId={matterId} thread={thread} onClosed={onClosed} />
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
+    </div>
   )
 }

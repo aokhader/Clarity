@@ -1,4 +1,5 @@
 import { useAsk, useChatBudget, useChatThread } from '@/api/chat'
+import { ApiError } from '@/api/client'
 import { useFirmUser } from '@/api/users'
 import { useAskContext } from '@/lib/askState'
 import { BUDGET_SPENT, askErrorText, budgetSpent, isBudgetRefusal } from '@/lib/chatErrors'
@@ -10,9 +11,10 @@ type SubmitOptions = {
 
 /**
  * Send the question being written, with the items pointed at as ids, to the panel's
- * thread (a follow-up) or a new one. Both the Ask bar and the composers use it, so they
- * refuse for the same reasons: no question, the day's budget spent, an answer still
- * being written on the thread, or no firm user yet.
+ * thread (a follow-up) or a new one. A closed thread takes no follow-ups (D52), so a
+ * question asked while one is open starts a new thread. Both the Ask bar and the
+ * composers use it, so they refuse for the same reasons: no question, the day's budget
+ * spent, an answer still being written on the thread, or no firm user yet.
  */
 export function useAskQuestion(matterId: number) {
   const ask = useAskContext()
@@ -22,6 +24,9 @@ export function useAskQuestion(matterId: number) {
   const thread = useChatThread(matterId, ask.threadId)
 
   const answering = thread.data?.turns.some((turn) => turn.status === 'running') ?? false
+  const closed = thread.data?.closed_at != null
+  /** The thread a question follows up, or null for a new one. */
+  const followUp = closed ? null : ask.threadId
   const spent = budgetSpent(budget.data) || isBudgetRefusal(mutation.error)
   /** Why Ask is off, when it is; null when a question can be sent. */
   const blocked = spent
@@ -36,7 +41,7 @@ export function useAskQuestion(matterId: number) {
     const text = question.trim()
     if (text === '' || blocked !== null || user === null || mutation.isPending) return
     mutation.mutate(
-      { userId: user.id, body: { question: text, items: ask.items.map((item) => item.ref), thread_id: ask.threadId } },
+      { userId: user.id, body: { question: text, items: ask.items.map((item) => item.ref), thread_id: followUp } },
       {
         onSuccess: (turn) => {
           ask.setThreadId(turn.thread_id)
@@ -57,8 +62,20 @@ export function useAskQuestion(matterId: number) {
     /** An answer is still being written on the open thread. */
     answering,
     /** The last refusal, in words; the budget refusal is already said by `blocked`. */
-    error: mutation.error && !isBudgetRefusal(mutation.error) ? askErrorText(mutation.error) : null,
+    error: mutation.error && !isBudgetRefusal(mutation.error) ? askErrorText(mutation.error, closed) : null,
     budget: budget.data,
-    following: ask.threadId !== null,
+    following: followUp !== null,
+    /** The open thread is closed (D52): it is read-only, and the next question starts a new one. */
+    closed,
+    /**
+     * A follow-up to this thread was refused because it had been closed meanwhile, by
+     * someone else or in another tab. The composer gives way to the closed thread's note,
+     * so it says this in the one line it keeps.
+     */
+    closedRefusal:
+      closed &&
+      mutation.error instanceof ApiError &&
+      mutation.error.status === 409 &&
+      mutation.variables?.body.thread_id === ask.threadId,
   }
 }

@@ -26,14 +26,21 @@ export function budgetNearlySpent(budget: ChatBudgetOut | undefined): boolean {
   )
 }
 
-/** A refused question or retry, in a sentence that says what to do. */
-export function askErrorText(error: Error): string {
+/** What a refused follow-up says once its thread is closed (D52). */
+export const THREAD_CLOSED = 'This thread is closed; start a new question.'
+
+/**
+ * A refused question or retry, in a sentence that says what to do. The server refuses a
+ * follow-up with 409 both while an answer is being written and once the thread is closed,
+ * so the caller says which by the thread it holds.
+ */
+export function askErrorText(error: Error, threadClosed = false): string {
   if (!(error instanceof ApiError)) return `The question could not be sent. ${error.message}`
   switch (error.status) {
     case 429:
       return BUDGET_SPENT
     case 409:
-      return 'This thread is still answering. Wait for it, or start a new question.'
+      return threadClosed ? THREAD_CLOSED : 'This thread is still answering. Wait for it, or start a new question.'
     case 422:
       return 'An attached item could not be found in this matter, or the question is empty. Remove the item and ask again.'
     case 404:
@@ -42,5 +49,20 @@ export function askErrorText(error: Error): string {
       return 'There is no firm user to ask as.'
     default:
       return `The question could not be sent. ${error.message}`
+  }
+}
+
+/** A refused close, in a sentence that says what to do. */
+export function closeErrorText(error: Error): string {
+  if (!(error instanceof ApiError)) return `The thread could not be closed. ${error.message}`
+  switch (error.status) {
+    case 409:
+      return 'Wait for the answer before closing.'
+    case 404:
+      return 'This thread is not on this matter, or chat is not available.'
+    case 401:
+      return 'There is no firm user to close it as.'
+    default:
+      return `The thread could not be closed. ${error.message}`
   }
 }

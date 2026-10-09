@@ -2,8 +2,10 @@ import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { Link } from 'react-router'
 
+import { useChatThread } from '@/api/chat'
 import { ChatComposer } from '@/components/ask/ChatComposer'
 import { ChatThreadTurns } from '@/components/ask/ChatThreadTurns'
+import { ClosedThreadNote } from '@/components/ask/ClosedThreadNote'
 import { Button } from '@/components/ui/button'
 import { ASK_PANEL_ATTRIBUTE, useAskContext } from '@/lib/askState'
 import { cn } from '@/lib/utils'
@@ -13,13 +15,26 @@ import { cn } from '@/lib/utils'
  * chip in it opens the source drawer, which hands focus back to the chip. From xl up it
  * is the page's third column, sticky and full height; narrower, it lies over the right
  * of the page, under the drawer, and steps aside while an item is being picked so the
- * rows can be seen. Escape closes it and returns focus to what opened it.
+ * rows can be seen. Escape closes it and returns focus to what opened it. A closed thread
+ * (D52) is read-only: where the composer was, it says when it was closed.
  */
 export function ChatPanel({ matterId }: { matterId: number }) {
   const ask = useAskContext()
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
+  const footer = useRef<HTMLDivElement>(null)
+  const thread = useChatThread(matterId, ask.threadId)
+  const closedThread = thread.data?.closed_at != null ? thread.data : null
+  // The composer waits for the thread, so a closed one never offers a follow-up; it
+  // shows nothing on a closed thread but a refusal, and the note stands in for it.
+  const loaded = ask.threadId === null || thread.data !== undefined
   const { panelWantsFocus, panelFocused } = ask
+
+  const startNewQuestion = () => {
+    ask.newQuestion()
+    // The button pressed goes with the thread, so focus moves to the question box.
+    requestAnimationFrame(() => footer.current?.querySelector('textarea')?.focus())
+  }
 
   useEffect(() => {
     if (!panelWantsFocus) return
@@ -64,8 +79,8 @@ export function ChatPanel({ matterId }: { matterId: number }) {
           >
             Open in Ask view
           </Link>
-          {ask.threadId !== null && (
-            <button type="button" onClick={ask.newQuestion} className="text-primary underline-offset-4 hover:underline">
+          {ask.threadId !== null && closedThread === null && (
+            <button type="button" onClick={startNewQuestion} className="text-primary underline-offset-4 hover:underline">
               New question
             </button>
           )}
@@ -81,8 +96,11 @@ export function ChatPanel({ matterId }: { matterId: number }) {
           <ChatThreadTurns matterId={matterId} threadId={ask.threadId} />
         )}
       </div>
-      <div className="border-t px-4 py-3">
-        <ChatComposer matterId={matterId} withHandle />
+      <div ref={footer} className="space-y-2 border-t px-4 py-3 empty:hidden">
+        {closedThread !== null && (
+          <ClosedThreadNote matterId={matterId} thread={closedThread} onNewQuestion={startNewQuestion} />
+        )}
+        {loaded && <ChatComposer matterId={matterId} withHandle />}
       </div>
     </aside>
   )

@@ -6,20 +6,22 @@ import { BudgetNote } from '@/components/ask/BudgetNote'
 import { Button } from '@/components/ui/button'
 import { askRefKey } from '@/lib/askItems'
 import { useAskContext } from '@/lib/askState'
+import { THREAD_CLOSED } from '@/lib/chatErrors'
 import { useAskQuestion } from '@/lib/useAskQuestion'
 
-
-/**
- * Write a question, with the items pointed at, and ask it: a follow-up when a thread is
- * open, else a new thread. Enter asks and Shift+Enter starts a new line. Ask is off, with
- * the reason beside it, while the answer is being written or once the day's budget is spent.
- */
 type ChatComposerProps = {
   matterId: number
   /** Offer the pointing handle, where there are rows to point at (the panel, not the Ask view). */
   withHandle?: boolean
 }
 
+/**
+ * Write a question, with the items pointed at, and ask it: a follow-up when a thread is
+ * open, else a new thread. Enter asks and Shift+Enter starts a new line. Ask is off, with
+ * the reason beside it, while the answer is being written or once the day's budget is spent.
+ * A closed thread takes no questions (D52): the composer then shows nothing, unless a
+ * follow-up was just refused because the thread had closed meanwhile.
+ */
 export function ChatComposer({ matterId, withHandle = false }: ChatComposerProps) {
   const ask = useAskContext()
   const question = useAskQuestion(matterId)
@@ -27,6 +29,14 @@ export function ChatComposer({ matterId, withHandle = false }: ChatComposerProps
   const reasonId = useId()
   const field = useRef<HTMLTextAreaElement>(null)
   const submit = () => question.submit(ask.draft, { openPanel: false })
+
+  if (question.closed) {
+    return question.closedRefusal ? (
+      <p role="alert" className="text-sm text-danger">
+        {THREAD_CLOSED}
+      </p>
+    ) : null
+  }
 
   return (
     <form

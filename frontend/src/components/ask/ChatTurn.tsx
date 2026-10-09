@@ -19,16 +19,23 @@ const STATUS_WORDS: Record<ChatTurnStatus, string> = {
   no_model: 'Chat isn’t configured.',
 }
 
+type ChatTurnProps = {
+  matterId: number
+  turn: ChatTurnOut
+  /** The turn belongs to a closed thread (D52): a record as it read then, so no Retry. */
+  closed?: boolean
+}
+
 /**
  * One question and its answer: who asked and when, the items pointed at with their
  * sources, then the answer by its state. The answer arrives whole, after the server has
  * checked every sentence's citations, so a running turn shows only that it is reading.
  */
-export function ChatTurn({ matterId, turn }: { matterId: number; turn: ChatTurnOut }) {
+export function ChatTurn({ matterId, turn, closed = false }: ChatTurnProps) {
   const questionId = useId()
   const retry = useRetryTurn(matterId)
   const user = useFirmUser()
-  const retryButton = (
+  const retryButton = !closed && (
     <Button
       variant="outline"
       size="xs"
@@ -94,7 +101,7 @@ export function ChatTurn({ matterId, turn }: { matterId: number; turn: ChatTurnO
         )}
         {retry.isError && (
           <p role="alert" className="mt-2 text-sm text-danger">
-            {askErrorText(retry.error)}
+            {askErrorText(retry.error, closed)}
           </p>
         )}
       </div>
