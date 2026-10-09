@@ -5,7 +5,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | D38-D40 Overview pass done: 90-second first screen (9 of 12 on the real matter at 1440x900), legal-memo restyle, margin citations; Lighthouse a11y 100 on all firm views and /p/:token; critic Pass 4 fixed (D40); six screenshots retaken (506267f) | Waiting for the reviewer's README pass, then check.sh | | Manager: litigation-history re-read (cents, D40); push; clip link; test call (C-T) | 15:18 |
-| pipeline | P14 run done: 13 pages, 7 litigation events, 0 failures, $0.086 with trial | Standing by | | Story shows no litigation event: dated ones score below 88 | 2026-10-08 18:43 |
+| pipeline | cli upgrade-schema, seed-dev upgrades first (5fb132f); 466 pass, check.sh clean | Standing by | | Story shows no litigation event: dated ones score below 88 | 2026-10-08 19:05 |
 | backend | B15 b732ad9: court events pinned in key events (3 on the real matter); 462 tests | Stand by | | | 2026-10-08 18:48 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
