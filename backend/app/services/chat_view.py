@@ -14,7 +14,13 @@ served:
   does not hold what it says;
 - the items are resolved again for their labels and facts. One that no longer
   resolves keeps a generic label and no facts rather than failing the thread.
+
+A closed thread (D52) is the exception: it is served from the copy frozen when it
+closed (`ChatTranscript.turns_json`), never checked again, since it is the record of
+what was said then.
 """
+
+from datetime import datetime
 
 from pydantic import TypeAdapter
 from sqlalchemy import select
@@ -103,16 +109,35 @@ def turn_out(
     )
 
 
-def thread_out(session: Session, thread: ChatThread) -> ChatThreadOut:
+def live_turns(session: Session, thread: ChatThread) -> list[ChatTurnOut]:
+    """The thread's turns checked against today's file, oldest first."""
     renderable = load_renderable(session, thread.matter_id)
     file = file_values(list(renderable.values()))
+    return [turn_out(session, t, renderable, file) for t in thread.turns]
+
+
+def thread_out(session: Session, thread: ChatThread) -> ChatThreadOut:
+    """An open thread as served now; a closed one exactly as frozen when it closed."""
+    frozen = thread.transcript
+    if frozen is not None:
+        turns = [ChatTurnOut.model_validate(t) for t in frozen.turns_json]
+    else:
+        turns = live_turns(session, thread)
     return ChatThreadOut(
         thread_id=thread.id,
         title=thread.title,
         created_at=thread.created_at,
         updated_at=thread.updated_at,
-        turns=[turn_out(session, t, renderable, file) for t in thread.turns],
+        turns=turns,
+        closed_at=closed_at(thread),
+        closed_by=_user_name(session, frozen.closed_by) if frozen else None,
     )
+
+
+def closed_at(thread: ChatThread) -> datetime | None:
+    """When the thread was closed. Only a frozen transcript makes a thread closed: one
+    archived before D52 kept nothing, so it is served as open and can be closed."""
+    return thread.closed_at if thread.transcript is not None else None
 
 
 def single_turn_out(session: Session, turn: ChatTurn) -> ChatTurnOut:
@@ -123,13 +148,19 @@ def single_turn_out(session: Session, turn: ChatTurn) -> ChatTurnOut:
 
 
 def thread_summaries(session: Session, matter_id: int) -> list[ChatThreadSummaryOut]:
-    """The matter's threads that are not archived, the most recently active first."""
+    """Every thread of the matter: the open ones first, the most recently active first,
+    then the closed ones, the most recently closed first (D52). A closed thread's turns
+    no longer change, so its count and last status are those it closed with."""
     threads = session.scalars(
         select(ChatThread)
-        .options(selectinload(ChatThread.turns))
-        .where(ChatThread.matter_id == matter_id, ChatThread.archived_at.is_(None))
-        .order_by(ChatThread.updated_at.desc(), ChatThread.id.desc())
+        .options(selectinload(ChatThread.turns), selectinload(ChatThread.transcript))
+        .where(ChatThread.matter_id == matter_id)
     ).all()
+
+    def newest_first(thread: ChatThread) -> tuple[bool, datetime, int]:
+        closed = closed_at(thread)
+        return (closed is None, closed or thread.updated_at, thread.id)
+
     return [
         ChatThreadSummaryOut(
             thread_id=t.id,
@@ -138,8 +169,9 @@ def thread_summaries(session: Session, matter_id: int) -> list[ChatThreadSummary
             turn_count=len(t.turns),
             last_status=t.turns[-1].status.value,
             asked_by=_user_name(session, t.created_by),
+            closed_at=closed_at(t),
         )
-        for t in threads
+        for t in sorted(threads, key=newest_first, reverse=True)
         if t.turns  # a thread is created with its first turn, in one commit
     ]
 

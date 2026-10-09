@@ -203,6 +203,32 @@ def _readable(source: Source) -> _Readable:
             return _Readable(RawContact.model_validate(raw).name, None, None, None)
 
 
+# Each record type as the drawer labels it (the frontend's `SOURCE_LABELS`).
+SOURCE_WORDS: dict[SourceType, str] = {
+    SourceType.MATTER: "Matter",
+    SourceType.CUSTOM_FIELD: "Field",
+    SourceType.CONTACT: "Contact",
+    SourceType.RELATIONSHIP: "Contact",
+    SourceType.NOTE: "Note",
+    SourceType.COMMUNICATION: "Email",
+    SourceType.TASK: "Task",
+    SourceType.CALENDAR_ENTRY: "Calendar",
+    SourceType.ACTIVITY: "Expense",
+    SourceType.DOCUMENT: "Doc",
+    SourceType.CALL: "Call",
+}
+
+
+def source_name(source: Source, page_no: int | None = None) -> str:
+    """A record as the drawer names it: its type, its title when it has one, and the
+    cited page, e.g. "Doc: <title>, p. 2". Used where a chip cannot be clicked, such
+    as a downloaded transcript (D52)."""
+    word = SOURCE_WORDS.get(source.clio_type, "Record")
+    title = _readable(source).title
+    name = f"{word}: {' '.join(title.split())}" if title and title.strip() else word
+    return f"{name}, p. {page_no}" if page_no is not None else name
+
+
 def source_text(source: Source) -> str | None:
     """A record's readable text (a note's, an email's, a call's transcript), or None for
     a document, whose text is on its pages."""

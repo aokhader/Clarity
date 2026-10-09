@@ -9,7 +9,8 @@ thread. Handlers call `services/chat.py` and `services/chat_context.py`.
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 
 from app.api.matters import CurrentUser, MatterId
 from app.db import SessionDep
@@ -74,15 +75,32 @@ def retry_turn(
         raise HTTPException(status_code=429, detail=str(error)) from error
 
 
-@router.post("/chat/threads/{thread_id}/archive", status_code=204)
-def archive_thread(
-    matter_id: MatterId, thread_id: int, _user: CurrentUser, session: SessionDep
-) -> Response:
+@router.post("/chat/threads/{thread_id}/close")
+def close_thread(
+    matter_id: MatterId, thread_id: int, user: CurrentUser, session: SessionDep
+) -> ChatThreadOut:
     try:
-        chat.archive(session, matter_id, thread_id, datetime.now(UTC))
+        return chat.close(session, matter_id, thread_id, user, datetime.now(UTC))
     except chat.ThreadNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    return Response(status_code=204)
+    except chat.TurnConflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.get("/chat/threads/{thread_id}/transcript", response_class=PlainTextResponse)
+def thread_transcript(
+    matter_id: MatterId, thread_id: int, session: SessionDep
+) -> PlainTextResponse:
+    """A closed thread's frozen transcript as a download. The file name carries no case
+    data (D52)."""
+    try:
+        text = chat.transcript(session, matter_id, thread_id)
+    except (chat.ThreadNotFound, chat.TranscriptNotFound) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    name = f"clarity-thread-{thread_id}.txt"
+    return PlainTextResponse(
+        text, headers={"Content-Disposition": f'attachment; filename="{name}"'}
+    )
 
 
 @router.get("/chat/budget")

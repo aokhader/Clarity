@@ -6,6 +6,9 @@ and no GET calls one. The thread builds the context in code (`chat_context.py`),
 pipeline's `answer_question` once, and stores the checked sentences with the fact ids
 each cites. Verdicts are not stored: `chat_view.py` computes them when a turn is served.
 
+Closing a thread (D52) freezes its turns as served at that moment, with a plain-text
+transcript (`chat_transcript.py`), and ends it: no question or retry is taken after.
+
 Spend is capped per matter per local day, summed from `llm_calls` with purpose `chat`.
 Logs carry counts and ids only, never a question or record text (rule 7).
 """
@@ -21,11 +24,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_sessionmaker
-from app.models import ChatStatus, ChatThread, ChatTurn, User, utcnow
+from app.models import ChatStatus, ChatThread, ChatTranscript, ChatTurn, User, utcnow
 from app.schemas import ChatAskIn, ChatBudgetOut, ChatThreadOut, ChatTurnOut
 from app.services import chat_view
 from app.services.chat_attachments import load_renderable, resolve_items
 from app.services.chat_context import build_context, context_fact_ids, prior_turns
+from app.services.chat_transcript import transcript_text
 from app.services.cost import chat_spent_since
 
 log = logging.getLogger(__name__)
@@ -52,7 +56,12 @@ class TurnNotFound(LookupError):
 
 
 class TurnConflict(Exception):
-    """A turn of the thread is running, or the turn cannot be retried (409)."""
+    """A turn of the thread is running, the thread is closed, or the turn cannot be
+    retried (409)."""
+
+
+class TranscriptNotFound(LookupError):
+    """The thread is open, so it has no transcript yet (404)."""
 
 
 # --- Spend -----------------------------------------------------------------------------
@@ -101,6 +110,7 @@ def ask(
     thread = None
     if body.thread_id is not None:
         thread = _thread(session, matter_id, body.thread_id)
+        _still_open(thread)
         _no_running_turn(session, thread.id)
     # Every item must resolve in this matter before anything is stored.
     resolve_items(session, matter_id, list(body.items))
@@ -112,8 +122,6 @@ def ask(
             created_at=now,
         )
         session.add(thread)
-    # Asking in an archived thread brings it back to the list.
-    thread.archived_at = None
     thread.updated_at = now
     configured = get_settings().chat_configured
     turn = ChatTurn(
@@ -145,6 +153,7 @@ def retry(session: Session, matter_id: int, turn_id: int, now: datetime) -> Chat
     turn = session.get(ChatTurn, turn_id)
     if turn is None or turn.matter_id != matter_id:
         raise TurnNotFound(f"turn {turn_id} is not in matter {matter_id}")
+    _still_open(turn.thread)
     if turn.status not in _RETRYABLE:
         raise TurnConflict("Only a failed or unanswered turn can be asked again")
     _no_running_turn(session, turn.thread_id)
@@ -168,11 +177,35 @@ def get_thread(session: Session, matter_id: int, thread_id: int) -> ChatThreadOu
     return chat_view.thread_out(session, _thread(session, matter_id, thread_id))
 
 
-def archive(session: Session, matter_id: int, thread_id: int, now: datetime) -> None:
+def close(
+    session: Session, matter_id: int, thread_id: int, user: User, now: datetime
+) -> ChatThreadOut:
+    """Close the thread (D52): freeze its turns as served now, with a text transcript,
+    and take no more questions in it. A closed thread comes back unchanged. Raises
+    ThreadNotFound, or TurnConflict while a turn is running."""
     thread = _thread(session, matter_id, thread_id)
-    if thread.archived_at is None:
-        thread.archived_at = now
+    if thread.transcript is None:
+        _no_running_turn(session, thread.id)
+        turns = chat_view.live_turns(session, thread)
+        thread.closed_at = now
+        thread.transcript = ChatTranscript(
+            closed_by=user.id,
+            closed_at=now,
+            turns_json=[t.model_dump(mode="json") for t in turns],
+            text=transcript_text(session, thread, turns, user.name, now),
+        )
         session.commit()
+        log.info("Chat thread %d closed with %d turns", thread.id, len(turns))
+    return chat_view.thread_out(session, thread)
+
+
+def transcript(session: Session, matter_id: int, thread_id: int) -> str:
+    """The text transcript frozen when the thread closed. Raises ThreadNotFound, or
+    TranscriptNotFound while the thread is open."""
+    thread = _thread(session, matter_id, thread_id)
+    if thread.transcript is None:
+        raise TranscriptNotFound(f"thread {thread_id} is open; it has no transcript")
+    return thread.transcript.text
 
 
 def _thread(session: Session, matter_id: int, thread_id: int) -> ChatThread:
@@ -180,6 +213,11 @@ def _thread(session: Session, matter_id: int, thread_id: int) -> ChatThread:
     if thread is None or thread.matter_id != matter_id:
         raise ThreadNotFound(f"thread {thread_id} is not in matter {matter_id}")
     return thread
+
+
+def _still_open(thread: ChatThread) -> None:
+    if thread.transcript is not None:
+        raise TurnConflict("This thread is closed; ask in a new thread")
 
 
 def _no_running_turn(session: Session, thread_id: int) -> None:

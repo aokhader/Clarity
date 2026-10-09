@@ -414,12 +414,19 @@ class ChatThread(Base):
     title: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow)
-    archived_at: Mapped[datetime | None]
+    # D52: when the thread was closed. The column keeps its D49 name, `archived_at`,
+    # because `upgrade_schema` rebuilds constraints but cannot rename a column. A
+    # thread is closed when it has a transcript: one archived before D52 has a time
+    # here but nothing frozen, so it counts as open until it is closed.
+    closed_at: Mapped[datetime | None] = mapped_column("archived_at")
 
     turns: Mapped[list["ChatTurn"]] = relationship(
         back_populates="thread",
         cascade="all, delete-orphan",
         order_by="ChatTurn.id",
+    )
+    transcript: Mapped["ChatTranscript | None"] = relationship(
+        back_populates="thread", cascade="all, delete-orphan"
     )
 
 
@@ -457,3 +464,25 @@ class ChatTurn(Base):
     finished_at: Mapped[datetime | None]
 
     thread: Mapped[ChatThread] = relationship(back_populates="turns")
+
+
+class ChatTranscript(Base):
+    """A closed thread, frozen (D52): the record of what was said, kept by the firm.
+
+    `turns_json` holds the thread's turns exactly as they were served when it closed
+    (`ChatTurnOut`, with verdicts, mentions, chips and the withdrawn count), so a closed
+    thread is never checked again against a later file. `text` is the same record as a
+    plain-text transcript, written in code (`services/chat_transcript.py`).
+    """
+
+    __tablename__ = "chat_transcripts"
+
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), primary_key=True
+    )
+    closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    closed_at: Mapped[datetime]
+    turns_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    text: Mapped[str] = mapped_column(Text)
+
+    thread: Mapped[ChatThread] = relationship(back_populates="transcript")

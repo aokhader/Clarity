@@ -33,6 +33,7 @@ from app.models import (
     User,
 )
 from app.services import chat
+from app.services.source_views import source_name
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID
 
 OTHER_MATTER = MATTER_ID + 1
@@ -381,8 +382,8 @@ def test_a_thread_or_turn_is_found_only_under_its_own_matter(
     assert _ask(client, user_id, OTHER_MATTER, thread_id=thread_id).status_code == 404
     retried = client.post(f"{other}/turns/{turn['turn_id']}/retry", headers=header)
     assert retried.status_code == 404
-    archived = client.post(f"{other}/threads/{thread_id}/archive", headers=header)
-    assert archived.status_code == 404
+    closed = client.post(f"{other}/threads/{thread_id}/close", headers=header)
+    assert closed.status_code == 404
     assert client.get("/api/matters/424242/chat/threads").status_code == 404
 
 
@@ -393,7 +394,7 @@ def test_no_chat_or_search_route_sits_under_the_provider_prefix() -> None:
     assert provider, "the provider routes are mounted"
     assert not [p for p in provider if "chat" in p or "search" in p]
     chat_paths = [p for p in paths if "/chat" in p or p.endswith("/search")]
-    assert len(chat_paths) == 7
+    assert len(chat_paths) == 8
     assert all(p.startswith("/api/matters/{matter_id}/") for p in chat_paths)
 
 
@@ -590,29 +591,148 @@ def test_an_answer_that_failed_upstream_keeps_its_reason(
     assert settled["sentences"] == []
 
 
-def test_an_archived_thread_leaves_the_list_until_asked_in_again(
+# --- Closing a thread (D52) ---------------------------------------------------------------
+
+
+def _close(
+    client: TestClient, user_id: int, thread_id: int, matter_id: int = MATTER_ID
+) -> Any:
+    return client.post(
+        f"/api/matters/{matter_id}/chat/threads/{thread_id}/close",
+        headers={"X-User-Id": str(user_id)},
+    )
+
+
+def test_a_closed_thread_takes_no_question_or_retry_and_closing_again_changes_nothing(
     chat_on: None,
     seeded: Session,
     client: TestClient,
     user_id: int,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _use_answerer(monkeypatch, _citing(("Nothing.", [])))
+    _use_answerer(monkeypatch, RuntimeError("upstream timed out"))
     turn = _ask(client, user_id).json()
-    _settled(client, turn["thread_id"])
-    base = f"/api/matters/{MATTER_ID}/chat"
+    [failed] = _settled(client, turn["thread_id"])["turns"]
+    assert failed["status"] == "failed"  # so only the closing stops a retry
 
-    archived = client.post(
-        f"{base}/threads/{turn['thread_id']}/archive",
+    closed = _close(client, user_id, turn["thread_id"])
+
+    assert closed.status_code == 200, closed.text
+    thread = closed.json()
+    assert thread["closed_at"] is not None
+    assert thread["closed_by"] == seeded.get(User, user_id).name
+    assert thread["turns"] == [failed]
+    turns_before = _count(seeded, ChatTurn)
+    asked = _ask(
+        client, user_id, question="Anything else?", thread_id=turn["thread_id"]
+    )
+    assert asked.status_code == 409
+    retried = client.post(
+        f"/api/matters/{MATTER_ID}/chat/turns/{turn['turn_id']}/retry",
         headers={"X-User-Id": str(user_id)},
     )
+    assert retried.status_code == 409
+    assert _count(seeded, ChatTurn) == turns_before
+    # Closing a closed thread returns it as it was, whoever asks.
+    other_user = seeded.scalars(select(User.id).where(User.id != user_id)).first()
+    again = _close(client, other_user or user_id, turn["thread_id"])
+    assert again.status_code == 200 and again.json() == thread
 
-    assert archived.status_code == 204
-    assert client.get(f"{base}/threads").json() == []
-    assert _ask(client, user_id, thread_id=turn["thread_id"]).status_code == 202
-    assert [t["thread_id"] for t in client.get(f"{base}/threads").json()] == [
-        turn["thread_id"]
+
+def test_a_thread_with_a_running_turn_cannot_be_closed(
+    chat_on: None,
+    seeded: Session,
+    client: TestClient,
+    user_id: int,
+    no_start: list[int],
+) -> None:
+    turn = _ask(client, user_id).json()
+    assert turn["status"] == "running"
+
+    assert _close(client, user_id, turn["thread_id"]).status_code == 409
+
+    thread = client.get(f"/api/matters/{MATTER_ID}/chat/threads/{turn['thread_id']}")
+    assert thread.json()["closed_at"] is None
+
+
+def test_the_list_holds_open_threads_by_activity_then_closed_ones_by_closing_time(
+    chat_off: None, seeded: Session, client: TestClient, user_id: int
+) -> None:
+    ids = [
+        _ask(client, user_id, question=f"Question {n}?").json()["thread_id"]
+        for n in range(4)
     ]
+    first, second, third, fourth = ids
+    start = datetime(2026, 3, 2, 9, 0, tzinfo=UTC)
+    for minutes, thread_id in enumerate(ids):
+        thread = seeded.get(ChatThread, thread_id)
+        assert thread is not None
+        thread.updated_at = start + timedelta(minutes=minutes)
+    seeded.commit()
+    user = seeded.get(User, user_id)
+    assert user is not None
+    # The first thread is closed last, so it leads the closed ones.
+    chat.close(seeded, MATTER_ID, third, user, start + timedelta(hours=1))
+    chat.close(seeded, MATTER_ID, first, user, start + timedelta(hours=2))
+
+    listed = client.get(f"/api/matters/{MATTER_ID}/chat/threads").json()
+
+    assert [t["thread_id"] for t in listed] == [fourth, second, first, third]
+    assert [t["closed_at"] is not None for t in listed] == [False, False, True, True]
+
+
+def test_a_closed_threads_transcript_downloads_as_text_with_each_sentence_sourced(
+    chat_on: None,
+    seeded: Session,
+    client: TestClient,
+    user_id: int,
+    monkeypatch: pytest.MonkeyPatch,
+    other_matter: dict[str, int],
+) -> None:
+    bill = _fact(seeded, FactKind.MEDICAL_BILL, ORTHO_ID)
+    lien = _fact(seeded, FactKind.LIEN)
+    _use_answerer(
+        monkeypatch,
+        _citing(
+            ("The orthopedic office billed $2,480.", [bill.id]),
+            ("A lien is on file.", [lien.id, bill.id]),
+            ("The file does not say whether the bill was paid.", []),
+        ),
+    )
+    turn = _ask(
+        client, user_id, items=[{"kind": "facts", "fact_ids": [bill.id]}]
+    ).json()
+    _settled(client, turn["thread_id"])
+    path = f"/api/matters/{MATTER_ID}/chat/threads/{turn['thread_id']}/transcript"
+    assert client.get(path).status_code == 404  # open: nothing frozen yet
+
+    thread = _close(client, user_id, turn["thread_id"]).json()
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="clarity-thread-{turn["thread_id"]}.txt"'
+    )
+    text = response.text
+    [frozen] = thread["turns"]
+    bill_source = source_name(bill.source, bill.page_no)
+    lien_source = source_name(lien.source, lien.page_no)
+    assert "Matter: 00001-Avery" in text
+    assert f"Thread: {thread['title']}" in text
+    assert f"Closed by {thread['closed_by']}," in text
+    assert f"asked by {frozen['asked_by']}," in text
+    assert "What has the provider billed?" in text
+    assert f"Pointed at: {frozen['items'][0]['label']}" in text
+    assert f"- The orthopedic office billed $2,480. [{bill_source}]" in text
+    assert f"- A lien is on file. [{lien_source}; {bill_source}]" in text
+    assert (
+        "- The file does not say whether the bill was paid. [the file does not say]"
+        in text
+    )
+    assert "Cost: under $0.01" in text  # 1,234 micro-dollars
+    other = f"/api/matters/{OTHER_MATTER}/chat/threads/{turn['thread_id']}/transcript"
+    assert client.get(other).status_code == 404
 
 
 def test_cost_reports_chat_apart_from_the_digest(

@@ -1,5 +1,6 @@
-"""A chat turn served against today's file (D49, D12), and chat kept out of the digest's
-figures. The turns are written straight to the database; no model is involved."""
+"""A chat turn served against today's file (D49, D12), a closed thread served as frozen
+(D52), and chat kept out of the digest's figures. The turns are written straight to the
+database; no model is involved."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -9,8 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
-from app.models import ChatStatus, ChatThread, ChatTurn, Fact, FactKind, LlmCall
-from app.services import chat_context, chat_view
+from app.models import (
+    ChatStatus,
+    ChatThread,
+    ChatTranscript,
+    ChatTurn,
+    Fact,
+    FactKind,
+    LlmCall,
+    User,
+)
+from app.services import chat, chat_context, chat_view
 from app.services.chat_attachments import load_renderable
 from app.services.incident import incident_fact
 from app.services.jobs import cached_failed_calls
@@ -156,6 +166,97 @@ def test_a_not_in_file_sentence_cites_nothing_and_is_unchecked(seeded: Session) 
     [sentence] = turn.sentences
     assert sentence.not_in_file and sentence.facts == []
     assert sentence.verdict == "unchecked" and sentence.mentions == []
+
+
+def _user(session: Session) -> User:
+    user = session.scalars(select(User).order_by(User.id)).first()
+    assert user is not None
+    return user
+
+
+def test_a_closed_thread_is_served_as_frozen_while_an_open_one_follows_the_file(
+    seeded: Session,
+) -> None:
+    injury = _fact(seeded, FactKind.INJURY)  # read from a document page
+    bill = _fact(seeded, FactKind.MEDICAL_BILL, ORTHO_ID)
+    sentences = [
+        ("The client has a neck strain.", [injury.id], False),
+        ("The orthopedic office billed $2,480.", [bill.id], False),
+    ]
+    open_thread = _done_turn(seeded, sentences)
+    closed_thread = _done_turn(seeded, sentences)
+    closed = chat.close(
+        seeded, MATTER_ID, closed_thread.id, _user(seeded), datetime.now(UTC)
+    )
+    # Then the file changes: the injury loses its quote, so it can no longer be shown.
+    injury.quote = None
+    seeded.commit()
+
+    served_closed = chat_view.thread_out(seeded, closed_thread)
+    served_open = chat_view.thread_out(seeded, open_thread)
+
+    assert served_closed == closed
+    [frozen] = served_closed.turns
+    assert [s.text for s in frozen.sentences] == [text for text, _, _ in sentences]
+    # The strain states no figure to check; the bill's amount held when it closed.
+    assert [s.verdict for s in frozen.sentences] == ["unchecked", "supported"]
+    assert frozen.withdrawn == 0
+    [live] = served_open.turns
+    assert [s.text for s in live.sentences] == ["The orthopedic office billed $2,480."]
+    assert live.withdrawn == 1
+    assert served_open.closed_at is None and served_open.closed_by is None
+
+
+def test_the_transcript_notes_a_differing_figure_and_the_withdrawn_count(
+    seeded: Session,
+) -> None:
+    bills = seeded.scalars(
+        select(Fact).where(
+            Fact.matter_id == MATTER_ID, Fact.kind == FactKind.MEDICAL_BILL
+        )
+    ).all()
+    injury = _fact(seeded, FactKind.INJURY)
+    thread = _done_turn(
+        seeded,
+        [
+            ("The medical bills total $9,999.", [b.id for b in bills], False),
+            ("The client has a neck strain.", [injury.id], False),
+        ],
+        items=[{"kind": "kpi", "name": "medical_specials"}],
+    )
+    injury.quote = None  # withdrawn as served when the thread closes
+    seeded.commit()
+
+    chat.close(seeded, MATTER_ID, thread.id, _user(seeded), datetime.now(UTC))
+
+    transcript = seeded.get(ChatTranscript, thread.id)
+    assert transcript is not None
+    text = transcript.text
+    assert "(differs from the file: $9,999, the file has $3,440)" in text
+    assert "Withdrawn: 1 sentence," in text
+    assert "neck strain" not in text
+    assert "Pointed at: Medical specials" in text
+    assert "asked by an unknown user," in text
+    assert "Cost: none" in text
+
+
+def test_a_thread_archived_before_d52_froze_nothing_so_it_is_open_until_closed(
+    seeded: Session,
+) -> None:
+    thread = _done_turn(seeded, [("The file does not say.", [], True)])
+    archived = datetime(2026, 3, 2, 9, 0, tzinfo=UTC)
+    thread.closed_at = archived  # D49's archive wrote this column and nothing else
+    seeded.commit()
+
+    assert chat_view.thread_out(seeded, thread).closed_at is None
+    [listed] = chat_view.thread_summaries(seeded, MATTER_ID)
+    assert listed.closed_at is None
+
+    now = datetime.now(UTC)
+    closed = chat.close(seeded, MATTER_ID, thread.id, _user(seeded), now)
+
+    assert closed.closed_at == now and closed.closed_by == _user(seeded).name
+    assert seeded.get(ChatTranscript, thread.id) is not None
 
 
 def test_the_ranker_puts_a_word_at_a_title_start_and_the_named_kind_first(

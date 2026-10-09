@@ -57,6 +57,12 @@ def matter_exists(session: Session, matter_id: int) -> bool:
     return _matter_source(session, matter_id) is not None
 
 
+def matter_display_number(session: Session, matter_id: int) -> str | None:
+    """The matter's number as Clio shows it, or None before a sync."""
+    source = _matter_source(session, matter_id)
+    return RawMatter.model_validate(source.raw_json).display_number if source else None
+
+
 def list_matters(session: Session) -> list[MatterSummaryOut]:
     sources = session.scalars(
         select(Source)
