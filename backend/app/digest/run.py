@@ -42,9 +42,17 @@ def synced_matter_id(session: Session, matter_id: int | None = None) -> int:
 
 
 def run_digest(
-    session: Session, matter_id: int, retry_failed: bool = False
+    session: Session,
+    matter_id: int,
+    retry_failed: bool = False,
+    *,
+    write_brief: bool = True,
 ) -> DigestRun:
-    """Digest one matter. Calls that failed before are asked again only on request."""
+    """Digest one matter. Calls that failed before are asked again only on request.
+
+    `write_brief=False` keeps the stored brief, for a re-read of a few pages whose facts
+    the brief does not cite; the next full digest writes it again.
+    """
     run = DigestRun(matter_id=matter_id)
     session.add(run)
     session.commit()
@@ -59,7 +67,7 @@ def run_digest(
             # The previous mapping stood in for a failed call; the run says so.
             errors.extend(mapping.errors)
             stats["extract"] = dict(extract_all(session, matter_id, mapping))
-            stats["merge"] = dict(merge(session, matter_id))
+            stats["merge"] = dict(merge(session, matter_id, brief=write_brief))
     except ModelsNotConfigured as error:
         session.rollback()
         errors.append(str(error))

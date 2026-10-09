@@ -52,12 +52,16 @@ class Scores(BaseModel):
     scores: list[Score]
 
 
-def merge(session: Session, matter_id: int) -> Counter[str]:
+def merge(session: Session, matter_id: int, *, brief: bool = True) -> Counter[str]:
+    """`brief=False` leaves the stored brief as it is; the next digest writes it."""
     counts: Counter[str] = Counter()
     counts["deduplicated"] = deduplicate(session, matter_id)
     counts.update(score(session, matter_id))
     counts["cross_check_disagreements"] = cross_check(session, matter_id)
-    counts["brief"] = int(write_brief(session, matter_id))
+    if brief:
+        counts["brief"] = int(write_brief(session, matter_id))
+    else:
+        counts["brief_kept"] = 1
     session.commit()
     log.info("Merge: %s", dict(counts))
     return counts

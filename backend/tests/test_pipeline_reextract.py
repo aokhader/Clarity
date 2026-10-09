@@ -131,6 +131,45 @@ def test_the_next_digest_reads_only_the_chosen_units(
     assert sorted(read, key=str) == [("extract_page", 2), ("extract_record", None)]
 
 
+def test_keep_brief_reads_the_chosen_units_and_leaves_the_brief_alone(
+    data_dir: Path,
+    session: Session,
+    matter: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for name in ("EXTRACT_MODEL", "MERGE_MODEL"):
+        monkeypatch.setenv(name, "invented")
+    get_settings.cache_clear()
+    asked: list[str] = []
+
+    def model(request: llm.ModelRequest) -> llm.ModelResult:
+        asked.append(request.purpose)
+        if request.purpose.startswith("extract"):
+            return llm.ModelResult({"document_type": "other", "facts": []}, 1, 1)
+        return llm.ModelResult(None, 0, 0, "not needed here")
+
+    monkeypatch.setattr(llm, "_execute", model)
+    document = matter["document"]
+
+    code = main(
+        [
+            "reextract",
+            "--matter-id",
+            str(MATTER),
+            "--page",
+            f"{document.id}:2",
+            "--keep-brief",
+        ]
+    )
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "extract_page" in asked and "brief" not in asked
+    assert '"brief_kept": 1' in out
+    assert "the brief is kept" in out
+
+
 def test_a_dry_run_changes_nothing(
     data_dir: Path,
     session: Session,

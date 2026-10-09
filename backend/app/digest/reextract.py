@@ -75,7 +75,7 @@ def mark_unread(selection: Selection) -> None:
         record.content_hash = None
 
 
-def estimate(session: Session, selection: Selection) -> Estimate:
+def estimate(session: Session, selection: Selection, brief: bool = True) -> Estimate:
     """Upper bound from the average recorded cost of each kind of call."""
     held = _facts_held(session, selection)
     calls = len(selection.pages) + len(selection.records)
@@ -87,7 +87,7 @@ def estimate(session: Session, selection: Selection) -> Estimate:
         (len(selection.pages), page_cost),
         (len(selection.records), record_cost),
         (held, fact_cost),
-        (1, brief_cost),
+        (1 if brief else 0, brief_cost),
     ]
     if any(cost is None for count, cost in parts if count):
         return Estimate(calls, held, None)

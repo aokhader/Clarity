@@ -159,7 +159,7 @@ def _reextract(args: argparse.Namespace) -> int:
         except (NoSyncedMatter, NotRereadable, ValueError) as error:
             print(str(error), file=sys.stderr)
             return 1
-        cost = estimate(session, selection)
+        cost = estimate(session, selection, brief=not args.keep_brief)
         pages, records = len(selection.pages), len(selection.records)
         print(
             f"Selected {_count(pages, 'page')} and {_count(records, 'record')}, "
@@ -168,15 +168,20 @@ def _reextract(args: argparse.Namespace) -> int:
         for line in describe(session, selection):
             print(f"  {line}")
         price = f"about ${cost.usd:.2f}" if cost.usd is not None else "cost unknown"
+        then = (
+            "scoring the new facts; the brief is kept"
+            if args.keep_brief
+            else "scoring the new facts and one brief"
+        )
         print(
-            f"At most {_count(cost.extraction_calls, 'extraction call')}, then scoring "
-            f"the new facts and one brief: {price}, at the average recorded per call."
+            f"At most {_count(cost.extraction_calls, 'extraction call')}, then "
+            f"{then}: {price}, at the average recorded per call."
         )
         if args.dry_run or not (pages or records):
             return 0
         mark_unread(selection)
         session.commit()
-        run = run_digest(session, matter_id)
+        run = run_digest(session, matter_id, write_brief=not args.keep_brief)
         print(json.dumps(run.stats_json, indent=2))
         if run.error:
             print(f"Digest error: {run.error}", file=sys.stderr)
@@ -278,6 +283,11 @@ def main(argv: list[str] | None = None) -> int:
         "--dry-run",
         action="store_true",
         help="list the selection and its cost; change nothing",
+    )
+    reextract.add_argument(
+        "--keep-brief",
+        action="store_true",
+        help="leave the stored brief as it is; the next digest writes it",
     )
     reextract.set_defaults(run=_reextract)
     commands.add_parser(
