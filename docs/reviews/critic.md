@@ -2,6 +2,137 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 7 (D52), 2026-10-09 13:55 PDT
+
+H8, at `69285d3`. Sources used, all read-only:
+- **The real matter:** the API on port 8000, and `data/app.db` opened with `mode=ro` (`sources`, `facts`, `chat_turns`, `chat_threads`, `llm_calls`).
+- **The invented matter:** the API on port 8001, and the two screenshots.
+
+I sent GETs only. I asked, retried and closed nothing. `llm_calls` ended at id 783 both before and after the pass. "T2 t3 S3" means thread 2, turn 3, sentence 3.
+
+### Findings
+
+1. **The stage date still reads as the day the case entered its stage. It is the moment the matter record was created in Clio.**
+   - **The data.** On source 1, `matter_stage_updated_at`, `updated_at` and `created_at` are equal to the second. Clio set the stage when the record was made, which was the day the matter was loaded for the hackathon. That is evidence of the import, not of a stage move. The suit's filing is a dated court event (fact 2022) from long before.
+   - **The decision record is wrong.** PLAN H7 says "the shown date was the real stage day". README:220 and :436 call the problem fixed. D52 (1) fixed which field the date comes from, not how it reads.
+   - **Where it still misleads:**
+     - **Full timeline.** `GET /timeline` (`matter_queries.py:299`, drawn by `FeedRow.tsx:20`) puts fact 1929 as the latest past-dated row: row 12 of 1,813, directly under the upcoming tasks and deadlines. It shows as kind "Stage" on that day.
+     - **Ask.** T2 t2 S1 states the date as the stage's date. So does T2 t3 S3, which is new since Pass 6 (asked 12:03 PDT, $0.038). Its question asks what happened after a given month, and S3 offers the stage date as one of the things that happened. Both are `supported` by 1929.
+     - **Why the model reads it that way.** `digest/brief.py:201` sends the date as a plain `date`, and `chat_row` (`digest/chat.py:222`) keeps it.
+     - **Rule 3.** The chip opens the matter's fields (`source_views.py:118`, `_matter`). Those list Stage, Status and Opened. The date in the drawer's header is `open_date`. The date the row or sentence gives appears nowhere in the drawer.
+   - **Where it is already right:**
+     - the stage track has no date;
+     - key events, changes and the brief don't use 1929 for a date;
+     - the provider's "last movement" leaves it out (`provider_view.py:152`), though that docstring still says "the record's last edit".
+   - **Expected:**
+     - The stage fact has no `event_date`, since a stage is a state, not an event.
+     - Clio's stage timestamp is kept as a named value (for example `stage_set_in_clio_on`) and shown as a "Stage set in Clio" field in the drawer's Matter section. It is left out of the timeline, and chat names it so.
+     - Once the fact is undated, the two stored sentences get "Not in file" when served, which is right: no other fact holds that date.
+     - Cost: changing `fact_row` changes the brief's input, so it costs one brief call (about $0.05). Changing only `chat_row` and the code fact costs nothing.
+   - **Owners:**
+     - pipeline: `matter_fields.py:105`, `chat_row`;
+     - backend: the drawer field and the timeline;
+     - reviewer: README:220 and :436;
+     - lead: the PLAN H7 wording.
+   - Needs decision 1.
+
+2. **The third answer on the real matter (T2 t3, the 12:03 PDT follow-up, $0.038): its "not in the file" mark is a checker miss. The model stated a date that the cited record holds.**
+   - **The answer.** It has three sentences, `llm_calls` 780, 0 withdrawn. The question attached no item, so the answer rests on retrieval.
+   - **Each sentence against its chips:**
+
+     | Sentence | Chips | What the source holds | Verdict served |
+     |---|---|---|---|
+     | S1 | 772 (a subpoena, p. 1) | The witness, the day and the format, all on the page and in the quote | supported |
+     | S2 | 1991 (a note), 1968 (the matter's fields) | The note holds the valuation figure and the treatment point, and its own record date is the day S2 states. 1968 holds the treatment point. | **`not_in_file`** for the date; the amount is supported |
+     | S3 | 1929 (the matter's fields) | The stage, but not the date (see #1) | supported |
+
+     S1 sits at the edge of the question's window: its event falls in the month the question asks to start after, rather than after it.
+   - **Why the verdict is wrong.**
+     - The note's date is in its record (`raw_json.date`). The drawer shows it as the record's date (`occurred_on`). The model read it from the source label (`brief.py:224`).
+     - Fact 1991 has no `event_date`, and `check_sentence` (`brief_check.py:100`) counts only facts' own dates. So it found the day nowhere and called it not in the file.
+     - It is not a date that no record holds. This is Pass 6 #4 from the other side: a cited fact's source date does not count as its own. D51 did not take up that half.
+   - **How the UI shows it.**
+     - `ChatAnswer` keeps S2 among the cited sentences. `MarkedText` puts a grey dotted underline on the date, followed by the words "Not in file" in muted text (about 6:1 contrast, with a decorative icon). Nothing else marks the sentence, and the mark has no chip.
+     - So the mark is plain to read, but it is wrong. One click on the sentence's own chip opens a drawer headed by that same date. A judge would catch that in seconds.
+   - **The mark would outlive a fix.** If this thread is closed before the fix lands, `chat_transcript._sentence` freezes "(not found in the file: …)" into the permanent transcript and the frozen turn. Don't close thread 2 until then.
+   - **Expected:**
+     - a cited fact's source date counts as stated by it;
+     - a date found only in other records reads "not in the cited records".
+
+     The same fix covers the brief (D12). Open threads are checked again each time they are served, so S2 corrects itself with no model call.
+   - Owner: backend (`brief_check`).
+
+3. **A closed thread's chips are fact ids, and a re-read replaces fact ids.**
+   - **How ids change.** When a source's facts change, `replace_facts` (`digest/records.py:190`) deletes them and inserts new ones. `facts.id` is an `INTEGER PRIMARY KEY` without `AUTOINCREMENT` (there is no `sqlite_sequence`), so SQLite can hand a deleted top id to a new fact.
+   - **Open and closed threads differ.**
+     - An open thread withdraws a sentence whose fact has gone.
+     - A frozen thread is never checked again (`chat_view.py:121`). After a re-read, its chip opens a 404 ("fact N does not exist or cannot be shown"), or, if the id was reused, a different fact.
+     - The text transcript survives, since it names sources by title and page.
+   - **Not hit yet:** the real matter has no closed thread.
+   - **Expected:** freeze each chip's source id and page with the turn. Have the drawer open a gone fact by its source, or mark the chip "re-read since this thread closed".
+   - Owner: backend, with ui-builder for the mark. Needs decision 2, since the Manager ruled that a closed thread is "never re-checked".
+
+4. **The screenshots: correct, with two sentences a judge may question.**
+   - **They pass.**
+     - Both show only the invented matter.
+     - Both match README:19's alt text:
+       - `ask.png`: the thread under Open with Close, the tile and its chips, five sentences with chips, the time and cost, and the follow-up box;
+       - `ask-closed.png`: "No open questions", the thread under Closed, who closed it and when, Download transcript, New question, the same five sentences, and no follow-up box.
+   - **Two sentences.**
+     - S5, "marked low confidence in the file", reports Clarity's own reading (fact 24, `confidence: low`) as something the file says. Its chip opens a bill page that says nothing about confidence.
+     - S2, "The code-computed medical bills total", is engineering language in an attorney's answer.
+     - Both come from what `chat_row` sends: the confidence field, and the computed-totals block.
+   - **Expected:** a prompt line saying confidence is Clarity's reading ("Clarity read this charge with low confidence; check the page"). Owner: pipeline. A retake costs about $0.02 and needs the Manager's go-ahead.
+   - **Minor:** the footer says "Synced from Clio" for a seeded matter. `MatterFooter.tsx:65` ignores the seed run's `stats.seed`. This is in every screenshot. Owner: ui-builder.
+
+5. **The transcript drops the low-confidence mark.** On screen, the Doc p.2 chips are dashed and labelled low confidence. The transcript lists them plainly (`chat_transcript.py`, `_source_names`).
+   - Expected: add "(low confidence)" after such a source.
+   - Owner: backend. Minor.
+
+6. **Minor.**
+   - **Error order.** `services/chat.py:109` checks the budget before `_still_open` (line 113). On a day the budget is spent, a question in a closed thread gets a 429 about the budget, not the 409 for a closed thread. Retry checks in the right order (line 156). Owner: backend.
+   - **A stale docstring.** `provider_view.py:153` still says the stage fact is dated by the record's last edit. Owner: backend.
+
+### Verified correct
+
+- **The frozen transcript on the invented matter matches the served thread.**
+  - All five sentences are present, in order and word for word.
+  - Each sentence's sources are its chips, named as the drawer names them. I checked with `GET /api/facts/{12,24,27}/source`: Matter with its number; Doc with its title and p. 2; Email with its title.
+  - The header gives the number, the title, and who closed it and when.
+  - Asked, answered and closed fall within one minute (20:46Z), and each is written "1:46 PM UTC-07:00", which is right for PDT.
+  - Cost: 17,398 µ$ is written "$0.02", the same as the UI.
+  - No verdict note appears: four sentences are supported and S5 is unchecked, which the contract leaves unmarked.
+- **The code for closing.**
+  - A closed thread is served from `turns_json` (`chat_view.py:121`), which was frozen from `live_turns` at the moment of closing.
+  - `_still_open` refuses a question and a retry with 409. A close while a turn is running is a 409. A second close returns the thread unchanged.
+- **Scoping.**
+  - The transcript route lives under `/api/matters/{id}`, and `_thread` checks the matter.
+  - Thread 2 asked for under matter 1 returns 404. On the real matter, an open thread's transcript returns 404.
+  - `/api/p` has three routes, none of them chat.
+  - The download is `text/plain; charset=utf-8`, saved as `clarity-thread-1.txt`, with no case data in the name.
+- **D51 holds on the real matter.**
+  - Both threads load: 3 turns and 12 sentences, 0 withdrawn.
+  - Every sentence's chips equal the model's `fact_ids` in `chat_turns.answer_json`, in the model's order.
+  - Thread 1 was archived before D52. It is served as open, as README:353 says.
+  - The stage item now resolves to 1929 plus the dated status changes and court events, 2022 among them.
+- **Rule 5.**
+  - The GET routes (threads, a thread, the transcript, the budget, search) reach no `llm` import.
+  - `answer_question` is imported only inside `run_turn` (`chat.py:367`).
+  - The budget, 216,068 µ$, is the sum of `llm_calls` 778–780.
+
+### The rest of Pass 6
+
+- **The loose date check (#4) still holds.** `file_values` and `_held_to_citations` (`brief_check.py:42`, `:123`) are unchanged. #2 above shows the other face of it.
+- **There is still no firm-wide cap.** `_check_budget` (`chat.py:93`) is per matter.
+
+### Needs decision
+
+1. **The stage date.** Don't date the stage fact. Show Clio's stage timestamp only as a labelled field in the drawer. (The alternative is to date it only when it differs from `created_at`.) I recommend the first.
+2. **Frozen chips.** Freeze each chip's source id and page, so a closed thread's chips survive a re-read.
+3. **Still open from Pass 6:**
+   - a cited fact's source date counts as its own (#2);
+   - a firm-wide daily chat cap.
+
 ## Pass 6 (D49–D50, the chat), 2026-10-09 10:48 PDT
 
 H5, on the real matter, at `68fd0a1`. This pass covers the two stored answers:
