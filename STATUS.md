@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D52 (2) done: Close asks once, Open/Closed groups, closed thread read-only with transcript link, panel too; headless, chat mocked | Lead: check in browser once backend's close route is live | backend: `closed_by` on `ChatThreadSummaryOut`, so Closed rows say who closed | | 2026-10-09 12:24 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | Pass 7 (H8, D52): stage date is Clio record creation, still misleads; T2 t3 S2 false "Not in file"; frozen chips break on re-read | Stand by | | Undate stage fact; source date counts as cited; freeze chip source+page | 2026-10-09 13:55 |
-| reviewer | H8 README for D52: close/transcript, stage date, 2 Ask shots, costs; check.sh no FAIL, 544; Node tests SKIPPED | Standing by | | Lead: real matter's 3rd Ask answer (12:03) has a date marked not in file; critic unread | 2026-10-09 13:55 |
+| reviewer | H10 README for D53: stage undated, own-date check, prompt v2, frozen chips; check.sh no FAIL, 553; Node tests SKIPPED | Standing by | lead: docs/clio-api.md:67 still gives D52's stage dating, not D53's | | 2026-10-09 14:14 |
 
 ## Stubs and shortcuts
 

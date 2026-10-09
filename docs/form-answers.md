@@ -37,6 +37,8 @@ This was measured from `GET /api/ops/cost` and the `llm_calls` table. A further 
 - The re-read of one complaint page, with the brief rewritten to cover the suit (D43), made 4 paid calls, and answered 3 more from the cache (35,432 input and 5,381 output tokens), for $0.0820.
 - No call failed. Each run was tried first on a copy of the database: 6 calls for $0.0148 before the first two, 19 calls for $0.043 before the third, 17 calls for $0.1031 before the fourth, and 5 calls for $0.0760 before the fifth.
 
+**Measured: one more update run on 2026-10-09 cost $0.078** (D53, a digest that left the stage undated and rewrote the brief). It made 2 paid `claude-sonnet-5-5` calls and answered 3 from the cache (25,824 input and 2,659 output tokens), read as the change in `GET /api/ops/cost` before and after.
+
 Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 attempts in a 2026-10-08 trial (D36).
 
 Reopening the matter costs $0, because results are stored and cached by input hash. A second digest over unchanged inputs makes no model call (`backend/tests/test_pipeline_second_digest.py`).
