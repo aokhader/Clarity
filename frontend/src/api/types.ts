@@ -715,6 +715,98 @@ export type CallDetailOut = {
   notes: CallNoteOut[]
 }
 
+// --- Chat (docs/chat-contract.md; D49) -------------------------------------------------
+
+/** An item the user pointed at. The client sends ids only; the server resolves and labels it. */
+export type AskItemRef =
+  | { kind: 'facts'; fact_ids: number[] }
+  | { kind: 'source'; source_id: number }
+  /** The Clio contact id, as ProviderOut.contact_id. */
+  | { kind: 'provider'; contact_id: number }
+  | { kind: 'call'; call_id: number }
+  | { kind: 'kpi'; name: KpiOut['name'] }
+  | { kind: 'stage' }
+
+export type ChatAskIn = {
+  /** Stripped by the server; blank is 422. At most 2000 characters. */
+  question: string
+  /** At most 8. */
+  items: AskItemRef[]
+  /** null starts a new thread. */
+  thread_id: number | null
+}
+
+export type AskItemOut = {
+  ref: AskItemRef
+  /** Built by the server from generic words, the kind and a date, e.g. "Bill, Mar 3, 2025". */
+  label: string
+  /** What the item resolved to, at most 50. */
+  facts: FactRef[]
+}
+
+export type ChatTurnStatus = 'running' | 'done' | 'failed' | 'no_model'
+
+/** A superset of BriefSentenceOut, so the brief's sentence component renders it. */
+export type ChatSentenceOut = {
+  text: string
+  /** Empty only when not_in_file. */
+  facts: FactRef[]
+  verdict: SentenceVerdict
+  mentions: DraftMentionOut[]
+  not_in_file: boolean
+}
+
+export type ChatTurnOut = {
+  turn_id: number
+  thread_id: number
+  question: string
+  items: AskItemOut[]
+  status: ChatTurnStatus
+  /** Empty unless done. */
+  sentences: ChatSentenceOut[]
+  /** The model found nothing in the file that answers. */
+  no_answer: boolean
+  /** Sentences hidden at serve time, since a cited fact is no longer renderable. */
+  withdrawn: number
+  /** failed: a short reason, never record text. */
+  error: string | null
+  /** The answer's model call; null while running or when cached. */
+  cost_micro_usd: number | null
+  /** The stub user's name. */
+  asked_by: string | null
+  asked_at: IsoDateTime
+  answered_at: IsoDateTime | null
+}
+
+export type ChatThreadOut = {
+  thread_id: number
+  /** The first question, cut to 80 characters. */
+  title: string
+  created_at: IsoDateTime
+  updated_at: IsoDateTime
+  /** Oldest first. */
+  turns: ChatTurnOut[]
+}
+
+export type ChatThreadSummaryOut = {
+  thread_id: number
+  title: string
+  updated_at: IsoDateTime
+  turn_count: number
+  last_status: ChatTurnStatus
+  /** Who started the thread. */
+  asked_by: string | null
+}
+
+export type ChatBudgetOut = {
+  spent_today_micro_usd: number
+  cap_micro_usd: number
+  /** The next local midnight, with its offset. */
+  resets_at: IsoDateTime
+  /** CHAT_MODEL, the key and the chat prices are set. */
+  configured: boolean
+}
+
 // --- Ops -------------------------------------------------------------------------------
 
 export type HealthOut = {
@@ -755,4 +847,7 @@ export type CostOut = {
   input_tokens: number
   output_tokens: number
   cost_micro_usd: number
+  /** D49: the chatbot's calls, kept apart; the fields above count the digest only. */
+  chat_calls: number
+  chat_cost_micro_usd: number
 }

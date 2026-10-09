@@ -10,9 +10,9 @@ Money is integer cents. Dates are ISO strings in JSON.
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import Confidence, FactKind, Origin, SourceType, Visibility
 
@@ -825,6 +825,120 @@ class CallDetailOut(BaseModel):
     notes: list[CallNoteOut]
 
 
+# --- API: chat (D49) ------------------------------------------------------------------
+# The client points at items by id; the server resolves and labels each one inside the
+# matter (docs/chat-contract.md).
+
+
+class AskFactsRef(BaseModel):
+    kind: Literal["facts"] = "facts"
+    fact_ids: list[int] = Field(min_length=1, max_length=50)
+
+
+class AskSourceRef(BaseModel):
+    kind: Literal["source"] = "source"
+    source_id: int
+
+
+class AskProviderRef(BaseModel):
+    kind: Literal["provider"] = "provider"
+    contact_id: int  # Clio contact id, as ProviderOut.contact_id
+
+
+class AskCallRef(BaseModel):
+    kind: Literal["call"] = "call"
+    call_id: int
+
+
+class AskKpiRef(BaseModel):
+    kind: Literal["kpi"] = "kpi"
+    name: Literal["case_value", "coverage", "medical_specials", "firm_spend"]  # KpiOut.name
+
+
+class AskStageRef(BaseModel):
+    kind: Literal["stage"] = "stage"
+
+
+AskItemRef = Annotated[
+    AskFactsRef | AskSourceRef | AskProviderRef | AskCallRef | AskKpiRef | AskStageRef,
+    Field(discriminator="kind"),
+]
+
+
+class ChatAskIn(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)  # stripped; blank is 422
+    items: list[AskItemRef] = Field(default_factory=list, max_length=8)
+    thread_id: int | None = None  # None starts a new thread
+
+    @field_validator("question")
+    @classmethod
+    def _question_not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question is blank")
+        return stripped
+
+
+class AskItemOut(BaseModel):
+    ref: AskItemRef
+    # Built by the server from generic words, the kind and a date, e.g. "Bill, Mar 3, 2025".
+    label: str
+    facts: list[FactRef]  # what the item resolved to, at most 50
+
+
+ChatTurnStatus = Literal["running", "done", "failed", "no_model"]
+
+
+class ChatSentenceOut(BaseModel):
+    # A superset of BriefSentenceOut, so the brief's sentence component renders it.
+    text: str
+    facts: list[FactRef]  # empty only when not_in_file
+    verdict: SentenceVerdict
+    mentions: list[DraftMentionOut]
+    not_in_file: bool
+
+
+class ChatTurnOut(BaseModel):
+    turn_id: int
+    thread_id: int
+    question: str
+    items: list[AskItemOut]
+    status: ChatTurnStatus
+    sentences: list[ChatSentenceOut]  # empty unless done
+    no_answer: bool  # the model found nothing in the file that answers
+    # Sentences hidden at serve time, since a cited fact is no longer renderable.
+    withdrawn: int
+    error: str | None  # failed: a short reason, never record text
+    cost_micro_usd: int | None  # the answer's model call, None while running or when cached
+    asked_by: str | None  # the stub user's name
+    asked_at: datetime
+    answered_at: datetime | None
+
+
+class ChatThreadOut(BaseModel):
+    thread_id: int
+    title: str  # the first question, cut to 80 characters
+    created_at: datetime
+    updated_at: datetime
+    turns: list[ChatTurnOut]  # oldest first
+
+
+class ChatThreadSummaryOut(BaseModel):
+    thread_id: int
+    title: str
+    updated_at: datetime
+    turn_count: int
+    last_status: ChatTurnStatus
+    asked_by: str | None  # who started the thread
+
+
+class ChatBudgetOut(BaseModel):
+    spent_today_micro_usd: int
+    cap_micro_usd: int
+    resets_at: datetime  # the next local midnight, timezone-aware
+    configured: bool  # CHAT_MODEL, the key and the chat prices are set
+
+
 # --- API: ops ------------------------------------------------------------------------
 
 
@@ -866,3 +980,6 @@ class CostOut(BaseModel):
     input_tokens: int
     output_tokens: int
     cost_micro_usd: int
+    # D49: the chatbot's calls, kept apart; the fields above count the digest only.
+    chat_calls: int
+    chat_cost_micro_usd: int
