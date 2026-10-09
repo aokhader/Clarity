@@ -36,6 +36,8 @@ async function readJson<T>(response: Response, url: string): Promise<T> {
   if (!response.ok) {
     throw new ApiError(response.status, `${response.status} ${response.statusText} from ${url}`, await errorDetail(response))
   }
+  // 204 No Content has no body to parse; its callers type the result as null.
+  if (response.status === 204) return null as T
   const body: unknown = await response.json()
   // The shape is guaranteed by the backend's response schemas, which types.ts mirrors.
   return body as T

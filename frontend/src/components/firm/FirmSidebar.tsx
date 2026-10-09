@@ -1,4 +1,15 @@
-import { Briefcase, FolderOpen, Gavel, LayoutGrid, Menu, Phone, ShieldAlert, X, type LucideIcon } from 'lucide-react'
+import {
+  Briefcase,
+  FolderOpen,
+  Gavel,
+  LayoutGrid,
+  Menu,
+  MessageSquareText,
+  Phone,
+  ShieldAlert,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 
@@ -11,6 +22,7 @@ const VIEW_ICONS: Record<MatterViewId, LucideIcon> = {
   provider: ShieldAlert,
   documents: FolderOpen,
   calls: Phone,
+  ask: MessageSquareText,
 }
 
 /**
