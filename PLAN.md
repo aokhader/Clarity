@@ -118,7 +118,7 @@ The order:
 - [x] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows. (The lead checked the three court rows on the real matter: internal, each opens its page, the answer's quote is on its page and the scans passed their second read.)
 
 **D42, the court-event notes and the brief (Manager, 2026-10-08)**
-- [ ] P15 pipeline: the record prompt files court events as `litigation_event`; re-read only the notes and emails that describe them (never the custom-field record; the KPI tiles must not change); then one digest to rewrite the brief. Estimate, trial on a copy, backup, run; stop at $1.
+- [x] P15 pipeline: the record prompt files court events as `litigation_event`; re-read only the notes and emails that describe them (never the custom-field record; the KPI tiles must not change); then one digest to rewrite the brief. Estimate, trial on a copy, backup, run; stop at $1. (Run 2026-10-08: notes and emails got their own prompt, `extract_note.txt`, so the custom-field record cannot be re-read by a note-prompt change; 14 records re-read; 10 litigation events added, 1 dated; the brief rewritten; KPI tiles identical; trial $0.103, run $0.104, 17 calls each, 0 errors; backup before the run.)
 - [ ] C5 critic: the new brief and the re-filed records on the real matter: every sentence's chips hold its text, the court events are dated right, nothing internal reaches a provider.
 
 ## Calls (D8: option A now, B later)
