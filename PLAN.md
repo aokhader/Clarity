@@ -124,7 +124,7 @@ The order:
 **D43, from the critic's Pass 5 (lead, within D42)**
 - [x] P16 pipeline: a generic brief-prompt line for where the litigation stands (defenses pleaded, earlier dismissal or refiling); re-read the one complaint page with the dated pre-suit notice; one brief call. Runbook; D42 and D43 together stop at $1. (Run 2026-10-08: trial $0.076, run $0.082, 0 errors; the brief's third sentence carries the suit, the dismissal and refiling and the pleaded limitations defense; the notice is a dated court event; KPI tiles identical. D42 and D43 together: $0.365.)
 - [x] B16 backend: the story pins court events by type (filed, dismissed, renewed, answered, then the rest); `GET /matters/{id}/key-events/undated` lists undated court events, leaving out restatements of dated facts.
-- [ ] U18 ui-builder: under the story, one line naming the undated court events with their chips.
+- [x] U18 ui-builder: under the story, one line naming the undated court events with their chips.
 
 ## Calls (D8: option A now, B later)
 
