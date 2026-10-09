@@ -1,4 +1,4 @@
-import type { CaseStage, FactKind, SourceType, WaitingOn } from '@/api/types'
+import type { CaseStage, FactKind, LitigationEventType, SourceType, WaitingOn } from '@/api/types'
 
 export const KIND_LABELS: Record<FactKind, string> = {
   case_stage: 'Stage',
@@ -101,6 +101,21 @@ const KIND_LANE: Partial<Record<FactKind, Lane>> = {
 /** A fact's lane on the story so far; a kind with no lane of its own is the case's. */
 export function laneOf(kind: FactKind): Lane {
   return KIND_LANE[kind] ?? 'case'
+}
+
+/** A court event named by its type alone: short and neutral, unlike the model's title. */
+export const LITIGATION_EVENT_LABELS: Record<LitigationEventType, string> = {
+  filed: 'Filed',
+  served: 'Served',
+  answered: 'Answered',
+  dismissed: 'Dismissed',
+  renewed: 'Renewed',
+  motion: 'Motion',
+  order: 'Order',
+  hearing: 'Hearing',
+  deposition: 'Deposition',
+  trial: 'Trial',
+  other: 'Court event',
 }
 
 export const WAITING_ON_LABELS: Record<WaitingOn, string> = {

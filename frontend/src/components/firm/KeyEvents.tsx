@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import { useMatterKeyEvents } from '@/api/matters'
 import { KeyEventRow } from '@/components/firm/KeyEventRow'
+import { UndatedCourtEvents } from '@/components/firm/UndatedCourtEvents'
 import { LoadError } from '@/components/shared/LoadError'
 import { Loading } from '@/components/shared/Loading'
 import { Section } from '@/components/shared/Section'
@@ -9,7 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 /**
  * What has happened so far, in order: about ten key events from the server, the incident
- * pinned first, numbered oldest first. The full timeline is one link away.
+ * pinned first, numbered oldest first, then the court events the file gives no date for.
+ * The full timeline is one link away.
  */
 export function KeyEvents({ matterId }: { matterId: number }) {
   const events = useMatterKeyEvents(matterId)
@@ -35,6 +37,7 @@ export function KeyEvents({ matterId }: { matterId: number }) {
             ))}
           </ol>
         ))}
+      <UndatedCourtEvents matterId={matterId} />
       <Link
         to={{ search: '?view=attorney&feed=timeline' }}
         className="mt-3 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
