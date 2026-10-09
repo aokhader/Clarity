@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect } from 'react'
+import { useParams } from 'react-router'
 
+import { usePrefetchFrozenFactSources } from '@/api/chat'
 import { usePrefetchFactSources } from '@/api/facts'
 import { Button } from '@/components/ui/button'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
@@ -18,15 +20,20 @@ const STEP_BUTTON = 'h-10 px-3 aria-disabled:pointer-events-none aria-disabled:o
  * and Next.
  */
 export function SourceNavigator() {
-  const { factId, sources, step } = useSourceDrawer()
-  const prefetch = usePrefetchFactSources()
+  const { factId, sources, frozenThreadId, step } = useSourceDrawer()
+  const matterId = Number(useParams().matterId)
+  const prefetchLive = usePrefetchFactSources()
+  const prefetchFrozen = usePrefetchFrozenFactSources()
   const index = sources !== null && factId !== null ? sources.indexOf(factId) : -1
   const previous = index > 0 ? sources?.[index - 1] : undefined
   const next = index >= 0 ? sources?.[index + 1] : undefined
 
   useEffect(() => {
-    prefetch([previous, next].filter((id) => id !== undefined))
-  }, [prefetch, previous, next])
+    const neighbours = [previous, next].filter((id) => id !== undefined)
+    // A closed thread's chips step through its frozen copies (D54), so those are fetched ahead.
+    if (frozenThreadId === null) prefetchLive(neighbours)
+    else if (Number.isInteger(matterId)) prefetchFrozen(matterId, frozenThreadId, neighbours)
+  }, [prefetchLive, prefetchFrozen, matterId, frozenThreadId, previous, next])
 
   if (sources === null || index < 0) return null
   return (

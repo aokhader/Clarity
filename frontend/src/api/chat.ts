@@ -1,7 +1,16 @@
 import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 import { apiGet, apiPost } from './client'
-import type { ChatAskIn, ChatBudgetOut, ChatThreadOut, ChatThreadSummaryOut, ChatTurnOut, FactOut } from './types'
+import type {
+  ChatAskIn,
+  ChatBudgetOut,
+  ChatThreadOut,
+  ChatThreadSummaryOut,
+  ChatTurnOut,
+  FactOut,
+  FactSourceOut,
+} from './types'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 
 /** How often a thread is checked while an answer is being written on the server. */
@@ -16,6 +25,12 @@ const chatKey = (matterId: number) => ['matters', matterId, 'chat'] as const
 const threadKey = (matterId: number, threadId: number | null) => [...chatKey(matterId), 'thread', threadId] as const
 const threadsKey = (matterId: number) => [...chatKey(matterId), 'threads'] as const
 const budgetKey = (matterId: number) => [...chatKey(matterId), 'budget'] as const
+// It sits under the thread list's key, so the list is invalidated `exact`: a new question
+// must not refetch the frozen copies, which never change.
+const frozenSourceKey = (matterId: number | null, threadId: number | null, factId: number | null) =>
+  ['matters', matterId, 'chat', 'threads', threadId, 'facts', factId, 'source'] as const
+const fetchFrozenSource = (matterId: number, threadId: number, factId: number) =>
+  apiGet<FactSourceOut>(`/matters/${matterId}/chat/threads/${threadId}/facts/${factId}/source`)
 
 /** The matter's threads: open ones first, then closed ones, in the server's order (D52). */
 export function useChatThreads(matterId: number) {
@@ -65,7 +80,7 @@ async function storeTurn(queryClient: QueryClient, matterId: number, turn: ChatT
   )
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: threadKey(matterId, turn.thread_id) }),
-    queryClient.invalidateQueries({ queryKey: threadsKey(matterId) }),
+    queryClient.invalidateQueries({ queryKey: threadsKey(matterId), exact: true }),
     queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
   ])
 }
@@ -78,7 +93,7 @@ async function refreshAfterRefusal(queryClient: QueryClient, matterId: number) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: budgetKey(matterId) }),
     queryClient.invalidateQueries({ queryKey: [...chatKey(matterId), 'thread'] }),
-    queryClient.invalidateQueries({ queryKey: threadsKey(matterId) }),
+    queryClient.invalidateQueries({ queryKey: threadsKey(matterId), exact: true }),
   ])
 }
 
@@ -121,9 +136,43 @@ export function useCloseThread(matterId: number) {
       apiPost<ChatThreadOut>(`/matters/${matterId}/chat/threads/${threadId}/close`, { userId }),
     onSuccess: async (thread) => {
       queryClient.setQueryData(threadKey(matterId, thread.thread_id), thread)
-      await queryClient.invalidateQueries({ queryKey: threadsKey(matterId) })
+      await queryClient.invalidateQueries({ queryKey: threadsKey(matterId), exact: true })
     },
   })
+}
+
+/**
+ * A fact's source as a closed thread cited it, frozen when the thread closed (D54), so a
+ * re-read since cannot change or remove it. Idle until all three ids are known. A frozen
+ * copy never changes, so it is never refetched; the server's 404 says the source is gone
+ * (a thread closed before D54 freezes a source the first time it is opened).
+ */
+export function useFrozenFactSource(matterId: number | null, threadId: number | null, factId: number | null) {
+  return useQuery({
+    queryKey: frozenSourceKey(matterId, threadId, factId),
+    queryFn:
+      matterId === null || threadId === null || factId === null
+        ? skipToken
+        : () => fetchFrozenSource(matterId, threadId, factId),
+    staleTime: Infinity,
+  })
+}
+
+/** Loads a closed thread's frozen sources ahead, so stepping to one in the drawer shows it at once. */
+export function usePrefetchFrozenFactSources() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    (matterId: number, threadId: number, factIds: number[]) => {
+      for (const factId of factIds) {
+        void queryClient.prefetchQuery({
+          queryKey: frozenSourceKey(matterId, threadId, factId),
+          queryFn: () => fetchFrozenSource(matterId, threadId, factId),
+          staleTime: Infinity,
+        })
+      }
+    },
+    [queryClient],
+  )
 }
 
 /**
