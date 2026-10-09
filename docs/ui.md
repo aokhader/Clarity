@@ -45,6 +45,7 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 | Viewing  | MONEY Case value | Coverage | Medical specials | Firm spend      |
 | as       +----------------------------------------------- end of screen ----+
 |          | THE STORY SO FAR  key events, oldest first, numbered | [src]     |
+|          |   Also in the file, without a date: Filed [src] - Served [src]   |
 |          | SINCE YOU LAST OPENED  at most five rows (hidden if none)        |
 |          | WHERE IT STANDS  the brief's sentences, one per row  | [src]     |
 |          |   Not answered by the file                                       |
@@ -60,8 +61,14 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 - **WhatHappened.** The incident account (`incident_account`: a model fact on the incident day, never the Clio field), the injuries as one row per body region, most-stated first, up to three, with no injury count (D40), and the two most significant liability facts, so a contested point is not shown as settled. Each a margin-cited row; "Not found in file" when absent.
 - **NowStrip.** Cells divided by hairlines: the next step, labelled "Overdue" when it is (the first overdue item, else the first task, else the first deadline that is not the statute), the statute with a countdown in words (amber within 90 days, red once passed, and "Met" in neutral ink when its Clio task is complete), the last client contact (words as well as amber after 30 days), and the overdue, upcoming and open-request counts linking to For Attorney.
 - **Money row.** The four KPI tiles in one row. Each shows the value, a one-line basis, and a source chip. When two sources disagree, show both values with a warning marker. When nothing supports the KPI, show "Not found in file".
-- **WhereItStands.** The brief's sentences, one margin-cited row each, then "Not answered by the file" from `open_questions` as a neutral list.
-- **KeyEvents.** About ten key events from `/key-events`: the incident account pinned, then dated past events (no deadlines: they are scheduled, not things that happened), at most three per kind, oldest first, numbered; a row's extra chips count source records, not pages. Each row shows the date, its lane (Case, Treatment, Negotiation) as a dot and a word, the title, and its chip. "Full timeline" opens For Attorney with the timeline selected.
+- **WhereItStands.** The brief's sentences, one margin-cited row each, then "Not answered by the file" from `open_questions` as a neutral list. In litigation, one sentence says where the suit stands: the defenses pleaded and any earlier dismissal or refiling (brief prompt version 5, D43).
+- **KeyEvents.** About ten key events from `/key-events`, oldest first and numbered. The rows are chosen in this order:
+  - the incident account, pinned;
+  - up to three dated court events (`litigation_event`), pinned by type: filed, dismissed, renewed and answered first, then the rest (D41, D43). By score alone they fall below the cutoff, yet the suit is part of what happened;
+  - other dated past events, at most three per kind. Deadlines are left out, since they are scheduled, not things that happened.
+
+  Each row shows the date, its lane (Case, Treatment, Negotiation) as a dot and a word, the title, and its chip. Court events are in the Case lane, and a row's extra chips count source records, not pages. "Full timeline" opens For Attorney with the timeline selected.
+- **UndatedCourtEvents.** One line under the story, from `/key-events/undated`: "Also in the file, without a date:" and each court event no record dates, named by its type word (Filed, Served, Dismissed and so on) with its chips. It leaves out an event a dated record restates, and is absent when there are none. A court event is never dated by the note that reports it, since a note can be written before or long after the event (D43).
 - **ChangesSince.** Facts newer than the user's last visit, with the date of that visit in the heading. At most five rows, then "and N more". Hidden when there is nothing new; one line on a first visit.
 - **For Attorney.** The action board as a table (title, due, owner, status, chip), What matters (Top 10 or the full timeline, chosen in the URL), injuries, and providers with Share.
 - **SourceChip.** A small pill showing the source type and, for documents, the page number. A dashed outline marks low confidence. In a margin-cited row the chip is described by its sentence, so two "Email" chips differ.
@@ -91,8 +98,9 @@ A single narrow column, readable by office staff with no training.
 
 ```
 +--------------------------------------------------+
-| Firm name                       Shared on date   |
-| Patient: Client name                             |
+| From your patient's law firm       Shared date   |
+| Patient: Client name (serif h1)                  |
+| Prepared for Provider name                       |
 +--------------------------------------------------+
 | CASE STATUS                                      |
 | Intake > Treating > Demand > Negotiation > ...   |
@@ -105,15 +113,22 @@ A single narrow column, readable by office staff with no training.
 |  - request, date requested                       |
 +--------------------------------------------------+
 | YOUR BILLS AND RECORDS ON FILE                   |
-|  date  description  amount            [view]     |
+|  Bills total                                     |
+|  Bills and liens                                 |
+|   date  description  amount           [view]     |
+|   date  Lien  description  amount     [view]     |
+|  Records                                         |
 +--------------------------------------------------+
 | RECENT UPDATES                                   |
-|  date  neutral status label                      |
+|  date  Moved to litigation                       |
 +--------------------------------------------------+
 | Note from the firm                               |
 +--------------------------------------------------+
 ```
 
+- The firm's name is not shown, since no synced record carries it.
+- The bills total counts bills only. A lien is listed and labelled "Lien", and a caption says liens are not added to the total (D35).
+- Recent updates lists only moves to a named stage, in labels written in code ("Moved to treatment", "Moved to litigation"). The record's own wording for a status never reaches a provider, because it can name what the firm keeps, such as a past dismissal (D41). Court events are internal.
 - Sections whose setting is off are absent, with no placeholder.
 - An expired or revoked link shows a plain message and nothing else.
 - No navigation to the firm view, and no client-side trace of hidden data.

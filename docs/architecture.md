@@ -33,7 +33,7 @@ One store of sourced facts feeds both views. The provider view is the same data 
 
 ## Data model
 
-SQLite at `data/app.db`. No migrations: tables are created at startup, and `cli reset` drops everything. Changing a table means running reset, sync, and digest again, so settle the schema early.
+SQLite at `data/app.db`. Tables are created at startup, and there are no migrations. A new table is simply created. A new fact kind or source type widens an enum's CHECK constraint, which SQLite cannot alter. `db.upgrade_schema()` therefore rebuilds each such table in place, copying every row, after backing the database up beside itself (D24). `cli upgrade-schema` runs it with the API stopped, and `cli seed-dev` runs it itself. Any other change to an existing column still means `cli reset`, sync and digest, so the columns were settled early. `cli reset` drops everything, and refuses while `data/` holds backups.
 
 `matter_id` is the Clio matter id. `file_path` and `image_path` are stored relative to `DATA_DIR`, so a zipped `data/` snapshot works on another machine.
 
@@ -45,7 +45,9 @@ sources
                                            -- fields) get one copy per matter
   clio_id is a string: calendar entry ids are strings in Clio
   clio_type: matter | custom_field | contact | relationship | note | communication |
-             task | calendar_entry | activity | document
+             task | calendar_entry | activity | document |
+             call          -- not a Clio record: a call placed from Clarity, whose
+                           -- transcript its notes cite (D8)
 
 pages
   id, source_id, page_no, has_text_layer, text, image_path, content_hash,
@@ -93,12 +95,23 @@ digest_runs                           -- same shape, so the UI can flag a failed
 
 oauth_tokens
   id, access_token, refresh_token, expires_at
+
+call_numbers                          -- a number typed in the Calls view, kept in
+  id, matter_id, name, phone, created_at   -- Clarity only, never written to Clio (D15)
+
+calls
+  id, matter_id, target_json, consent_text, started_at, ended_at,
+  transcript, transcript_final, notes_status, notes_error,
+  source_id                           -- the `call` source its notes cite
 ```
+
+The Calls tables and routes are specified in `docs/calls-contract.md`.
 
 How features fall out of the schema:
 
 - Click-to-source: `facts.source_id`, `page_no`, `quote`
 - The ten that matter: order by `significance`
+- The story so far: dated past events, oldest first, a few per kind (D39)
 - What changed: facts whose source has `clio_created_at` or `clio_updated_at` later than `views.last_opened_at`
 - Has anyone opened it: `share_events`
 - Adjust before sending: `shares.settings_json` and `hidden_fact_ids_json`
@@ -112,34 +125,44 @@ treatment_visit   medical_bill       lien              records_received
 record_request    coverage           policy_limit      case_value
 liability         demand             offer             settlement
 expense           deadline           task              client_contact
-party             incident           medical_specials  other
+party             incident           medical_specials  economic_damages
+recovery_cap      call_note          litigation_event  other
 ```
 
-`incident` (the date of incident) and `medical_specials` (the specials total) come from mapped custom fields. They feed the header and the KPI strip.
+- **`incident` and `medical_specials`** come from mapped custom fields and feed the header and the KPI strip. Records that describe the incident also yield model `incident` facts. The header's incident account is the one most of them give, never the custom field's label (D39).
+- **`economic_damages` and `recovery_cap`** have kinds of their own (D20). Before that they were filed as specials or case value, which they are not.
+- **`call_note`** is a note taken from a call's transcript (D8).
+- **`litigation_event`** is something that happened in the lawsuit: a filing, service, an answer, a dismissal, a refiling, a motion, an order, or a hearing, deposition or trial that took place (D41). It is dated by the date the record gives for the event, never by the date of the note that reports it.
+- **`status_change`** is only a move between stages, with `to_stage` set (D41).
+
+`incident` and `medical_specials` feed the header and the KPI strip.
 
 `title` is the short display string, generated at extraction time. `value_json` holds the kind-specific payload below. These payloads are the contract between the pipeline and the two views, so define them as Pydantic models in `schemas.py` during M0. Money is integer cents.
 
 | Kind | `value_json` keys |
 |---|---|
 | `case_stage` | `stage` (canonical: intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed), `inferred` |
-| `status_change` | `from_stage`, `to_stage`, `label` |
+| `status_change` | `from_stage`, `to_stage`, `label` (the record's wording, shown to the firm only, D41) |
 | `injury`, `diagnosis` | `body_part`, `description`, `severity` |
 | `treatment_visit` | `visit_type` |
 | `medical_bill`, `lien` | `amount_cents`, `balance_cents` |
 | `records_received` | `description`, `page_count` |
 | `record_request` | `description`, `status` (open or fulfilled) |
 | `coverage` | `carrier`, `coverage_type`, `confirmed` |
-| `policy_limit` | `amount_cents`, `per` (person or occurrence) |
+| `policy_limit` | `amount_cents`, `per` (person or occurrence), `policy` (defendant_liability, client_no_fault, client_um_uim, client_other, or null when the file does not say; D19, D21) |
 | `case_value` | `low_cents`, `high_cents`, `basis` |
 | `liability` | `assessment` |
 | `demand`, `offer`, `settlement` | `amount_cents`, `party` |
 | `expense` | `amount_cents`, `category`, `vendor` |
-| `deadline` | `deadline_type`, `due_at` |
+| `deadline` | `deadline_type`, `due_at`, `status` (open or complete: the status of the Clio task it was read from, filled when served, so a met statute is not shown as passed; D40) |
 | `task` | `status`, `due_at`, `assignee`, `waiting_on` (firm, client, provider, insurer, court, other) |
 | `client_contact` | `channel`, `direction` |
 | `party` | `role` |
 | `incident` | `description` |
 | `medical_specials` | `amount_cents` |
+| `economic_damages`, `recovery_cap` | `amount_cents`, `basis` (what the total includes, or what sets the cap) |
+| `call_note` | `note_kind` (summary, commitment, date, amount, follow_up), `quote_start`, `quote_end` (the span of the transcript it quotes), `amounts_cents`, `dates` |
+| `litigation_event` | `event` (filed, served, answered, dismissed, renewed, motion, order, hearing, deposition, trial, other), `detail` |
 | `other` | `detail` |
 
 Any payload may also carry `alt_values` (when two reads or two sources disagree) and `corroborating_source_ids`. `PAYLOAD_BY_KIND` in `schemas.py` is the authority; `validate_payload` rejects unknown keys, so the pipeline calls it before storing a fact.
@@ -150,15 +173,15 @@ Visibility is decided by code from `kind` and `provider_contact_id`. A model nev
 
 | Share setting | Default | Facts it releases |
 |---|---|---|
-| `case_stage` | on | `case_stage`, `status_change` (date and neutral label only), whether the matter is open |
+| `case_stage` | on | `case_stage`, whether the matter is open, and each `status_change` that moves to a named stage (`to_stage` set). A provider sees the move's date and a label written in code, such as "Moved to litigation", never the record's own wording, which can name what the firm keeps (D41) |
 | `coverage_exists` | on | A boolean derived from `coverage` facts. No carrier, no amounts. |
 | `coverage_limits` | off | `policy_limit` amounts of the defendant's liability policy only (`policy` is `defendant_liability`, D37), each labelled per person or per occurrence. The client's own policies and limits with no policy are never released. |
-| `own_bills` | on | `medical_bill`, `lien` where `provider_contact_id` matches the share |
+| `own_bills` | on | `medical_bill`, `lien` where `provider_contact_id` matches the share. A lien is labelled as one and kept out of the bills total (D35) |
 | `own_records` | on | `records_received` where `provider_contact_id` matches |
 | `requests` | on | `record_request` and open `task` facts where `provider_contact_id` matches |
 | `treatment_activity` | off | Month of the most recent `treatment_visit` across providers, with no provider named |
 
-Never shareable under any setting: `case_value`, `liability`, `demand`, `offer`, `expense`, `client_contact`, internal notes, and any fact the extractor flagged `mentions_strategy`.
+Never shareable under any setting, because no setting releases their kind: `case_value`, `liability`, `demand`, `offer`, `settlement`, `expense`, `client_contact`, `economic_damages`, `recovery_cap`, `call_note`, `litigation_event`, and every other kind missing from the table. A fact the extractor flagged `mentions_strategy` is never shareable, whatever its kind. The rules live in `services/visibility.py` (`KINDS_BY_SETTING`, `is_stage_move`, `is_shared_limit`).
 
 A provider response is the intersection of four tests: the kind is released by an enabled setting, the provider match holds where required, the fact is not in `hidden_fact_ids_json`, and the share is neither expired nor revoked. Implement it as one function, `visible_facts_for_share(share)`, and test it. This function is the security boundary of the product.
 
@@ -176,26 +199,45 @@ GET   /api/matters/{id}/brief                    narrative with fact ids per sen
 GET   /api/matters/{id}/changes                  facts new since this user's last open
 POST  /api/matters/{id}/opened                   record the visit
 GET   /api/matters/{id}/feed?limit=10            facts by significance
-GET   /api/matters/{id}/key-events?limit=10      key events, incident first, oldest first (D39)
+GET   /api/matters/{id}/key-events?limit=10      the story so far: the incident, up to three
+                                                 dated court events by type, then other dated
+                                                 past events; oldest first (D39, D43)
+GET   /api/matters/{id}/key-events/undated       court events no record dates, leaving out
+                                                 any a dated record restates (D43)
 GET   /api/matters/{id}/timeline?kind=&q=        all facts by date
-GET   /api/matters/{id}/actions                  overdue, upcoming, waiting on others
+GET   /api/matters/{id}/actions                  overdue, upcoming, waiting_on_others (shown
+                                                 as "open requests", D40)
 GET   /api/matters/{id}/injuries
 GET   /api/matters/{id}/providers                provider contacts, totals, share status
 
-GET   /api/facts/{id}/source                     source record, quote, page image url
+GET   /api/facts/{id}/source                     source record, quote, pages with their text
 GET   /api/pages/{id}/image                      rendered page PNG
 
 GET   /api/matters/{id}/shares
 POST  /api/matters/{id}/shares                   create for a provider contact
+POST  /api/matters/{id}/shares/preview           what a share would release, before it exists
+POST  /api/matters/{id}/shares/draft-check       the draft checker, before the link exists
 GET   /api/shares/{id}/preview                   exactly what the provider would get
+POST  /api/shares/{id}/draft-check               each sentence's amounts and dates against
+                                                 what this link shows and withholds (D2)
 PATCH /api/shares/{id}                           settings, hidden facts, note, expiry
 POST  /api/shares/{id}/revoke
 
+GET   /api/matters/{id}/calls/next               who to call next, with phone numbers (D8)
+POST  /api/matters/{id}/call-numbers             a typed number, stored only in Clarity
+POST  /api/matters/{id}/calls                    start a call, with the consent logged
+GET   /api/matters/{id}/calls
+PUT   /api/calls/{id}/transcript                 save the transcript
+POST  /api/calls/{id}/end                        end the call and start the notes run
+GET   /api/calls/{id}                            the call, its notes and their status
+
 GET   /api/ops/health                            API and database up; whether .env is filled
 POST  /api/ops/sync            GET /api/ops/sync/status
-POST  /api/ops/digest          GET /api/ops/digest/status
+POST  /api/ops/digest          GET /api/ops/digest/status   (body: retry_failed)
 GET   /api/ops/cost                              tokens and dollars for this matter
 ```
+
+No GET route calls a model. A digest and a call's notes start a background run from a POST and are stored; the routes then serve the stored result.
 
 Provider routes take no header. The token is the credential.
 
@@ -207,7 +249,7 @@ GET   /api/p/{token}/pages/{id}/image            only the cited page of such a f
 
 `/api/shares/{id}/preview` and `/api/p/{token}` must call the same function so the preview cannot drift from what the provider gets.
 
-Request and response models for every route are in `backend/app/schemas.py`, mirrored in `frontend/src/api/types.ts`. Routers are split by owner: `api/matters.py` and `api/facts.py` (Track B), `api/shares.py` (Track C, including `/api/matters/{id}/providers`), `api/provider.py` (Track C), `api/ops.py` (Track A).
+Request and response models for every route are in `backend/app/schemas.py`, mirrored in `frontend/src/api/types.ts`. Backend owns both and changes them in one commit. The routers are `api/matters.py`, `api/facts.py`, `api/shares.py` (including `/api/matters/{id}/providers`), `api/provider.py`, `api/calls.py` and `api/ops.py`. During the hackathon they were split by track (`docs/parallel.md`); in the kit trial backend owns them all.
 
 ## Change detection and caching
 
@@ -215,6 +257,7 @@ Request and response models for every route are in `backend/app/schemas.py`, mir
 - Pages are keyed by `content_hash`. Extraction skips a page whose hash already has facts.
 - The brief stores an `input_hash` over the fact set it was built from and is rebuilt only when that hash changes.
 - Every model call goes through `digest/llm.py`, which checks the cache first and logs to `llm_calls`.
+- A prompt's version string is part of each call's cache key, so a changed prompt misses the cache only for the inputs it reads. `cli reextract --page/--record` re-reads chosen inputs alone, and `--dry-run` prices them first. Each paid run follows the D34 runbook: an estimate, a trial on a copy of the database, a backup, then the run against a cost stop.
 
 ## Auth
 
