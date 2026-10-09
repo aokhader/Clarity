@@ -2,8 +2,9 @@
 
 Four parts, in the order the model reads them after what the user pointed at:
 
-- **Overview:** the header's stage, the incident and its account, the facts behind the
-  KPI tiles, and the stored brief's sentences with their ids.
+- **Overview:** the stored brief's sentences with their ids, and at most
+  `OVERVIEW_FACT_CAP` facts: the header's stage, the incident and its account, each KPI
+  value's leading fact, then the facts the brief cites until the cap (D50).
 - **Retrieved facts:** the matter's renderable facts ranked for the question by
   `rank_facts`, restatements folded, `CHAT_CONTEXT_FACTS` at most.
 - **Pages:** excerpts of the pages the attached and the top retrieved facts were read
@@ -30,7 +31,7 @@ from app.services.fact_views import renderable_facts, with_restatements
 from app.services.incident import incident_account, incident_fact
 from app.services.kpis import kpi_tiles
 from app.services.matter_queries import matter_stage
-from app.services.restatements import group_restatements, one_per_record
+from app.services.restatements import group_restatements
 
 # Weights of the ranker: a question word at a word start in a fact's title, in its
 # quote, and a word that names the fact's kind. Significance (0-100) adds up to 2, so
@@ -43,11 +44,13 @@ SIGNIFICANCE_DIVISOR = 50
 CANDIDATES_PER_FACT = 3
 # The same for a search row, as the ranked feed reads them (matter_queries.py).
 SEARCH_CANDIDATES_PER_ROW = 10
-# Facts per KPI tile in the overview; a tile can rest on every bill in the file, and the
-# model also receives the computed figures with their fact ids.
-OVERVIEW_FACTS_PER_TILE = 12
-# Records that restate the incident account, besides its leading fact.
-OVERVIEW_INCIDENT_RESTATEMENTS = 2
+# Facts in the overview, at most (D50). The brief's sentences carry their ids anyway,
+# and the retrieved facts and the computed figures follow, so the overview only needs
+# what frames every question.
+OVERVIEW_FACT_CAP = 20
+# Facts per KPI tile value in the overview: its leading one. A total can rest on every
+# bill in the file, and the model also receives the computed figures with their ids.
+OVERVIEW_FACTS_PER_VALUE = 1
 
 _WORD = re.compile(r"[a-z0-9]+(?:'[a-z]+)?")
 # Words a question is made of that say nothing of its subject. "Case" and "file" are
@@ -286,37 +289,45 @@ def shown_answer(turn: ChatTurn, renderable: dict[int, Fact]) -> str:
 def _overview(
     session: Session, matter_id: int, renderable: dict[int, Fact]
 ) -> tuple[list[Fact], list[tuple[str, list[int]]]]:
+    """The overview's facts, in priority order and cut to `OVERVIEW_FACT_CAP`, and the
+    brief's sentences with the ids each cites."""
     by_kind: dict[FactKind, list[Fact]] = {kind: [] for kind in FactKind}
     for fact in renderable.values():
         by_kind[fact.kind].append(fact)
-    stage = matter_stage(session, matter_id)
-    facts = [renderable[r.id] for r in stage.facts if r.id in renderable]
+    stage = _shown([r.id for r in matter_stage(session, matter_id).facts], renderable)
     incident = incident_fact(by_kind[FactKind.INCIDENT])
-    if incident is not None:
-        facts.append(incident)
-    account = one_per_record(incident_account(by_kind[FactKind.INCIDENT]))
-    facts += account[: 1 + OVERVIEW_INCIDENT_RESTATEMENTS]
-    for tile in kpi_tiles(by_kind):
-        ids = dict.fromkeys(r.id for value in tile.values for r in value.facts)
-        facts += [
-            renderable[i]
-            for i in list(ids)[:OVERVIEW_FACTS_PER_TILE]
-            if i in renderable
+    # The account's leading fact; its restatements say the same thing again.
+    account = incident_account(by_kind[FactKind.INCIDENT])[:1]
+    tiles = [
+        fact
+        for tile in kpi_tiles(by_kind)
+        for value in tile.values
+        for fact in _shown([r.id for r in value.facts], renderable)[
+            :OVERVIEW_FACTS_PER_VALUE
         ]
+    ]
+    sentences = _brief_sentences(session, matter_id)
+    cited = _shown([i for _, ids in sentences for i in ids], renderable)
+    ranked = [*stage, *([incident] if incident else []), *account, *tiles, *cited]
+    return list({f.id: f for f in ranked}.values())[:OVERVIEW_FACT_CAP], sentences
 
+
+def _shown(ids: list[int], renderable: dict[int, Fact]) -> list[Fact]:
+    return [renderable[i] for i in ids if i in renderable]
+
+
+def _brief_sentences(session: Session, matter_id: int) -> list[tuple[str, list[int]]]:
+    """The brief as the page shows it, headline first: a sentence citing a fact that
+    can no longer be shown is already left out."""
     try:
         brief = brief_view.matter_brief(session, matter_id)
     except brief_view.BriefNotFound:
-        brief = None
+        return []
     sentences: list[tuple[str, list[int]]] = []
-    if brief is not None:
-        # The brief as the page shows it: a sentence citing a fact that can no longer
-        # be shown is already left out.
-        if brief.headline_facts:
-            sentences.append((brief.headline, [r.id for r in brief.headline_facts]))
-        sentences += [(s.text, [r.id for r in s.facts]) for s in brief.sentences]
-        facts += [renderable[i] for _, ids in sentences for i in ids if i in renderable]
-    return list({f.id: f for f in facts}.values()), sentences
+    if brief.headline_facts:
+        sentences.append((brief.headline, [r.id for r in brief.headline_facts]))
+    sentences += [(s.text, [r.id for r in s.facts]) for s in brief.sentences]
+    return sentences
 
 
 def _folded(ranked: list[Fact], limit: int) -> list[Fact]:

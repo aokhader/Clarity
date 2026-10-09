@@ -17,7 +17,7 @@ from dataclasses import replace
 from datetime import date
 
 from app.models import Fact, FactKind
-from app.schemas import DraftMentionOut, ExpensePayload, SentenceVerdict
+from app.schemas import DraftMentionOut, ExpensePayload, FactRef, SentenceVerdict
 from app.services.bills import count_bills
 from app.services.draft_check import check_text, worst_verdict
 from app.services.fact_views import fact_ref
@@ -95,6 +95,22 @@ def with_months(values: list[KnownValue]) -> list[KnownValue]:
         if v.on is not None and not v.month_only
     ]
     return values + months
+
+
+def figures_stated_by(
+    text: str, facts: list[Fact]
+) -> dict[tuple[int, int], list[FactRef]]:
+    """Each figure in `text` that one of `facts` states itself, by its offsets, with
+    the facts that state it. No computed total takes part, so every fact returned holds
+    the figure on its own record."""
+    stated = with_months([v for f in facts for v in fact_values(f, "a fact")])
+    checked = check_text(text, stated, [])
+    return {
+        (m.start, m.end): m.facts
+        for s in checked.sentences
+        for m in s.mentions
+        if m.verdict == "supported"
+    }
 
 
 def check_sentence(

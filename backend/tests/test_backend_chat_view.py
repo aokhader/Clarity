@@ -12,7 +12,9 @@ from app.config import Settings, get_settings
 from app.models import ChatStatus, ChatThread, ChatTurn, Fact, FactKind, LlmCall
 from app.services import chat_context, chat_view
 from app.services.chat_attachments import load_renderable
+from app.services.incident import incident_fact
 from app.services.jobs import cached_failed_calls
+from app.services.matter_queries import matter_stage
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID
 
 
@@ -112,6 +114,58 @@ def test_an_amount_that_differs_from_the_file_is_marked_with_the_files_figure(
     assert mention.file_amount_cents == 344_000
 
 
+def test_a_figure_only_an_uncited_fact_states_adds_that_facts_chip(
+    seeded: Session,
+) -> None:
+    injury = _fact(seeded, FactKind.INJURY)  # A: states no amount
+    offer = _fact(seeded, FactKind.OFFER)  # B: the only fact stating $40,000
+    thread = _done_turn(
+        seeded,
+        [
+            ("The client has a neck strain; the offer is $40,000.", [injury.id], False),
+            ("The insurer offered $40,000.", [offer.id], False),
+        ],
+    )
+
+    [turn] = chat_view.thread_out(seeded, thread).turns
+
+    uncited, cited = turn.sentences
+    # Every figure on screen has a chip whose source states it (D50, rule 3): the
+    # sentence's own citation first, then the fact behind the figure.
+    assert uncited.verdict == "supported"
+    assert [r.id for r in uncited.facts] == [injury.id, offer.id]
+    # A figure the sentence's own citation states adds nothing.
+    assert [r.id for r in cited.facts] == [offer.id]
+
+
+def test_a_figure_gets_the_facts_that_state_it_before_those_a_total_adds_up(
+    seeded: Session,
+) -> None:
+    injury = _fact(seeded, FactKind.INJURY)
+    specials = _fact(seeded, FactKind.MEDICAL_SPECIALS)  # states $3,440 itself
+    expenses = seeded.scalars(
+        select(Fact.id).where(
+            Fact.matter_id == MATTER_ID, Fact.kind == FactKind.EXPENSE
+        )
+    ).all()
+    thread = _done_turn(
+        seeded,
+        [
+            # Also today's bills total, which every bill fact adds up to.
+            ("The medical bills come to $3,440.", [injury.id], False),
+            # Only today's spend total: no record states it.
+            ("The firm has spent $60.", [injury.id], False),
+        ],
+    )
+
+    [turn] = chat_view.thread_out(seeded, thread).turns
+
+    bills, spend = turn.sentences
+    assert [r.id for r in bills.facts] == [injury.id, specials.id]
+    assert spend.facts[0].id == injury.id
+    assert {r.id for r in spend.facts[1:]} == set(expenses) and len(expenses) == 2
+
+
 def test_a_not_in_file_sentence_cites_nothing_and_is_unchecked(seeded: Session) -> None:
     thread = _done_turn(seeded, [("The file does not say.", [], True)])
 
@@ -133,6 +187,34 @@ def test_the_ranker_puts_a_word_at_a_title_start_and_the_named_kind_first(
     assert len(ranked) == len(facts)  # retrieval keeps every fact, best first
     matching = chat_context.rank_facts(facts, "lien", matching_only=True)
     assert {f.kind for f in matching} == {FactKind.LIEN}
+
+
+def test_the_overview_is_capped_with_the_stage_and_incident_first(
+    seeded: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    renderable = load_renderable(seeded, MATTER_ID)
+    by_kind = [f for f in renderable.values() if f.kind is FactKind.INCIDENT]
+    incident = incident_fact(by_kind)
+    assert incident is not None
+    first = [r.id for r in matter_stage(seeded, MATTER_ID).facts] + [incident.id]
+
+    def overview() -> list[int]:
+        context = chat_context.build_context(
+            seeded, MATTER_ID, "What is next?", [], [], renderable=renderable
+        )
+        return [f.id for f in context.overview]
+
+    shown = overview()
+    assert len(shown) <= chat_context.OVERVIEW_FACT_CAP
+    assert shown[: len(first)] == first
+    # Under a cap that leaves room for nothing else, the stage and incident still lead
+    # and the brief's sentences keep every id they cite.
+    monkeypatch.setattr(chat_context, "OVERVIEW_FACT_CAP", len(first))
+    assert overview() == first
+    context = chat_context.build_context(
+        seeded, MATTER_ID, "What is next?", [], [], renderable=renderable
+    )
+    assert context.brief_sentences and all(ids for _, ids in context.brief_sentences)
 
 
 def test_cached_failed_calls_leave_chat_out(seeded: Session) -> None:
