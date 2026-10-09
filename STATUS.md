@@ -6,7 +6,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 |---|---|---|---|---|---|
 | lead | D41 done: provider updates are stage moves only (the preview's dismissal label is gone, no link existed); litigation_event kind; pleadings re-read for $0.09 with the trial (P14); three court events in the story on the real matter, checked against their pages; provider screenshots retaken (c32693d) | Waiting for the reviewer's last README pass | | Manager: next full digest rewrites the brief (~$0.05); clip link; test call (C-T) | 19:06 |
 | pipeline | P16 done (fbcc995): brief cites the suit and defense; notice dated; tiles unchanged; D42+D43 $0.37 | Standing by | | | 2026-10-08 20:29 |
-| backend | B15 b732ad9: court events pinned in key events (3 on the real matter); 462 tests | Stand by | | | 2026-10-08 18:48 |
+| backend | B16: court events by type 63e64ab; undated list c891e7a (GET .../key-events/undated); 481 | Stand by | | Lead: looser cross-kind matcher? (see report) | 2026-10-08 20:33 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C5 done (0d60d65): brief omits limitations defense; story lacks first suit; court events doubled | Stand by | | Brief call for limitations; pin court rows by type; no note-date dating; refile one page | 2026-10-08 20:20 |
