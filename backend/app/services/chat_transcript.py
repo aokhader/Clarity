@@ -14,8 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.digest.records import display_date
-from app.models import ChatThread, Fact
-from app.schemas import ChatSentenceOut, ChatTurnOut, DraftMentionOut
+from app.models import ChatThread, Confidence, Fact
+from app.schemas import ChatSentenceOut, ChatTurnOut, DraftMentionOut, FactRef
 from app.services.matter_queries import matter_display_number
 from app.services.source_views import source_name
 
@@ -115,7 +115,7 @@ def _turn_lines(index: int, turn: ChatTurnOut, names: dict[int, str]) -> list[st
 def _sentence(sentence: ChatSentenceOut, names: dict[int, str]) -> str:
     if sentence.not_in_file:
         return f"{sentence.text} [the file does not say]"
-    sources = "; ".join(names.get(f.id, "a record") for f in sentence.facts)
+    sources = "; ".join(_source(f, names) for f in sentence.facts)
     text = f"{sentence.text} [{sources}]"
     words = _VERDICT_WORDS.get(sentence.verdict)
     if words is None:
@@ -125,6 +125,13 @@ def _sentence(sentence: ChatSentenceOut, names: dict[int, str]) -> str:
         _figure(m) for m in sentence.mentions if m.verdict == sentence.verdict
     )
     return f"{text} ({words}{': ' + figures if figures else ''})"
+
+
+def _source(ref: FactRef, names: dict[int, str]) -> str:
+    """A chip as the transcript names it. A low-confidence one is dashed on screen, so it
+    is marked here too (D53)."""
+    name = names.get(ref.id, "a record")
+    return f"{name} (low confidence)" if ref.confidence is Confidence.LOW else name
 
 
 def _figure(mention: DraftMentionOut) -> str:

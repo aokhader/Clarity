@@ -177,3 +177,91 @@ def test_the_headline_cites_its_stored_facts_and_is_checked(
     assert [ref["id"] for ref in brief["headline_facts"]] == [offer.id]
     assert brief["headline_verdict"] == "supported"
     assert _ids(brief["headline_mentions"][0]) == {offer.id}
+
+
+# --- A cited record's own date (D53) -----------------------------------------------------
+
+# A day no fact or record of the synthetic matter carries.
+_RECORD_DAY = date(2019, 3, 4)
+
+
+def _redate(session: Session, fact: Fact, key: str = "date") -> None:
+    """Give the fact's record `_RECORD_DAY` as its own date."""
+    fact.source.raw_json = {**fact.source.raw_json, key: _RECORD_DAY.isoformat()}
+
+
+def test_a_date_its_cited_notes_own_record_gives_is_supported(
+    seeded: Session, client: TestClient
+) -> None:
+    damages = _fact(seeded, FactKind.ECONOMIC_DAMAGES)  # read from a note
+    damages.event_date = None  # so only the note's own date can support the day
+    _redate(seeded, damages)
+
+    sentence = _one_sentence(
+        seeded,
+        client,
+        f"The intake note of {_written(_RECORD_DAY)} puts damages at $8,440.",
+        [damages],
+    )
+
+    on_day, amount = sentence["mentions"]
+    assert sentence["verdict"] == "supported"
+    assert on_day["verdict"] == amount["verdict"] == "supported"
+    assert _ids(on_day) == {damages.id}
+
+
+def test_another_notes_date_is_not_supported_by_a_note_it_does_not_cite(
+    seeded: Session, client: TestClient
+) -> None:
+    damages = _fact(seeded, FactKind.ECONOMIC_DAMAGES)
+    damages.event_date = None
+    filed = _fact(seeded, FactKind.LITIGATION_EVENT)  # another note, not cited
+    assert filed.source_id != damages.source_id
+    _redate(seeded, filed)
+
+    sentence = _one_sentence(
+        seeded,
+        client,
+        f"On {_written(_RECORD_DAY)} the note put damages at $8,440.",
+        [damages],
+    )
+
+    on_day, _amount = sentence["mentions"]
+    assert on_day["verdict"] == "not_in_file"
+
+
+def test_a_record_dated_the_day_a_sentence_gives_is_not_dated_otherwise(
+    seeded: Session, client: TestClient
+) -> None:
+    # The note tells of an event on another day; the sentence gives the note's own date.
+    liability = _fact(seeded, FactKind.LIABILITY)
+    assert liability.event_date is not None and liability.event_date != _RECORD_DAY
+    _redate(seeded, liability)
+
+    sentence = _one_sentence(
+        seeded,
+        client,
+        f"A note of {_written(_RECORD_DAY)} says the report faults the other driver.",
+        [liability],
+    )
+
+    [on_day] = sentence["mentions"]
+    assert on_day["verdict"] == "supported"
+    assert _ids(on_day) == {liability.id}
+
+
+def test_a_documents_own_date_counts_for_the_fact_read_from_it(
+    seeded: Session, client: TestClient
+) -> None:
+    injury = _fact(seeded, FactKind.INJURY, ORTHO_ID)  # read from a document page
+    _redate(seeded, injury, key="received_at")
+
+    sentence = _one_sentence(
+        seeded,
+        client,
+        f"A report dated {_written(_RECORD_DAY)} finds a neck strain.",
+        [injury],
+    )
+
+    [on_day] = sentence["mentions"]
+    assert on_day["verdict"] == "supported"

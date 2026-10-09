@@ -35,6 +35,9 @@ class RawMatter(BaseModel):
     responsible_attorney: Named | None = None
     practice_area: Named | None = None
     matter_stage: Named | None = None
+    # When Clio last set the stage. It equals `created_at` on a record whose stage was
+    # never moved, so only the digest decides whether it dates a stage move (D53).
+    matter_stage_updated_at: dt.datetime | None = None
     custom_field_values: list[CustomFieldValue] = []
 
 

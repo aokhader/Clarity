@@ -15,6 +15,7 @@ from app.models import (
     ChatThread,
     ChatTranscript,
     ChatTurn,
+    Confidence,
     Fact,
     FactKind,
     LlmCall,
@@ -25,6 +26,7 @@ from app.services.chat_attachments import load_renderable
 from app.services.incident import incident_fact
 from app.services.jobs import cached_failed_calls
 from app.services.matter_queries import matter_stage
+from app.services.source_views import source_name
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID
 
 
@@ -238,6 +240,36 @@ def test_the_transcript_notes_a_differing_figure_and_the_withdrawn_count(
     assert "Pointed at: Medical specials" in text
     assert "asked by an unknown user," in text
     assert "Cost: none" in text
+
+
+def test_the_transcript_marks_a_low_confidence_source_as_the_dashed_chip_does(
+    seeded: Session,
+) -> None:
+    low = seeded.scalars(
+        select(Fact).where(
+            Fact.matter_id == MATTER_ID,
+            Fact.kind == FactKind.MEDICAL_BILL,
+            Fact.confidence == Confidence.LOW,
+        )
+    ).first()
+    lien = _fact(seeded, FactKind.LIEN)
+    assert low is not None and lien.confidence is not Confidence.LOW
+    thread = _done_turn(seeded, [("A lien covers the bill.", [lien.id, low.id], False)])
+
+    closed = chat.close(seeded, MATTER_ID, thread.id, _user(seeded), datetime.now(UTC))
+
+    [chips] = [
+        [(f.id, f.confidence) for f in s.facts] for s in closed.turns[0].sentences
+    ]
+    assert chips == [(lien.id, lien.confidence), (low.id, Confidence.LOW)]
+    transcript = seeded.get(ChatTranscript, thread.id)
+    assert transcript is not None
+    lien_name = source_name(lien.source, lien.page_no)
+    low_name = source_name(low.source, low.page_no)
+    assert (
+        f"- A lien covers the bill. [{lien_name}; {low_name} (low confidence)]"
+        in transcript.text
+    )
 
 
 def test_a_thread_archived_before_d52_froze_nothing_so_it_is_open_until_closed(

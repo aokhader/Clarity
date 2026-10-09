@@ -11,6 +11,10 @@ the firm, so no mention is ever do_not_send here.
 Dates are also held to the sentence's citations. A sentence that states one day but
 cites a record dated otherwise has merged two events (two exams on different days, for
 example), so that date differs, offering the other record's date and its facts.
+
+A cited fact also states its own record's date (a note's or an email's date, a document's
+own date), which its chip's drawer shows (D53). That date counts for the cited fact only:
+another record of the same day does not hold what the sentence says.
 """
 
 from dataclasses import replace
@@ -22,6 +26,7 @@ from app.services.bills import count_bills
 from app.services.draft_check import check_text, worst_verdict
 from app.services.fact_views import fact_ref
 from app.services.known_values import KnownValue, fact_values
+from app.services.source_views import record_date
 from app.services.text_mentions import DateMention, DatePrecision, find_dates
 
 # Words that name the subject of a kind's amount, so a sentence's wrong figure for it
@@ -103,6 +108,7 @@ def check_sentence(
     """One brief sentence (or the headline): its verdict and every mention's."""
     own = with_months(
         [v for f in cited for v in fact_values(f, "a fact this sentence cites")]
+        + _record_dates(cited)
     )
     checked = check_text(text, [*own, *file], [])
     mentions = [m for s in checked.sentences for m in s.mentions]
@@ -110,6 +116,15 @@ def check_sentence(
     mentions = [_cited_first(m, cited_ids) for m in mentions]
     mentions = _held_to_citations(mentions, cited)
     return worst_verdict(m.verdict for m in mentions), mentions
+
+
+def _record_dates(cited: list[Fact]) -> list[KnownValue]:
+    """Each cited fact's record date, as a date that fact states."""
+    return [
+        KnownValue("the date of a record this sentence cites", on=day, facts=(f,))
+        for f in cited
+        if (day := record_date(f.source)) is not None
+    ]
 
 
 def _cited_first(mention: DraftMentionOut, cited_ids: set[int]) -> DraftMentionOut:
@@ -143,13 +158,14 @@ def _held_to_citations(
 
 
 def _other_record(day: date, cited: list[Fact]) -> list[Fact]:
-    """Cited facts from a record that is dated, but never on `day`."""
+    """Cited facts from a record that is dated, but never on `day`. A record whose own
+    date is `day` is not dated otherwise, whatever day its facts give."""
     by_source: dict[int, list[Fact]] = {}
     for fact in cited:
         by_source.setdefault(fact.source_id, []).append(fact)
     for facts in by_source.values():
         days = {f.event_date for f in facts if f.event_date is not None}
-        if days and day not in days:
+        if days and day not in days and record_date(facts[0].source) != day:
             return sorted(facts, key=lambda f: (f.event_date is None, f.event_date))
     return []
 

@@ -63,6 +63,28 @@ def test_a_matter_reads_as_summary_matter_and_case_fields(session: Session) -> N
     assert (value.amount_cents, value.value) == (123_450, None)
     assert loss.on == date(2024, 1, 2)
     assert (signed.value, adjuster.value) == ("Yes", "A. Example")
+    # Clio sent no stage time, so there is no field for it.
+    assert "Stage last changed in Clio" not in matter
+
+
+def test_a_matter_shows_when_clio_last_changed_its_stage(session: Session) -> None:
+    # A dated stage chip opens this record, so it must show the day the chip gives
+    # (D53): the day in Clio's own offset, as the digest reads it, not the UTC day.
+    sections = _sections(
+        session,
+        SourceType.MATTER,
+        {
+            "matter_stage": {"name": "Treating"},
+            "matter_stage_updated_at": "2024-03-04T23:30:00-08:00",
+            "open_date": "2024-01-15",
+        },
+    )
+
+    [matter] = [s for s in sections if s.heading == "Matter"]
+    labels = [f.label for f in matter.fields]
+    assert labels[labels.index("Stage") + 1] == "Stage last changed in Clio"
+    stage_time = matter.fields[labels.index("Stage last changed in Clio")]
+    assert (stage_time.on, stage_time.value) == (date(2024, 3, 4), None)
 
 
 def test_a_task_reads_as_its_fields_then_its_description(session: Session) -> None:

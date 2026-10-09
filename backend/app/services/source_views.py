@@ -132,6 +132,8 @@ def _matter(raw: RawMatter) -> _Readable:
             _field("Client", _name(raw.client)),
             _field("Practice area", _name(raw.practice_area)),
             _field("Stage", stage),
+            # The time a dated stage chip gives, so its drawer shows it (D53).
+            _date_field("Stage last changed in Clio", raw.matter_stage_updated_at),
             _field("Status", raw.status),
             _field("Responsible attorney", _name(raw.responsible_attorney)),
             _date_field("Opened", raw.open_date),
@@ -238,12 +240,34 @@ def source_text(source: Source) -> str | None:
 def source_date(source: Source) -> date | None:
     """The day a record is about (a document's own date), else the day it was created
     in Clio."""
+    return record_date(source) or _readable(source).occurred_on or _created(source)
+
+
+# Records whose drawer date is the record's own: a note's or an email's date, a
+# calendar entry's start, a ledger entry's day, the day a call was placed.
+_DATED_BY_ITSELF = {
+    SourceType.NOTE,
+    SourceType.COMMUNICATION,
+    SourceType.CALENDAR_ENTRY,
+    SourceType.ACTIVITY,
+    SourceType.CALL,
+}
+
+
+def record_date(source: Source) -> date | None:
+    """The date a record carries as its own, as the drawer shows it, or None.
+
+    A document's is its own date in Clio, never the upload. A matter's opening and a
+    task's due date are not the record's date: they are what its facts state."""
     if source.clio_type is SourceType.DOCUMENT:
-        received = _day(RawDocument.model_validate(source.raw_json).received_at)
-        if received is not None:
-            return received
-    created = source.clio_created_at.date() if source.clio_created_at else None
-    return _readable(source).occurred_on or created
+        return _day(RawDocument.model_validate(source.raw_json).received_at)
+    if source.clio_type in _DATED_BY_ITSELF:
+        return _readable(source).occurred_on
+    return None
+
+
+def _created(source: Source) -> date | None:
+    return source.clio_created_at.date() if source.clio_created_at else None
 
 
 def source_out(session: Session, source: Source) -> SourceOut:

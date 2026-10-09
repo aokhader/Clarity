@@ -716,7 +716,9 @@ def test_a_closed_threads_transcript_downloads_as_text_with_each_sentence_source
     )
     text = response.text
     [frozen] = thread["turns"]
-    bill_source = source_name(bill.source, bill.page_no)
+    # The bill's second read disagreed, so its chip is dashed and the transcript says so.
+    assert bill.confidence is Confidence.LOW
+    bill_source = f"{source_name(bill.source, bill.page_no)} (low confidence)"
     lien_source = source_name(lien.source, lien.page_no)
     assert "Matter: 00001-Avery" in text
     assert f"Thread: {thread['title']}" in text
