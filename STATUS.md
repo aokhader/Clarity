@@ -5,7 +5,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | D44-D48 for the Manager: reading face, story lanes, Calls column, Overview cards, every "+N more" steps through sources, story newest first, Deadlines and follow-ups, "Viewing as" switcher removed | Standing by | | Manager: push; clip link; test call (C-T); reviewer: README and form answers still describe the switcher, "oldest first" and "Now strip"; screenshots | 2026-10-09 00:54 |
-| pipeline | P16 done (fbcc995): brief cites the suit and defense; notice dated; tiles unchanged; D42+D43 $0.37 | Standing by | | | 2026-10-08 20:29 |
+| pipeline | H1 done (48af6d2): chat role, digest/chat.py answer_question, prompt v1; 496 passed | Standing by | | | 2026-10-09 01:29 |
 | backend | B16: court events by type 63e64ab; undated list c891e7a (GET .../key-events/undated); 481 | Stand by | | Lead: looser cross-kind matcher? (see report) | 2026-10-08 20:33 |
 | ui-builder | D45 drawer bfe1ebf: quote callout, text in paragraphs/lists, field grid plus prose | Lead: check drawer in browser | | Measure 32em, not 68ch (68ch gave ~90 chars) | 2026-10-09 00:33 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
@@ -29,3 +29,6 @@ New ones only, one line each when written: what, why, file. The hackathon's are 
 - P4 known issue: pages read before a provider was known never get that provider. Fix (1): store provider_name_as_written on facts (new column, needs reset or a migration), re-resolve in code after mapping, no model call. Fix (2): re-read pages when the provider list changes, one call per page (backend/app/digest/extract.py)
 - D47: the drawer steps through at most 1,000 sources of one item; a longer list stops at the 1,000th, and its count reads 1,000 (frontend/src/lib/useSourceDrawer.ts)
 - D48: the firm view acts as the first seeded stub user, with no login and no switcher (frontend/src/api/users.ts)
+- H1: a chat call any attempt of which the fallback answered is priced wholly at fallback rates, an upper bound (backend/app/digest/llm.py)
+- H1: a response model named as the chat model plus an 8-digit date counts as the chat model, not the fallback (backend/app/digest/llm.py)
+- H1: chat on openai or gemini sends its own output limit, but no effort and no fallback (backend/app/digest/llm.py)
