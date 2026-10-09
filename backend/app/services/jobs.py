@@ -22,6 +22,7 @@ from app.config import get_settings
 from app.db import get_sessionmaker
 from app.models import DigestRun, LlmCall, SyncRun
 from app.schemas import RunOut, RunStatusOut, StartFailureOut
+from app.services.cost import CHAT_PURPOSE
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +102,8 @@ def cached_failed_calls(session: Session) -> int:
     """Requests a digest would answer from the cache as failed (D29).
 
     The rule of `digest/llm.py:_lookup`: a request whose call failed, and that has no
-    successful response, is not sent again unless the digest retries failed calls.
+    successful response, is not sent again unless the digest retries failed calls. A
+    chat answer (D49) is never part of a digest, so its failures are not counted.
     """
     # A failed call stores JSON null, which SQL does not count as NULL.
     succeeded = select(LlmCall.cache_key).where(
@@ -112,6 +114,7 @@ def cached_failed_calls(session: Session) -> int:
             select(func.count(distinct(LlmCall.cache_key))).where(
                 LlmCall.cache_hit.is_(False),
                 LlmCall.error.is_not(None),
+                LlmCall.purpose != CHAT_PURPOSE,
                 LlmCall.cache_key.not_in(succeeded),
             )
         )

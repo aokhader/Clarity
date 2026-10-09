@@ -167,6 +167,14 @@ def _stage(session: Session, matter_id: int, facts: list[Fact]) -> StageOut:
     )
 
 
+def matter_stage(session: Session, matter_id: int) -> StageOut:
+    """The header's stage and the facts it cites."""
+    stages = session.scalars(
+        renderable_facts(matter_id).where(Fact.kind == FactKind.CASE_STAGE)
+    ).all()
+    return _stage(session, matter_id, list(stages))
+
+
 def matter_header(session: Session, matter_id: int) -> MatterHeaderOut:
     source = _matter_source(session, matter_id)
     if source is None:

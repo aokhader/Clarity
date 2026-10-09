@@ -203,6 +203,23 @@ def _readable(source: Source) -> _Readable:
             return _Readable(RawContact.model_validate(raw).name, None, None, None)
 
 
+def source_text(source: Source) -> str | None:
+    """A record's readable text (a note's, an email's, a call's transcript), or None for
+    a document, whose text is on its pages."""
+    return _readable(source).text
+
+
+def source_date(source: Source) -> date | None:
+    """The day a record is about (a document's own date), else the day it was created
+    in Clio."""
+    if source.clio_type is SourceType.DOCUMENT:
+        received = _day(RawDocument.model_validate(source.raw_json).received_at)
+        if received is not None:
+            return received
+    created = source.clio_created_at.date() if source.clio_created_at else None
+    return _readable(source).occurred_on or created
+
+
 def source_out(session: Session, source: Source) -> SourceOut:
     readable = _readable(source)
     pages: list[FirmPageOut] = []

@@ -45,6 +45,12 @@ def group_restatements(facts: list[Fact]) -> list[list[Fact]]:
     return groups
 
 
+def restatements_of(fact: Fact, candidates: list[Fact]) -> list[Fact]:
+    """The candidates that state what `fact` states, by the rule of
+    `group_restatements`, leaving out `fact` itself."""
+    return [c for c in candidates if c.id != fact.id and _restates(c, fact)]
+
+
 def one_per_record(group: list[Fact]) -> list[Fact]:
     """The group with one fact per source record, the first in the group's order, so
     a document that states a finding on many pages counts once."""
