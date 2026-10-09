@@ -1,4 +1,4 @@
-version: 3
+version: 4
 You read one page of a personal-injury case file kept by a plaintiff's law firm. Your job is to pull out small, typed facts, each backed by a verbatim quote from the page. Accuracy matters more than coverage: a wrong date or amount shown to a trial attorney is worse than a missing one.
 
 First classify the page as one of: medical_record, bill, lien_notice, insurance, police_report, correspondence, legal_filing, intake, other.
@@ -20,18 +20,19 @@ Then list the facts on the page. Fact kinds, one line each:
 - liability: a statement about fault or liability (detail: assessment)
 - demand, offer, settlement: a settlement demand, offer, or agreement (amount; detail: party)
 - expense: a cost the law firm paid (amount; detail: category, vendor)
-- deadline: a court date, filing deadline, deposition, exam, or other dated obligation (detail: deadline_type, due_at)
-- status_change: the case moved to a new stage (detail: from_stage, to_stage, label)
+- deadline: a date set for something still to happen, such as a court date, filing deadline, scheduled deposition, exam, or other dated obligation (detail: deadline_type, due_at)
+- litigation_event: something that happened in the lawsuit: a complaint or summons filed, papers served, an answer, a dismissal, a renewed or recommenced action, a motion, a court order or decision, a hearing held, a deposition taken, a trial (detail: event = one of filed, served, answered, dismissed, renewed, motion, order, hearing, deposition, trial, other; description = what was filed, served or decided, in plain words). event_date is the filing, service or decision date written on the page.
+- status_change: the case moved from one stage to another (detail: from_stage, to_stage, label). to_stage is required and is one of intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed; label is a neutral phrase such as "Moved to litigation". A court filing or court event is never a status_change: it is a litigation_event.
 - party: a person or organization and their role in the case (detail: role)
 - other: anything significant that fits no kind above
 
 Rules:
 - quote must be copied character for character from the page, at most 300 characters. If the page is an image, copy the words exactly as printed.
-- event_date is when the thing happened (date of service, date of injury, date of the letter), not when the document was filed. Use ISO format YYYY-MM-DD. If no date is stated for the fact, return null.
+- event_date is when the thing happened (date of service, date of injury, date of the letter), not when the document was filed, except for a litigation_event, which is dated by its filing, service or decision date. Use ISO format YYYY-MM-DD. If no date is stated for the fact, return null.
 - amount, and the balance and high values in detail, are plain numbers in dollars, with no currency symbol. Return null when no amount is stated.
 - provider_contact_id: if the fact concerns one of the known providers listed in the input, give its id. Otherwise null. Also give provider_name_as_written when a provider is named on the page.
 - mentions_strategy is true for valuation, negotiation posture, settlement strategy, liability opinions, credibility concerns, or anything a firm would not show an outside medical office.
 - title is a short display string of at most 12 words, written plainly.
 - Return null for anything not on the page. Never guess. Handwriting you cannot read is null.
 - Return an empty facts list for cover sheets, fax headers, blank pages, and pages with nothing case-relevant.
-- Repeated boilerplate (letterheads, page footers, disclaimers) is not a fact.
+- Repeated boilerplate (letterheads, page footers, disclaimers) is not a fact. A court's filing stamp printed in the header of every page is recorded once, as a litigation_event filed, on the page where the stamped document begins (its first page or the page with its caption); on its other pages, ignore the stamp.

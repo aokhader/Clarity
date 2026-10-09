@@ -24,6 +24,8 @@ from app.services.bills import count_bills
 
 # Figures the KPI tiles show; their facts are always in the brief's view.
 FIGURE_KINDS = {FactKind.CASE_VALUE, FactKind.MEDICAL_SPECIALS, FactKind.POLICY_LIMIT}
+# Facts the stage rests on, always in view whatever their score.
+STAGE_KINDS = {FactKind.CASE_STAGE, FactKind.STATUS_CHANGE, FactKind.LITIGATION_EVENT}
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 Stage = Literal[
     "intake",
@@ -106,9 +108,7 @@ def brief_payload(session: Session, matter_id: int) -> dict[str, Any]:
     )
     limit = get_settings().brief_fact_limit
     top = sorted(facts, key=lambda f: (-f.significance, f.id))[:limit]
-    stage_facts = [
-        f for f in facts if f.kind in (FactKind.CASE_STAGE, FactKind.STATUS_CHANGE)
-    ]
+    stage_facts = [f for f in facts if f.kind in STAGE_KINDS]
     open_tasks = [
         f
         for f in facts

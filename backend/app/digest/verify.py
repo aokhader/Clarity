@@ -23,6 +23,7 @@ SECOND_READ_KINDS = {
     FactKind.OFFER,
     FactKind.SETTLEMENT,
     FactKind.DEADLINE,
+    FactKind.LITIGATION_EVENT,
 }
 # Kinds that describe something that has already happened, so a future date is wrong.
 PAST_TENSE_KINDS = {
@@ -37,6 +38,8 @@ PAST_TENSE_KINDS = {
     FactKind.EXPENSE,
     FactKind.CLIENT_CONTACT,
     FactKind.STATUS_CHANGE,
+    # A hearing or deposition still to come is a deadline, not a litigation event.
+    FactKind.LITIGATION_EVENT,
 }
 _QUOTE_CHARS = str.maketrans(
     {"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", " ": " "}

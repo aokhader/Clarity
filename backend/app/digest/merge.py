@@ -35,6 +35,8 @@ DEDUP_KINDS = {
     FactKind.POLICY_LIMIT,
     FactKind.RECORDS_RECEIVED,
     FactKind.DEADLINE,
+    # A filing stamp printed on every page can be read as one event per page.
+    FactKind.LITIGATION_EVENT,
 }
 CONFIDENCE_RANK = {Confidence.HIGH: 0, Confidence.MEDIUM: 1, Confidence.LOW: 2}
 WaitingOn = Literal["firm", "client", "provider", "insurer", "court", "other"]
@@ -86,6 +88,8 @@ def deduplicate(session: Session, matter_id: int) -> int:
             who,
             value.get("amount_cents"),
             str(value.get("body_part") or "").lower(),
+            # A paper filed and served on one day is two events.
+            value.get("event"),
         )
         groups[key].append(fact)
     removed = 0

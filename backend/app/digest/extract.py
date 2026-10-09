@@ -253,6 +253,13 @@ def _to_facts(
             continue
         try:
             payload = model_payload(kind, item.amount, item.detail, item.title)
+            if kind is FactKind.STATUS_CHANGE and not payload.get("to_stage"):
+                # D41: a stage move names its stage. Without one the label is the
+                # model's free text, often a court event, so it is kept as other.
+                kind = FactKind.OTHER
+                label = item.detail.get("label") or item.title
+                payload = model_payload(kind, None, {"description": label})
+                counts["status_change_without_stage"] += 1
         except ValidationError:
             counts["dropped_payload"] += 1
             continue

@@ -6,16 +6,42 @@ losing the whole fact.
 """
 
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, get_args
 
 from pydantic import ValidationError
 
 from app.models import FactKind
-from app.schemas import PAYLOAD_BY_KIND, validate_payload
+from app.schemas import PAYLOAD_BY_KIND, LitigationEventType, validate_payload
 
 # The extraction prompts ask for every sum in dollars. These detail keys carry one,
 # and code stores it in the cents field beside it.
 MODEL_DOLLAR_KEYS = {"balance": "balance_cents", "high": "high_cents"}
+
+LITIGATION_EVENT_TYPES = set(get_args(LitigationEventType))
+# Checked in order, so a recommenced action reads as renewed, not filed, and an
+# examination before trial as a deposition, not a trial.
+LITIGATION_EVENT_STEMS = (
+    ("renew", "renewed"),
+    ("recommenc", "renewed"),
+    ("refil", "renewed"),
+    ("re-fil", "renewed"),
+    ("dismiss", "dismissed"),
+    ("discontinu", "dismissed"),
+    ("answer", "answered"),
+    ("deposition", "deposition"),
+    ("before trial", "deposition"),
+    ("motion", "motion"),
+    ("order", "order"),
+    ("decision", "order"),
+    ("judgment", "order"),
+    ("hearing", "hearing"),
+    ("trial", "trial"),
+    ("served", "served"),
+    ("service", "served"),
+    ("filed", "filed"),
+    ("filing", "filed"),
+    ("commenc", "filed"),
+)
 
 
 def model_payload(
@@ -59,6 +85,10 @@ def build_payload(
         text = detail.get("description") or fallback_label
         if text:
             values["detail"] = str(text)
+    if kind is FactKind.LITIGATION_EVENT:
+        if "detail" not in values and detail.get("description"):
+            values["detail"] = str(detail["description"])
+        values["event"] = litigation_event_type(values.get("event"))
     if kind is FactKind.STATUS_CHANGE and not values.get("label"):
         values["label"] = fallback_label or "Stage changed"
     if kind is FactKind.TASK:
@@ -81,6 +111,17 @@ def build_payload(
 def task_status(value: Any) -> str:
     text = str(value or "").lower()
     return "complete" if text in {"complete", "completed", "done"} else "open"
+
+
+def litigation_event_type(value: Any) -> str:
+    """One of the contract's event types; a model's own wording is matched by stem."""
+    text = str(value or "").strip().lower()
+    if text in LITIGATION_EVENT_TYPES:
+        return text
+    for stem, event in LITIGATION_EVENT_STEMS:
+        if stem in text:
+            return event
+    return "other"
 
 
 def contact_channel(value: str) -> str:
