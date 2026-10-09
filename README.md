@@ -1,16 +1,20 @@
 # Clarity
 
-Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets an Overview it can read in 90 seconds: what happened, where the case is now, the figures that matter, the key events in order, what changed since the last visit, and the brief's account in sentences. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the quote highlighted. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
+Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets an Overview it can read in 90 seconds: what happened, where the case is now, the figures that matter, the key events in order, what changed since the last visit, and the brief's account in sentences. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from: a note or email with the quote highlighted in its text, a PDF at the cited page with the quote set above it. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
 
 Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026), then finished in a trial run by a team of agents (see [The trial](#the-trial)).
 
-| Case Overview | For Attorney |
+| Case Overview | The Overview, one scroll down |
 |---|---|
-| ![Case Overview: the client and the stage track, the bottom line, what happened, the Now strip and the money tiles, with each line's sources in the margin](docs/screenshots/overview.png) | ![For Attorney: the action board as a table, What matters, injuries and providers](docs/screenshots/attorney.png) |
-| **For Service Provider (the firm's preview)** | **Calls** |
-| ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
-| **The provider's own page** | **The draft checker, in the share composer** |
-| ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
+| ![Case Overview: the client and the stage track, the bottom line, what happened, the Now strip and the money tiles, with each line's sources in the margin](docs/screenshots/overview.png) | ![The Overview one scroll down: the story so far, ten key events numbered oldest first, each with its date, its lane and its source chips in the margin, a filed complaint among them; then Where it stands, the brief's sentences one per row with their chips, one chip outlined dashed for low confidence](docs/screenshots/overview-story.png) |
+| **The source drawer** | **For Attorney** |
+| ![The source drawer opened from a diagnosis: its kind, date, confidence and origin, the document's title, the quote and the page it came from, and the scanned page itself, page 2 of 2, with the case dimmed behind](docs/screenshots/source-drawer.png) | ![For Attorney: the action board as a table, What matters, injuries and providers](docs/screenshots/attorney.png) |
+| **For Service Provider (the firm's preview)** | **The provider's own page** |
+| ![The firm's preview of a provider's link](docs/screenshots/provider-preview.png) | ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) |
+| **The draft checker, in the share composer** | **Calls** |
+| ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
+| **Documents** | **The Overview at phone width** |
+| ![Documents: every cited source grouped by record type, a filter button per type with its count, and under each source the facts it holds, each a link that opens it](docs/screenshots/documents.png) | <img src="docs/screenshots/overview-phone.png" width="300" alt="The Overview at 390 pixels wide: the rail folded into a top bar with a Menu button, the header and stage track wrapped, the bottom line with a checked figure and its chip, and What happened with the chips under each line"> |
 
 The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
 
@@ -136,7 +140,7 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 
 ### The views
 
-The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. This section is read from the code under `frontend/src/components/firm/` at `6cb901b`, after the Overview pass (D38, D39) and the fixes from the critic's fourth pass (D40). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. The reviewer re-read this section against the code under `frontend/src/components/firm/` and `frontend/src/pages/firm/` at `be8d813`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), and the court events (D41 to D43); the frontend has not changed since U18 (`a2b19cd`). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
 
 **On every view, the identity header:**
 - a breadcrumb (Cases, the client, the view);
@@ -166,6 +170,8 @@ In What happened, The story so far and Where it stands, each line's source chips
 - the action board as a table: task, due date, owner and status, overdue first, with each task's title opening its source;
 - What matters: the top 10 facts by significance, or the full timeline. The choice is in the URL (`?view=attorney&feed=timeline`);
 - injuries, and providers with **Share**.
+
+**Documents:** every source the facts cite, once each, grouped by record type, with a filter for each type and its count. Each row gives the earliest date among its facts, or "Undated", and lists the facts it holds; each fact opens the source in the drawer.
 
 **Accessibility (D38).** What the lead measured is under [Verified](#verified). Built, and read from the code:
 - every view reflows to 320 CSS px, and below 1024 px the rail becomes a top bar with a Menu button;
@@ -256,12 +262,13 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 481 pass at `40e2273`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 481 pass at `be8d813`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
   - At `1707584`, after the fixture gained records that give an incident account (`0deb4a1`), the header's `incident_account` carries its text and one record restating it. `key-events` returned 10 events, oldest first, with that account's fact first.
   - At `889debf`, after D41, `seed-dev` first failed on the old schema, then passed after `upgrade_schema`. Since `5fb132f`, `seed-dev` upgrades its database itself. The story's 10 events then included the invented matter's court event. Both providers' previews listed one update, "Moved to treatment".
+  - At `827f2d2`, after D42 and D43, `seed-dev` passed on the clone's existing database in about 4 s. The matter's routes answered 200: the header, the brief, key events and the undated list, actions, the feed, the timeline, injuries, providers, shares, calls, and the changes once a stub user was chosen. A fact's source and the page images were not called; the lead's drawer screenshot shows both. `key-events` returned 10 events, oldest first, each with a source, the court event among them. `key-events/undated` returned none, because the invented matter's one court event is dated, so the line under the story is absent there. The clone's TypeScript check passed. The lead's four newest screenshots were taken from this clone.
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
@@ -274,7 +281,14 @@ By the reviewer, on the invented matter, on 2026-10-07:
 - After D35's backend change (`01d6e41`), a live link served each item in its bills list as a bill or a lien.
 
 By the lead, in the browser, on the clean clone's invented matter:
-- **On 2026-10-08, after D38 to D40:** the lead retook the six screenshots above from the clone at `6c58e37` (`506267f`), and the provider page and preview again after D41 (`c32693d`), whose Recent updates now read "Moved to treatment":
+- **On 2026-10-08, after D43:** four more screenshots, from the clone at `827f2d2` (`af595b2`), at 1440×900 and 1.5× pixel density unless noted:
+  - **the Overview one scroll down:** the story so far, ten events with the filed complaint fifth, in the Case lane, then Where it stands, where one chip carries the dashed outline of a low-confidence fact. "Since you last opened" is absent; the lead reports that the visit was recorded before the shot;
+  - **the source drawer, opened from a diagnosis:** its kind, date, confidence and origin, the document's title, the quote with "Quoted from page 2", and that page, a scan, as page 2 of 2;
+  - **Documents:** all 18 cited sources, with a filter for each of the nine record types, grouped by type. Each row is one source and lists the facts it holds as links, so a group's count is of sources, not of the titles under it;
+  - **the Overview at 390 CSS px, at 2×:** the rail folded into a top bar with Menu, the header and stage track wrapped, the bottom line's figure checked with its chip, and What happened with the chips under each line. The lead measured no horizontal scroll (a scroll width of 390 px).
+
+  The reviewer checked each against its caption. By the lead's account, the other six were not retaken because their views have not changed: U18's undated line is empty on the invented matter, and B16 reorders only the story, below the first screen.
+- **On 2026-10-08, after D38 to D40:** the lead retook the other six (the Overview's first screen, For Attorney, the provider preview and page, Calls and the draft checker) from the clone at `6c58e37` (`506267f`), and the provider page and preview again after D41 (`c32693d`), whose Recent updates now read "Moved to treatment":
   - the Overview's first screen at 1440×900;
   - For Attorney and the provider preview as full pages;
   - Calls with the consent step, and the draft checker, at 1440×1000;
@@ -333,7 +347,8 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
 - **Providers:**
   - Provider access is by an unguessable, expiring link only; there is no provider login.
   - "Send update" leaves the recipient blank, because no synced field holds the provider's email (`frontend/src/components/share/SendUpdateMenu.tsx`).
-- **`cli seed-dev`** loads an invented matter for development, tests and the screenshots, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`).- **What the sync and digest leave out:**
+- **`cli seed-dev`** loads an invented matter for development, tests and the screenshots, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`).
+- **What the sync and digest leave out:**
   - Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced. Bills come from documents, notes and the expense ledger.
   - A Clio request falls back to a smaller field list if Clio rejects a field name.
   - Calendar entries all become deadlines, including treatment appointments. Only legal deadlines lock a draft (D28).
@@ -526,10 +541,11 @@ frontend/src/
 scripts/check.sh             the screener's checks; export_raw.py feeds the case-data scan
 tests/                       repository-wide Node tests: no case data, nothing private
 docs/                        architecture, digest pipeline, Clio API notes, UI, briefs, reviews, track history
+  screenshots/               the ten screenshots above, all of the invented matter
 .claude/                     agent roles, path ownership and its hook (the trial)
 ```
 
-`docs/architecture.md` and `docs/digest-pipeline.md` explain the design. The shortest route through the code is:
+`docs/architecture.md` and `docs/digest-pipeline.md` explain the design, and `docs/ui.md` the screens. All three describe the work through D43, the court events included (`1695ba2`). The shortest route through the code is:
 1. `backend/app/clio/client.py`
 2. `backend/app/digest/extract.py` with `verify.py`
 3. `backend/app/services/visibility.py` with `backend/tests/test_visibility.py`
