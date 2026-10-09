@@ -117,6 +117,10 @@ The order:
 - [x] B15 backend: the story pins the dated litigation events (up to three) after the incident, since by score they fall below the overall cutoff.
 - [x] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows. (The lead checked the three court rows on the real matter: internal, each opens its page, the answer's quote is on its page and the scans passed their second read.)
 
+**D42, the court-event notes and the brief (Manager, 2026-10-08)**
+- [ ] P15 pipeline: the record prompt files court events as `litigation_event`; re-read only the notes and emails that describe them (never the custom-field record; the KPI tiles must not change); then one digest to rewrite the brief. Estimate, trial on a copy, backup, run; stop at $1.
+- [ ] C5 critic: the new brief and the re-filed records on the real matter: every sentence's chips hold its text, the court events are dated right, nothing internal reaches a provider.
+
 ## Calls (D8: option A now, B later)
 
 The Manager's request: when the next step on the case is a follow-up or a check-in, call the person from the app, and have AI transcribe the call and take the notes so the attorney can focus on the conversation.
