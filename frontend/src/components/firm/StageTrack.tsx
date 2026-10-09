@@ -85,7 +85,7 @@ export function StageTrack({ stage }: { stage: StageOut }) {
             inferred
           </span>
         )}
-        <SourceChipList facts={stage.facts} max={2} expandable describedBy={summaryId} />
+        <SourceChipList facts={stage.facts} max={2} describedBy={summaryId} />
       </p>
     </div>
   )

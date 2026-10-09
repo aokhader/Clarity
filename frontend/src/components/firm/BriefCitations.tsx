@@ -3,11 +3,6 @@ import { SourceChipList } from '@/components/shared/SourceChipList'
 
 /** Chips drawn per sentence before the rest fold into "+N more". */
 const CHIPS_PER_SENTENCE = 2
-/**
- * Beyond this many sources "+N more" stays a count, as in DraftMentionMark: an account
- * that a hundred records restate would otherwise open into a wall of chips.
- */
-const MAX_EXPANDED_CHIPS = 8
 
 /** A cited page of a scanned document: the source an attorney most wants to open. */
 function isDocumentPage(fact: FactRef): boolean {
@@ -21,26 +16,10 @@ function isDocumentPage(fact: FactRef): boolean {
  *
  * Document pages come first, so a scanned page is among the visible chips whenever the
  * sentence cites one, rather than folded behind the Clio record, notes and tasks. The
- * rest keep the order the brief listed them in. With `browse`, "+N more" opens the next
- * source in the drawer, which steps through all of them in this order (D46).
+ * rest keep the order the brief listed them in, which is also the order the drawer steps
+ * through them from "+N more" (D46).
  */
-export function BriefCitations({
-  facts,
-  describedBy,
-  browse = false,
-}: {
-  facts: FactRef[]
-  describedBy?: string
-  browse?: boolean
-}) {
+export function BriefCitations({ facts, describedBy }: { facts: FactRef[]; describedBy?: string }) {
   const ordered = [...facts.filter(isDocumentPage), ...facts.filter((fact) => !isDocumentPage(fact))]
-  return (
-    <SourceChipList
-      facts={ordered}
-      max={CHIPS_PER_SENTENCE}
-      expandable={ordered.length <= MAX_EXPANDED_CHIPS}
-      browse={browse}
-      describedBy={describedBy}
-    />
-  )
+  return <SourceChipList facts={ordered} max={CHIPS_PER_SENTENCE} describedBy={describedBy} />
 }

@@ -14,8 +14,12 @@ export function returnFocusFromDrawer() {
   else document.querySelector<HTMLElement>('main h1')?.focus()
 }
 
-/** A row restated by many records still makes a short URL: past this, the rest are left out. */
-const MAX_SOURCES = 200
+/**
+ * The most sources one item carries into the URL. A date the whole file states can cite
+ * hundreds of records; a thousand ids keep the URL near 7KB, under the dev server's 16KB
+ * header limit. Past this, the rest are left out and the drawer's count stops here.
+ */
+const MAX_SOURCES = 1000
 
 /** `sources=3,9,12` as ids, in order and without repeats; anything malformed reads as no list. */
 function parseSources(raw: string | null): number[] | null {

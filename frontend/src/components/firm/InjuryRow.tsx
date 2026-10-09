@@ -16,7 +16,7 @@ export function InjuryRow({ group }: { group: InjuryGroup }) {
       </div>
       <RevealOnHover>
         <span className="flex max-w-56 justify-end">
-          <SourceChipList facts={facts} max={2} expandable />
+          <SourceChipList facts={facts} max={2} />
         </span>
       </RevealOnHover>
     </li>

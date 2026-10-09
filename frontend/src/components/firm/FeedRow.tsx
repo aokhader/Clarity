@@ -20,7 +20,7 @@ export function FeedRow({ fact }: { fact: FactOut }) {
       <span className="flex flex-wrap items-center gap-2 text-[15px]">
         <span className="min-w-0">{fact.title}</span>
         <RevealOnHover>
-          <SourceChipList facts={[fact, ...fact.restated_by]} max={2} expandable />
+          <SourceChipList facts={[fact, ...fact.restated_by]} max={2} />
         </RevealOnHover>
       </span>
     </li>

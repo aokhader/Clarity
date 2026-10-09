@@ -12,9 +12,6 @@ function fileValue(mention: DraftMentionOut): string | null {
   return null
 }
 
-/** Beyond this many sources, "+N more" stays a count instead of drawing every chip. */
-const MAX_EXPANDED_CHIPS = 8
-
 const UNDERLINE: Record<DraftMentionOut['verdict'], string> = {
   supported: 'decoration-success',
   differs: 'decoration-warning decoration-wavy',
@@ -72,9 +69,9 @@ export function DraftMentionMark({ mention, onUseFileValue }: DraftMentionMarkPr
           </span>
         )}
         {/* A date the file states everywhere (an incident date) can cite hundreds of facts:
-            one chip opens a source, and the rest stay a count rather than a wall of chips. */}
+            one chip opens a source, and "+N more" steps through the rest in the drawer. */}
         {mention.facts.length > 0 && (
-          <SourceChipList facts={mention.facts} max={1} expandable={mention.facts.length <= MAX_EXPANDED_CHIPS} />
+          <SourceChipList facts={mention.facts} max={1} />
         )}
         {replacement && onUseFileValue && (
           <button
