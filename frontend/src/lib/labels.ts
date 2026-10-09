@@ -27,6 +27,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   economic_damages: 'Economic damages',
   recovery_cap: 'Recovery cap',
   call_note: 'Call note',
+  litigation_event: 'Litigation',
   other: 'Other',
 }
 
@@ -89,6 +90,7 @@ const KIND_LANE: Partial<Record<FactKind, Lane>> = {
   coverage: 'case',
   deadline: 'case',
   records_received: 'case',
+  litigation_event: 'case',
   diagnosis: 'treatment',
   treatment_visit: 'treatment',
   demand: 'negotiation',
