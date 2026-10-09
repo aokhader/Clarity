@@ -11,6 +11,7 @@ in `llm.py` is real. Every record here is invented.
 """
 
 import json
+import logging
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.digest import chat, llm
+from app.digest import brief, chat, llm
 from app.digest.chat import (
     AttachedItem,
     ChatInput,
@@ -451,3 +452,173 @@ def test_chat_is_configured_only_with_a_key_a_model_and_both_prices(
 
 def test_the_chat_prompt_is_versioned() -> None:
     assert llm.load_prompt("chat_answer").version == "1"
+
+
+# --- The input's size (D50) ---------------------------------------------------------
+
+
+def test_the_input_is_compact_json(
+    facts: Facts, session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _model(monkeypatch, {"sentences": [], "no_answer": True})
+
+    _ask(session, facts)
+
+    sent = fake.requests[0].user_text
+    assert sent == json.dumps(json.loads(sent), separators=(",", ":"))
+    assert "\n" not in sent
+
+
+def test_an_item_shows_only_its_most_significant_facts(
+    session: Session, data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert _settings(data_dir).chat_item_facts == 25
+    assert _settings(data_dir).chat_context_facts == 40
+    _use(monkeypatch, _settings(data_dir, chat_item_facts=2))
+    source = _source(session)
+    low = _fact(session, source, FactKind.TREATMENT_VISIT, significance=10)
+    high = _fact(session, source, FactKind.TREATMENT_VISIT, significance=90)
+    mid = _fact(session, source, FactKind.TREATMENT_VISIT, significance=50)
+    tied = _fact(session, source, FactKind.TREATMENT_VISIT, significance=50)
+    session.commit()
+    chat_input = ChatInput(
+        overview=[low, high],
+        brief_sentences=[],
+        attached=[AttachedItem(label="Visits", facts=[low, high, mid, tied], pages=[])],
+        retrieved=[],
+        pages=[],
+        history=[],
+    )
+    fake = _model(
+        monkeypatch,
+        {
+            "sentences": [
+                _sentence("A visit the overview shows.", [low.id]),
+                # Past the item's cap and in no other section, so not citable.
+                _sentence("A visit the model was not shown.", [tied.id]),
+            ],
+            "no_answer": False,
+        },
+    )
+
+    answer = answer_question(
+        session, matter_id=MATTER, question="Which visits?", chat_input=chat_input
+    )
+
+    sent = json.loads(fake.requests[0].user_text)
+    rows = sent["pointed_at"][0]["facts"]
+    # Most significant first; on a tie, the caller's order.
+    assert [row["fact_id"] for row in rows] == [high.id, mid.id]
+    # A fact past the cap is not hidden from the sections after the items.
+    assert [row["fact_id"] for row in sent["overview"]] == [low.id]
+    # The order carries the significance; confidence and the quote stay.
+    for row in [*rows, *sent["overview"]]:
+        assert "significance" not in row
+        assert row["confidence"] == "high" and row["quote"] == "Invented quote"
+    assert [s.fact_ids for s in answer.sentences] == [[low.id]]
+    assert answer.dropped == 1
+
+
+def test_the_brief_input_is_unchanged_so_its_cache_key_holds(
+    session: Session, data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use(monkeypatch, _settings(data_dir))
+    fact = _fact(session, _source(session), FactKind.TREATMENT_VISIT)
+    session.commit()
+    sent: list[llm.ModelRequest] = []
+
+    def no_answer(_session: Session, request: llm.ModelRequest) -> None:
+        sent.append(request)
+
+    monkeypatch.setattr(llm, "call", no_answer)
+
+    brief.write_brief(session, MATTER)
+
+    # The brief's row and layout as they were before chat: indented, with significance.
+    row = {
+        "fact_id": fact.id,
+        "kind": "treatment_visit",
+        "title": "Invented fact",
+        "date": None,
+        "source": "Invented clinic record, page 1",
+        "significance": 60,
+        "confidence": "high",
+        "value": {},
+        "quote": "Invented quote",
+    }
+    expected = {"facts": [row], "key_figures": {}, "open_task_ids": []}
+    assert sent[0].user_text == json.dumps(expected, indent=1)
+
+
+SECRET = "Invented record text that must never reach a log"
+
+
+def _tool_call(value: object) -> dict[str, Any]:
+    return {"type": "tool_use", "name": llm.TOOL_NAME, "input": {"value": value}}
+
+
+class ScriptedWire:
+    """The model API answering each attempt in turn from a script."""
+
+    def __init__(self, *answers: tuple[str, list[dict[str, Any]]]) -> None:
+        self.answers = list(answers)
+
+    def __call__(self, url: str, **_kw: object) -> httpx.Response:
+        stop_reason, content = self.answers.pop(0)
+        return httpx.Response(
+            200,
+            json={
+                "model": CHAT_MODEL,
+                "stop_reason": stop_reason,
+                "content": content,
+                "usage": {"input_tokens": 1000, "output_tokens": 50},
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    ("first", "reason"),
+    [
+        (("end_turn", [{"type": "text", "text": SECRET}]), "no tool call"),
+        (("max_tokens", [{"type": "thinking", "thinking": SECRET}]), "max_tokens"),
+        (("refusal", [{"type": "text", "text": SECRET}]), "refusal"),
+        (("tool_use", [_tool_call(SECRET)]), "schema failure (value int_parsing)"),
+    ],
+)
+def test_a_second_attempt_is_logged_with_its_reason_and_no_record_text(
+    first: tuple[str, list[dict[str, Any]]],
+    reason: str,
+    data_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _use(monkeypatch, _settings(data_dir))
+    monkeypatch.setattr(
+        llm.httpx, "post", ScriptedWire(first, ("tool_use", [_tool_call(1)]))
+    )
+    caplog.set_level(logging.INFO, logger=llm.__name__)
+
+    result = llm._execute(_request("chat"))
+
+    assert result.data == {"value": 1}
+    # Both attempts are billed.
+    assert (result.input_tokens, result.output_tokens) == (2000, 100)
+    lines = [m for r in caplog.records if "second attempt" in (m := r.getMessage())]
+    assert lines == [
+        (
+            f"test call (role chat) needs a second attempt: {reason}; the first "
+            "billed 1000 tokens in, 50 out"
+        )
+    ]
+    assert SECRET not in caplog.text
+
+
+def test_a_call_answered_at_once_logs_no_second_attempt(
+    data_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _use(monkeypatch, _settings(data_dir))
+    monkeypatch.setattr(llm.httpx, "post", ScriptedWire(("tool_use", [_tool_call(1)])))
+    caplog.set_level(logging.INFO, logger=llm.__name__)
+
+    assert llm._execute(_request("chat")).data == {"value": 1}
+    assert "second attempt" not in caplog.text

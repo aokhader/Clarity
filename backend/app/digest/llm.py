@@ -130,7 +130,9 @@ class ExtractionFailed(Exception):
 
 
 class NoStructuredOutput(ExtractionFailed):
-    """The model answered without a usable tool call; the tokens were still billed."""
+    """The model answered without a usable tool call; the tokens were still billed.
+    `reason` is a class of failure, safe to log: "no tool call", "max_tokens",
+    "refusal" or "no JSON answer"."""
 
     def __init__(
         self,
@@ -138,11 +140,14 @@ class NoStructuredOutput(ExtractionFailed):
         tokens_in: int,
         tokens_out: int,
         served_model: str | None = None,
+        *,
+        reason: str = "no tool call",
     ) -> None:
         super().__init__(message)
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
         self.served_model = served_model
+        self.reason = reason
 
 
 @dataclass(frozen=True)
@@ -336,7 +341,7 @@ def _execute(request: ModelRequest) -> ModelResult:
     # priced at the fallback's higher rates: an upper bound, never an undercount.
     fallback: str | None = None
     feedback: str | None = None
-    for _attempt in range(2):
+    for attempt in range(2):
         try:
             data, tokens_in, tokens_out, served = _send(request, feedback)
         except NoStructuredOutput as error:
@@ -344,6 +349,10 @@ def _execute(request: ModelRequest) -> ModelResult:
             total_out += error.tokens_out
             fallback = fallback or _served_by_fallback(request, error.served_model)
             feedback = f"Your previous answer had {error}. {_answer_instruction()}"
+            if attempt == 0:
+                _log_second_attempt(
+                    request, error.reason, error.tokens_in, error.tokens_out
+                )
             continue
         except (httpx.HTTPError, ExtractionFailed, ValueError) as error:
             return ModelResult(
@@ -356,6 +365,9 @@ def _execute(request: ModelRequest) -> ModelResult:
             validated = request.output.model_validate(data)
         except ValidationError as error:
             feedback = f"Your previous output did not match the schema: {error}"[:2000]
+            if attempt == 0:
+                reason = _schema_failure(error, request.output)
+                _log_second_attempt(request, reason, tokens_in, tokens_out)
             continue
         return ModelResult(
             validated.model_dump(mode="json"), total_in, total_out, None, fallback
@@ -363,6 +375,37 @@ def _execute(request: ModelRequest) -> ModelResult:
     return ModelResult(
         None, total_in, total_out, f"no valid output: {feedback}", fallback
     )
+
+
+def _log_second_attempt(
+    request: ModelRequest, reason: str, tokens_in: int, tokens_out: int
+) -> None:
+    """One line when a call is asked again, which bills its input twice. Only the
+    reason's class and counts: the model's output and the error's text can quote the
+    records."""
+    log.info(
+        "%s call (role %s) needs a second attempt: %s; the first billed %d tokens "
+        "in, %d out",
+        request.purpose,
+        request.role,
+        reason,
+        tokens_in,
+        tokens_out,
+    )
+
+
+def _schema_failure(error: ValidationError, output: type[BaseModel]) -> str:
+    """The failure as Pydantic's error types, each with the top-level field it is under
+    when that is one of the schema's own names. Never the input value."""
+    kinds = sorted(
+        {
+            f"{loc[0]} {e['type']}"
+            if (loc := e["loc"]) and loc[0] in output.model_fields
+            else e["type"]
+            for e in error.errors()
+        }
+    )
+    return f"schema failure ({', '.join(kinds)})"
 
 
 def _served_by_fallback(request: ModelRequest, served: str | None) -> str | None:
@@ -487,6 +530,9 @@ def _send_anthropic(
             tokens_in,
             tokens_out,
             served,
+            reason=stop_reason
+            if stop_reason in ("max_tokens", "refusal")
+            else "no tool call",
         )
     return blocks[0].get("input"), tokens_in, tokens_out, served
 
@@ -622,7 +668,10 @@ def _send_gemini(
     except ValueError:
         # Paid for even though unusable, so the tokens still go into the cost figure.
         raise NoStructuredOutput(
-            f"no JSON answer (finish reason {reason})", tokens_in, tokens_out
+            f"no JSON answer (finish reason {reason})",
+            tokens_in,
+            tokens_out,
+            reason="max_tokens" if reason == "MAX_TOKENS" else "no JSON answer",
         ) from None
 
 

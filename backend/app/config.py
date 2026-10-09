@@ -96,7 +96,10 @@ class Settings(BaseSettings):
     chat_rpm: int = Field(default=0, ge=0)
     # Per matter, summed from local midnight.
     chat_daily_budget_usd: Decimal = Field(default=Decimal(2), ge=0)
-    chat_context_facts: int = Field(default=60, ge=1)
+    # Retrieved facts per question, and an attached item's facts the model is shown,
+    # its most significant (D50: the input was three times the plan's estimate).
+    chat_context_facts: int = Field(default=40, ge=1)
+    chat_item_facts: int = Field(default=25, ge=1)
     chat_context_pages: int = Field(default=6, ge=0)
     chat_page_chars: int = Field(default=3000, ge=1)
     chat_history_turns: int = Field(default=4, ge=0)

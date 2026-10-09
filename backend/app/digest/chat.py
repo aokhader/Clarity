@@ -34,6 +34,8 @@ __all__ = [
     "PageExcerpt",
     "PriorTurn",
     "answer_question",
+    "chat_row",
+    "shown_item_facts",
 ]
 
 
@@ -48,7 +50,9 @@ class PageExcerpt:
 @dataclass
 class AttachedItem:
     label: str  # AskItemOut.label
-    facts: list[Fact]  # renderable facts, restatements included, at most 50
+    # Renderable facts, restatements included, at most 50; the model is shown the
+    # CHAT_ITEM_FACTS most significant (`shown_item_facts`).
+    facts: list[Fact]
     pages: list[PageExcerpt]
 
 
@@ -111,7 +115,8 @@ def answer_question(
         purpose="chat",
         role="chat",
         prompt=llm.load_prompt("chat_answer"),
-        user_text=json.dumps(payload, indent=1),
+        # Compact: indentation is a tenth of the characters and buys the model nothing.
+        user_text=json.dumps(payload, separators=(",", ":")),
         output=ChatReply,
         matter_id=matter_id,
     )
@@ -162,7 +167,7 @@ def chat_payload(
     def rows(facts: list[Fact]) -> list[dict[str, Any]]:
         fresh = [f for f in _unique(facts) if f.id not in shown_facts]
         shown_facts.update(f.id for f in fresh)
-        return [fact_row(f) for f in fresh]
+        return [chat_row(f) for f in fresh]
 
     def excerpts(pages: list[PageExcerpt]) -> list[dict[str, Any]]:
         fresh = []
@@ -172,17 +177,19 @@ def chat_payload(
                 fresh.append(_excerpt(session, page))
         return fresh
 
-    # Each item lists all its facts, even one another item also holds, so every item
-    # reads whole; the sections after them leave out what the items showed.
+    # Each item lists its facts, even one another item also holds, so every item reads
+    # whole; the sections after them leave out what the items showed. A fact an item
+    # leaves out past its cap may still come in a later section.
+    items = [(item, shown_item_facts(item.facts)) for item in chat_input.attached]
     pointed_at = [
         {
             "label": item.label,
-            "facts": [fact_row(f) for f in _unique(item.facts)],
+            "facts": [chat_row(f) for f in facts],
             "pages": excerpts(item.pages),
         }
-        for item in chat_input.attached
+        for item, facts in items
     ]
-    shown_facts.update(f.id for item in chat_input.attached for f in item.facts)
+    shown_facts.update(f.id for _, facts in items for f in facts)
     matter_facts = list(
         session.scalars(
             select(Fact).where(Fact.matter_id == matter_id).order_by(Fact.id)
@@ -203,6 +210,23 @@ def chat_payload(
         ],
         "question": question,
     }
+
+
+def shown_item_facts(facts: list[Fact]) -> list[Fact]:
+    """The pointed-at item's facts the model is shown: its CHAT_ITEM_FACTS most
+    significant, most significant first; on a tie, the caller's order holds."""
+    ranked = sorted(_unique(facts), key=lambda f: -f.significance)
+    return ranked[: get_settings().chat_item_facts]
+
+
+def chat_row(fact: Fact) -> dict[str, Any]:
+    """A fact as the chat model sees it: the brief's row without its significance,
+    which the order mostly carries (an item's facts come most significant first, the
+    retrieved facts in rank order). `fact_row` stays as it is: the brief's input is
+    its cache key."""
+    row = fact_row(fact)
+    del row["significance"]
+    return row
 
 
 def _unique(facts: list[Fact]) -> list[Fact]:
