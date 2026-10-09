@@ -55,6 +55,10 @@ KEY_EVENT_KINDS = (
     FactKind.RECORDS_RECEIVED,
     FactKind.LITIGATION_EVENT,
 )
+# Court events are part of the story whatever their score (D41), so up to
+# `KEY_EVENTS_PER_KIND` of each are pinned like the incident; the other kinds compete
+# for the slots left.
+PINNED_EVENT_KINDS = (FactKind.LITIGATION_EVENT,)
 
 
 class MatterNotFound(LookupError):
@@ -309,14 +313,16 @@ def _with_restatements(group: list[Fact]) -> FactOut:
 def matter_key_events(
     session: Session, matter_id: int, today: date, limit: int
 ) -> list[FactOut]:
-    """What has happened on the case, oldest first: the incident, then the most
-    significant past events, each once, at most `KEY_EVENTS_PER_KIND` of a kind.
+    """What has happened on the case, oldest first: the incident and the court events,
+    then the most significant other past events, each once, at most
+    `KEY_EVENTS_PER_KIND` of a kind.
 
     The incident is one row: the header's account of it, citing the records that give
     it, else the fact the header cites. Hundreds of incident facts can share one day in
     different words, and those do not fold into one row. Each kind gets its own
     candidate window, since one window over every kind fills with the most numerous
-    kind and leaves the others out.
+    kind and leaves the others out. When the limit is smaller than what is pinned, the
+    incident stays, then the most significant court events.
     """
     incidents = list(
         session.scalars(
@@ -330,23 +336,32 @@ def matter_key_events(
         pinned = [incident]
     leaders: list[list[Fact]] = []
     for kind in KEY_EVENT_KINDS:
-        candidates = session.scalars(
-            renderable_facts(matter_id)
-            .where(
-                Fact.kind == kind,
-                Fact.event_date.is_not(None),
-                Fact.event_date <= today,
-            )
-            .order_by(Fact.significance.desc(), Fact.event_date.desc(), Fact.id)
-            .limit(KEY_EVENTS_PER_KIND * FEED_CANDIDATES_PER_ROW)
-        )
-        leaders.extend(group_restatements(list(candidates))[:KEY_EVENTS_PER_KIND])
+        groups = _leading_events(session, matter_id, kind, today)
+        (pinned if kind in PINNED_EVENT_KINDS else leaders).extend(groups)
     leaders.sort(
         key=lambda g: (-g[0].significance, -_ordinal(g[0].event_date), g[0].id)
     )
-    chosen = pinned + leaders[: max(limit - len(pinned), 0)]
+    chosen = (pinned + leaders)[:limit]
     chosen.sort(key=lambda g: (_ordinal(g[0].event_date), g[0].id))
     return [_with_restatements(group) for group in chosen]
+
+
+def _leading_events(
+    session: Session, matter_id: int, kind: FactKind, today: date
+) -> list[list[Fact]]:
+    """A kind's most significant dated past events, restatements folded, at most
+    `KEY_EVENTS_PER_KIND`, most significant first."""
+    candidates = session.scalars(
+        renderable_facts(matter_id)
+        .where(
+            Fact.kind == kind,
+            Fact.event_date.is_not(None),
+            Fact.event_date <= today,
+        )
+        .order_by(Fact.significance.desc(), Fact.event_date.desc(), Fact.id)
+        .limit(KEY_EVENTS_PER_KIND * FEED_CANDIDATES_PER_ROW)
+    )
+    return group_restatements(list(candidates))[:KEY_EVENTS_PER_KIND]
 
 
 def _ordinal(day: date | None) -> int:

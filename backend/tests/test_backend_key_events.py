@@ -245,6 +245,70 @@ def test_a_litigation_event_that_happened_is_a_key_event(session: Session) -> No
     assert not {set_for_later.id, undated.id} & ids
 
 
+def _court_event(
+    session: Session, title: str, on: date | None, significance: int
+) -> Fact:
+    return _add(
+        session,
+        FactKind.LITIGATION_EVENT,
+        title,
+        on,
+        significance,
+        value={"event": "other"},
+    )
+
+
+def test_court_events_are_pinned_however_low_their_score(session: Session) -> None:
+    incident = _incident(session)
+    for n in range(10):
+        _add(session, FactKind.DIAGNOSIS, f"Finding {n}", _days_ago(200 - n), 95)
+        _add(session, FactKind.TREATMENT_VISIT, f"Visit {n}", _days_ago(150 - n), 95)
+    court = [
+        _court_event(session, "Complaint filed", _days_ago(120), 10),
+        _court_event(session, "Answer received", _days_ago(90), 5),
+    ]
+
+    rows = _events(session, limit=5)
+
+    assert len(rows) == 5
+    ids = _ids(rows)
+    assert incident.id in ids
+    assert {f.id for f in court} <= ids
+    assert [(r.event_date, r.id) for r in rows] == sorted(
+        (r.event_date, r.id) for r in rows
+    )
+
+
+def test_court_events_beyond_the_cap_or_undated_are_left_out(
+    session: Session,
+) -> None:
+    _incident(session)
+    kept = [
+        _court_event(session, "Complaint filed", _days_ago(120), 40),
+        _court_event(session, "Defendant served", _days_ago(110), 30),
+        _court_event(session, "Answer received", _days_ago(90), 20),
+    ]
+    beyond = _court_event(session, "Motion argued", _days_ago(60), 10)
+    undated = _court_event(session, "Case renewed", None, 100)
+
+    ids = _ids(_events(session))
+
+    assert {f.id for f in kept} <= ids
+    assert beyond.id not in ids
+    assert undated.id not in ids
+
+
+def test_a_limit_below_what_is_pinned_keeps_the_incident_first(
+    session: Session,
+) -> None:
+    incident = _incident(session)
+    _court_event(session, "Complaint filed", _days_ago(120), 10)
+    stronger = _court_event(session, "Defendant served", _days_ago(110), 60)
+
+    assert _ids(_events(session, limit=2)) == {incident.id, stronger.id}
+    assert _ids(_events(session, limit=1)) == {incident.id}
+
+
 def test_a_deadline_is_never_a_key_event(session: Session) -> None:
     """A date set for a hearing does not say the hearing took place (D40)."""
     _incident(session)
