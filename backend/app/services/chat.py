@@ -8,6 +8,7 @@ each cites. Verdicts are not stored: `chat_view.py` computes them when a turn is
 
 Closing a thread (D52) freezes its turns as served at that moment, with a plain-text
 transcript (`chat_transcript.py`), and ends it: no question or retry is taken after.
+It also freezes the source behind every chip (D54, `chat_frozen.py`).
 
 Spend is capped per matter per local day, summed from `llm_calls` with purpose `chat`.
 Logs carry counts and ids only, never a question or record text (rule 7).
@@ -26,7 +27,7 @@ from app.config import get_settings
 from app.db import get_sessionmaker
 from app.models import ChatStatus, ChatThread, ChatTranscript, ChatTurn, User, utcnow
 from app.schemas import ChatAskIn, ChatBudgetOut, ChatThreadOut, ChatTurnOut
-from app.services import chat_view
+from app.services import chat_frozen, chat_view
 from app.services.chat_attachments import load_renderable, resolve_items
 from app.services.chat_context import build_context, context_fact_ids, prior_turns
 from app.services.chat_transcript import transcript_text
@@ -194,8 +195,16 @@ def close(
             turns_json=[t.model_dump(mode="json") for t in turns],
             text=transcript_text(session, thread, turns, user.name, now),
         )
+        # D54: the sources the turns cite, as the drawer serves them now, in the same
+        # transaction, so a later re-read cannot change what a closed chip opens.
+        frozen = chat_frozen.freeze(session, thread, turns)
         session.commit()
-        log.info("Chat thread %d closed with %d turns", thread.id, len(turns))
+        log.info(
+            "Chat thread %d closed with %d turns, %d sources frozen",
+            thread.id,
+            len(turns),
+            frozen,
+        )
     return chat_view.thread_out(session, thread)
 
 

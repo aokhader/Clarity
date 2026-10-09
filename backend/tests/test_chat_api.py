@@ -394,7 +394,7 @@ def test_no_chat_or_search_route_sits_under_the_provider_prefix() -> None:
     assert provider, "the provider routes are mounted"
     assert not [p for p in provider if "chat" in p or "search" in p]
     chat_paths = [p for p in paths if "/chat" in p or p.endswith("/search")]
-    assert len(chat_paths) == 8
+    assert len(chat_paths) == 9  # D54 added the frozen source
     assert all(p.startswith("/api/matters/{matter_id}/") for p in chat_paths)
 
 

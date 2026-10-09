@@ -21,8 +21,9 @@ from app.schemas import (
     ChatThreadSummaryOut,
     ChatTurnOut,
     FactOut,
+    FactSourceOut,
 )
-from app.services import chat, chat_context, chat_view
+from app.services import chat, chat_context, chat_frozen, chat_view
 from app.services.chat_attachments import ItemNotInMatter
 
 router = APIRouter(prefix="/api/matters/{matter_id}", tags=["chat"])
@@ -101,6 +102,17 @@ def thread_transcript(
     return PlainTextResponse(
         text, headers={"Content-Disposition": f'attachment; filename="{name}"'}
     )
+
+
+@router.get("/chat/threads/{thread_id}/facts/{fact_id}/source")
+def frozen_fact_source(
+    matter_id: MatterId, thread_id: int, fact_id: int, session: SessionDep
+) -> FactSourceOut:
+    """A closed thread's chip: the source as it was when the thread closed (D54)."""
+    try:
+        return chat_frozen.frozen_source(session, matter_id, thread_id, fact_id)
+    except chat_frozen.FrozenSourceNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.get("/chat/budget")

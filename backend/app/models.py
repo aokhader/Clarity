@@ -486,3 +486,21 @@ class ChatTranscript(Base):
     text: Mapped[str] = mapped_column(Text)
 
     thread: Mapped[ChatThread] = relationship(back_populates="transcript")
+
+
+class ChatFrozenSource(Base):
+    """A source a closed thread cites, as the drawer served it when the thread closed
+    (D54): a `FactSourceOut` with `source.pages` cut to the cited page.
+
+    A re-read replaces fact ids, so a closed thread's chips open this copy rather than
+    today's fact. `fact_id` has no foreign key for that reason: the copy must outlive
+    the fact it was taken from.
+    """
+
+    __tablename__ = "chat_frozen_sources"
+
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), primary_key=True
+    )
+    fact_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    source_json: Mapped[dict[str, Any]] = mapped_column(JSON)
