@@ -1,6 +1,6 @@
 # Clarity
 
-Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets an Overview it can read in 90 seconds: what happened, where the case is now, the figures that matter, the key events in order, what changed since the last visit, and the brief's account in sentences. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from: a note or email with the quote highlighted in its text, a PDF at the cited page with the quote set above it. Two tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; and a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, and when the firm asks for a call's notes. They never run when a page loads, and each result is stored and reused.
+Clarity turns one personal-injury matter in Clio Manage into two views. The firm gets an Overview it can read in 90 seconds: what happened, where the case is now, the figures that matter, the key events in order, what changed since the last visit, and the brief's account in sentences. The medical providers treating the client on lien get a private link that shows only what the attorney releases: where the case stands, whether coverage is confirmed and, if the attorney allows, the defendant's liability limits, what the firm needs from them, and their own bills and records. Every date, amount and claim on screen opens the note, email or PDF page it came from, with the cited quote set above the record, and also highlighted in a note's or email's text. Three tools sit on the same fact store: a draft checker that tests each amount and date in a message to a provider against the file, says when a date is in the file but not on that provider's link, and locks a sentence that would disclose an internal figure; a Calls view that lists who to call next and turns a call's transcript into notes, each citing the words it came from; and Ask, where the firm points at a row, tile or step and asks about it, and every sentence of the answer cites records it was given, checked in code. Clio is read with GET requests only, and nothing is ever written back. Models run when the matter is digested, when the firm asks for a call's notes, and when someone asks a question. They never run when a page loads, and each result is stored and reused.
 
 Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 2026), then finished in a trial run by a team of agents (see [The trial](#the-trial)).
 
@@ -16,7 +16,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | **Documents** | **The Overview at phone width** |
 | ![Documents: every cited source grouped by record type, a filter button per type with its count, and under each source the facts it holds, each a link that opens it](docs/screenshots/documents.png) | <img src="docs/screenshots/overview-phone.png" width="300" alt="The Overview at 390 pixels wide: the rail folded into a top bar with a Menu button, the header and stage track wrapped, the bottom line with a checked figure and its chip, and What happened with the chips under each line"> |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). They were taken on 2026-10-08, before D44 to D50, so they show neither the Ask bar nor the later changes to the Overview: each block on a card of its own, the story newest first, and "Deadlines and follow-ups" as the title of the Now block. **The Ask view has no screenshot yet:** an answer on the invented matter would need a model call.
 
 ## Run it
 
@@ -99,6 +99,10 @@ Fill `.env` at the repository root. Every setting, with its default, is in `back
   - `LLM_API_KEY`, `EXTRACT_MODEL` (vision-capable, one call per page or record) and `MERGE_MODEL` (mapping, significance and the brief).
   - The four `*_PRICE_*` settings, in USD per million tokens, so the cost can be computed.
   - `EXTRACT_RPM` and `MERGE_RPM` cap and space the requests per minute to each model (D31). `LLM_MAX_RETRY_WAIT_SECONDS` fails a call at once when the API asks for a longer wait; retry it later.
+- **Ask, the chatbot (D49):** its own settings, on the same `LLM_API_KEY`. Ask stays off, and says what to set, until `CHAT_MODEL`, `CHAT_PRICE_IN` and `CHAT_PRICE_OUT` are filled. D49 chose `claude-sonnet-5-5`, at effort medium. The rest have defaults in `.env.example`:
+  - `CHAT_FALLBACK_PRICE_IN`, `CHAT_FALLBACK_PRICE_OUT`, `CHAT_MAX_OUTPUT_TOKENS`, `CHAT_EFFORT`, `CHAT_RPM`;
+  - `CHAT_DAILY_BUDGET_USD`, the cap per matter per day;
+  - `CHAT_CONTEXT_FACTS`, `CHAT_ITEM_FACTS`, `CHAT_CONTEXT_PAGES`, `CHAT_PAGE_CHARS` and `CHAT_HISTORY_TURNS`, how much of the file one question sends.
 
 Then, from `backend/` with the environment active:
 
@@ -140,7 +144,7 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 
 ### The views
 
-The firm side has five views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents and Calls. The reviewer re-read this section against the code under `frontend/src/components/firm/` and `frontend/src/pages/firm/` at `be8d813`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), and the court events (D41 to D43); the frontend has not changed since U18 (`a2b19cd`). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+The firm side has six views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents, Calls and Ask. Every view but Ask carries the Ask bar above it (see [Ask](#ask-point-at-something-and-ask-d49-d50)). The reviewer re-read this section against the code under `frontend/src/components/` and `frontend/src/pages/firm/` at `d8cc936`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), the court events (D41 to D43), the reading and layout fixes of D44 to D48, and the chatbot (D49, D50). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
 
 **On every view, the identity header:**
 - a breadcrumb (Cases, the client, the view);
@@ -148,23 +152,23 @@ The firm side has five views in the rail: Case Overview, For Attorney, For Servi
 - a case line: Clio's description, the matter number, and the incident date with its age and a source chip;
 - the stage on a five-step track, "Step N of 5" in words, an "inferred" marker when the stage was inferred, and its chips. The steps before the current one are filled but carry no check mark and are not called completed, since a case in litigation can still be treating (D40). Only a settled or closed case completes the track.
 
-**Case Overview**, the 90-second read, on one sheet from top to bottom:
+**Case Overview**, the 90-second read, from top to bottom, each block on a card of its own (D46):
 1. **The bottom line:** the brief's headline, with its facts cited.
 2. **What happened:** a missing line reads "Not found in file".
    - **Incident:** the account most records give, never Clio's date field (`incident_account`, D39).
    - **Injuries:** one row per body region, up to three, the region the most records state first. Each row shows the finding the most records give for that region; a tie goes to the treating providers. No injury count is shown, since the records restate one injury many times; a link opens all of them on For Attorney (D40).
    - **Liability:** the two most significant liability facts, so a contested point does not read as settled by one opinion (D40).
-3. **Now:** in each cell, the value and its chip.
+3. **Deadlines and follow-ups** (called Now before D47): in each cell, the value and its chip.
    - **Next step,** headed "Overdue" when the item it picks is overdue.
    - **Statute,** with its countdown in words. When the Clio task the statute was read from is complete, it reads "Met", with its date in neutral ink, never a red "passed" (D40).
    - **Last client contact.**
    - **To do:** the overdue, upcoming and open-request counts, which link to the action board. "Open requests" replaced "waiting on others", because a record request does not say who is waiting on whom (D40).
 4. **Money:** the four tiles, Case value, Coverage limit, Medical specials and Firm spend. They moved here from For Attorney (D38).
-5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, numbered, oldest first, each with its date and lane. Court events have their own kind, `litigation_event`: filed, served, answered, dismissed, renewed, a motion, an order, a hearing, a deposition, a trial, or other. Each is dated by its filing, service or decision date, never by the date of the note that reports it, and is internal (D41, D43). Up to three dated court events are pinned after the incident, chosen by type before score: filed, dismissed, renewed and answered first, then the rest (D43). The other kinds fill the remaining rows. Under the story, one line names the court events no record dates, each by its type word with its chips ("Also in the file, without a date: ...", from `GET /api/matters/{id}/key-events/undated`). It leaves out any that a dated record of another kind states, and is absent when there are none. Deadlines are left out, since a scheduled date does not say that anything happened (D40). "Full timeline" opens For Attorney with the timeline chosen.
+5. **The story so far:** about ten key events from `GET /api/matters/{id}/key-events`, each with its date and lane. The API returns them oldest first; the page shows them newest first, numbered down, so the incident stays 1 (D47). Court events have their own kind, `litigation_event`: filed, served, answered, dismissed, renewed, a motion, an order, a hearing, a deposition, a trial, or other. Each is dated by its filing, service or decision date, never by the date of the note that reports it, and is internal (D41, D43). Up to three dated court events are pinned after the incident, chosen by type before score: filed, dismissed, renewed and answered first, then the rest (D43). The other kinds fill the remaining rows. Under the story, one line names the court events no record dates, each by its type word with its chips ("Also in the file, without a date: ...", from `GET /api/matters/{id}/key-events/undated`). It leaves out any that a dated record of another kind states, and is absent when there are none. Deadlines are left out, since a scheduled date does not say that anything happened (D40). "Full timeline" opens For Attorney with the timeline chosen.
 6. **Since you last opened:** at most five changes, then a count of the rest. Hidden when nothing is new; one line on a first visit.
 7. **Where it stands:** the brief's sentences, one per row, then "Not answered by the file", the brief's open questions. When the case is in litigation, one sentence says where the suit stands: any defense pleaded, and any earlier dismissal or refiling the facts record, citing them (brief prompt version 5, D43).
 
-In What happened, The story so far and Where it stands, each line's source chips sit in a right-hand margin beside it, so the sentence reads uninterrupted and keeps its own chips (D3). A figure the draft checker marks keeps its chip inline. For the incident account and each key event, the extra chips cite the other records that restate it, one chip per record, never one per page (D40).
+In What happened, The story so far and Where it stands, each line's source chips sit in a right-hand margin beside it, so the sentence reads uninterrupted and keeps its own chips (D3). A figure the draft checker marks keeps its chip inline. For the incident account and each key event, the extra chips cite the other records that restate it, one chip per record, never one per page (D40). On every view, an item with more sources than it draws ends in "+N more", which opens the source drawer at the first source not drawn; the drawer then steps through all of the item's sources with Previous, Next and "Source N of M" (D46, D47).
 
 **For Attorney:**
 - the action board as a table: task, due date, owner and status, overdue first, with each task's title opening its source;
@@ -173,11 +177,29 @@ In What happened, The story so far and Where it stands, each line's source chips
 
 **Documents:** every source the facts cite, once each, grouped by record type, with a filter for each type and its count. Each row gives the earliest date among its facts, or "Undated", and lists the facts it holds; each fact opens the source in the drawer.
 
-**Accessibility (D38).** What the lead measured is under [Verified](#verified). Built, and read from the code:
+**Accessibility (D38).** What the lead measured is under [Verified](#verified); that was before the Ask bar and the Ask view existed. Built, and read from the code:
 - every view reflows to 320 CSS px, and below 1024 px the rail becomes a top bar with a Menu button;
 - a skip link to the matter;
 - closing the source drawer returns focus to the chip that opened it;
 - under each scanned page in the drawer, a "Page text" disclosure holds the page's text as its text alternative.
+
+#### Ask: point at something and ask (D49, D50)
+
+Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and the provider's own page renders no handle, bar or panel. The design and the rules are in `docs/chat-contract.md`.
+
+- **The Ask bar,** above every firm view but Ask: a grip handle, a search box and Ask, on one line at rest (D50). Items attached to the question, and their starter questions, take a second line only while there are any.
+  - **Search** lists the records that match as you type (`GET /api/matters/{id}/search`), with no model call. Choosing a hit attaches it.
+  - **Pointing:** drag the grip handle onto any row, tile or stage step, and that item's records are attached. Or click the handle (or press Enter on it) to start pick mode: every target is outlined, and the next one clicked, or reached with Tab and chosen with Enter, is attached. Pick mode is the single-pointer and keyboard path that WCAG 2.5.7 asks for.
+  - **Starter questions:** two or three per kind of item (a bill, a deadline, an event, an injury, a money tile, a provider, a call, a document, the stage, any other fact). They are generic and written in code; the item, sent as ids, is what makes the question about this case. The server resolves each item inside the matter and labels it itself.
+- **The thread** opens in a side panel that is not a dialog, so the page stays usable beside it, and a chip in it opens the source drawer. **The Ask view** (`?view=ask`) lists the matter's threads, newest first, and shows the chosen one at full width. Threads are kept per matter for the whole firm, and can be archived.
+- **The answer:** asking starts one model call in the background, and the page polls until the whole answer is ready. In code, before it is stored:
+  - every sentence must cite fact ids the model was shown, and a sentence citing any other id is dropped;
+  - a sentence with no citation is dropped, unless it only says that the file does not answer, and such a sentence may state no amount or date.
+- **When a turn is served,** with no model call:
+  - a sentence citing a fact that can no longer be shown is withdrawn, and counted;
+  - each sentence's amounts and dates are checked against today's file, as the brief's are (D12), so an answer given before a correction says so;
+  - a figure supported only by records the sentence does not cite gets those records' chips after its own (D50), so every supported figure has a chip whose source states it.
+- **Spend:** a cap of `CHAT_DAILY_BUDGET_USD` a day per matter, $2 by default, from local midnight. Past it, Ask answers 429 and stores nothing. With no chat model set, the bar says what to set, and a question asked anyway is stored as "no model", with a retry.
 
 ### Verified
 
@@ -188,7 +210,8 @@ Seen working on the hackathon's matter, and by whom.
     - Not on the first screen: whether the client is still treating, what changed lately, and what has happened so far in order.
     - The last two are answered within one scroll. That makes 11 of 12 within one scroll, short of the target of all 12.
     - Before D40 the lead counted 10. The tenth, whether the client is still treating, came only from the stage track's check mark. The critic found that the mark said treatment was complete when it was not (Pass 4, finding 4), and D40 removed it.
-  - **Lighthouse's accessibility score, re-run after the Overview pass, is 100** on all five firm views and on the provider page at `/p/:token`.
+    - The count was not re-run after D44 to D50. With the Ask bar at rest above the Overview, the lead reports that the first screen still shows the bottom line, what happened and the deadlines (H6, D50).
+  - **Lighthouse's accessibility score, re-run after the Overview pass, is 100** on all five firm views of the time and on the provider page at `/p/:token`. No run on the Ask bar or the Ask view is recorded.
   - **Reflow** at 640 and 320 CSS px, after D38. The top bar overflowed at 320 px until `724c6e3` fixed it.
   - **The D40 fixes were in place for the re-count** (`fe07ba2` to `53523da`, code only, no model call, described under [The views](#the-views)): a met statute reads "Met"; earlier stages are not marked completed; injuries show one row per body region; liability shows two facts; "Overdue" heads the Now cell when its item is overdue; the count reads "open requests"; the story has no deadlines; restating records are counted once each. The lead did not report checking each fix on its own.
   - **Seen by the reviewer on 2026-10-08:**
@@ -262,7 +285,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 481 pass at `be8d813`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 533 pass at `68fd0a1`, through `check.sh` on 2026-10-09.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
@@ -303,7 +326,20 @@ By the lead, in the browser, on the clean clone's invented matter:
 
 ### Built, lightly tested
 
-Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed.
+Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed, except where an entry says so.
+
+- **Ask, the chatbot (D49, D50).** Tests: `backend/tests/test_chat_api.py`, `test_backend_chat_view.py` and `test_pipeline_chat.py`, 49 tests among the backend's 533, all passing at `68fd0a1` through `check.sh`.
+  - **Two answers on the real matter so far,** both on 2026-10-09. The reviewer read them through the API's GET routes, which call no model:
+    - the first, with a money tile attached, before the D50 trim: 6 sentences, each citing facts; 5 state figures, all `supported`, and one states none (`unchecked`);
+    - the second, with the stage attached, after the trim: 3 sentences, each citing facts; 2 `supported` and one `unchecked`;
+    - neither has a sentence withdrawn.
+  - **By the lead, in the browser on the real matter, before D50 (H4):**
+    - search with Enter attaches an item; pick mode by click attaches one; a drag attaches when the pointer moves;
+    - the Ask view renders; at 320 px nothing scrolls sideways;
+    - the provider route has no handle and makes no chat request;
+    - a page load makes one chat request, the budget GET, and no model call.
+  - **On the first answer,** one sentence's chip did not hold the figure the sentence states. D50 (3) adds the chips of the records that do, and the lead's H6 entry in `PLAN.md` says the stored answer's figures now carry them. The reviewer has not checked this chip by chip.
+  - **After D50:** ui-builder tested the one-line bar headless, with chat mocked, at 36 px tall at rest at 1440 and 320 px wide. The critic's pass on the answers (H5) has not run.
 
 - **The D37 screens:** the types check, and the reviewer has read the code but not seen these rendered.
   - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
@@ -342,8 +378,8 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
 
 **Stubs and shortcuts**
 - **Firm users:**
-  - No real authentication. Seeded stub users (Demo Attorney, Demo Paralegal, Demo Case Manager) are chosen with a header switcher (`backend/app/services/users.py`, `frontend/src/components/firm/UserSwitcher.tsx`).
-  - Each stub user's first "last opened" date is seeded: 21 days ago, 7 days ago, and never (`backend/app/services/visits.py`).
+  - No real authentication. Three stub users are seeded (Demo Attorney, Demo Paralegal, Demo Case Manager), and the firm view acts as the first, with no login and, since D48, no switcher (`backend/app/services/users.py`, `frontend/src/api/users.ts`). That user dates "since you last opened", and is recorded as who placed a call, made a provider link or asked a question.
+  - Each stub user's first "last opened" date is seeded: 21 days ago, 7 days ago, and never (`backend/app/services/users.py`, `backend/app/services/visits.py`).
 - **Providers:**
   - Provider access is by an unguessable, expiring link only; there is no provider login.
   - "Send update" leaves the recipient blank, because no synced field holds the provider's email (`frontend/src/components/share/SendUpdateMenu.tsx`).
@@ -364,6 +400,22 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - A court event in a note is dated only by a date its text gives, never by the note's own date (`backend/app/digest/prompts/extract_note.txt`). See Known issues.
   - Two notes that hold policy limits behind the Coverage tile were not re-read in D42, so a dismissal one of them reports stays kind `other` (`backend/app/digest/extract.py`).
   - `cli reextract --keep-brief` leaves the stored brief as it was; the next full digest writes it with one merge call (`backend/app/cli.py`).
+- **Ask, the chatbot (D49, D50):**
+  - **Search hits show no chip until asked.** A hit in the Ask bar's list shows its title, date and source type as text, since an option in a list box cannot hold a button. Its chips open once the question is asked (`frontend/src/components/ask/AskBar.tsx`).
+  - **A drag does not scroll the page at its edges.** The mouse wheel scrolls during a drag, and pick mode reaches any row (`frontend/src/components/ask/AskHandle.tsx`).
+  - **Retrieval is by words, not meaning.** It matches the question's words at word starts, plus a fixed list of generic words for kinds of fact. There are no embeddings, so a question in other words falls back to the facts ranked most significant (`backend/app/services/chat_context.py`).
+  - **What one question sends is capped:**
+    - an attached item resolves to at most 50 facts, most significant first, with restatements added only for the facts pointed at (`backend/app/services/chat_attachments.py`);
+    - the model is shown that item's 25 most significant (`CHAT_ITEM_FACTS`, D50; `backend/app/digest/chat.py`);
+    - the overview sent with every question holds at most 20 facts, the leading one per money figure, and the brief's cited facts only as room allows (`backend/app/services/chat_context.py`).
+  - **The turn's record of what the model saw lists too much.** It stores every fact of an attached item, up to 50, though since D50 the model is shown only 25. Pipeline has suggested the fix in `STATUS.md` (`context_fact_ids` in `backend/app/services/chat_context.py`).
+  - **The daily cap is read before a run starts,** so questions asked at the same moment can each pass and overspend it by one answer each (`backend/app/services/chat.py`).
+  - **Pricing:**
+    - a chat call of which any attempt was answered by the refusal fallback is priced wholly at the fallback's rates, an upper bound;
+    - a response that names the chat model plus an 8-digit date counts as the chat model, not the fallback (both `backend/app/digest/llm.py`).
+  - **Chat on `openai` or `gemini`** sends its own output limit, but no effort setting and no fallback. The two answers so far came through Anthropic (D49) (`backend/app/digest/llm.py`).
+  - **The brief does not add chips for figures it does not cite,** as an answer does since D50 (3). Backend reports that none of today's brief figures needs one (`backend/app/services/brief_view.py`).
+- **The source drawer** steps through at most 1,000 sources of one item. A longer list stops at the 1,000th, and its count reads 1,000 (`frontend/src/lib/useSourceDrawer.ts`, D47).
 - **Page and link details:**
   - The provider page does not show the firm's name; no synced record carries it.
   - A live link cannot be edited. To change what a provider sees, withdraw it and share again.
@@ -372,7 +424,7 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
 
 **Known issues**
 
-The issues that waited on the re-digest, the re-read and the re-sync are resolved: the brief's unsourced figure, the headline without chips, the open question about a date on the page, the ledger bill's raw title, the missing pleading and the upload dates. Policy limits are now tagged by policy, all but one, though two carry the wrong tag (below). The Coverage tile's false "Sources disagree" after the re-read is fixed too (D37). What was seen is under [Verified](#verified). These remain:
+The issues that waited on the re-digest, the re-read and the re-sync are resolved: the brief's unsourced figure, the headline without chips, the open question about a date on the page, the ledger bill's raw title, the missing pleading and the upload dates. Policy limits are now tagged by policy, all but one, though two carry the wrong tag (below). The Coverage tile's false "Sources disagree" after the re-read is fixed too (D37). What was seen is under [Verified](#verified). Since D47, every "+N more" opens the drawer and steps through the item's sources, so the incident account's 9 records, of which the Overview drew 2 and counted the rest (critic Pass 4, finding 10), can all be opened from it; the reviewer read this in the code (`frontend/src/components/shared/SourceChipList.tsx`), not on the page. These remain:
 
 - **Another party's liability policy is labelled "Client's other policy"** (critic Pass 3, finding 2).
   - The defense driver's own auto policy appears on the Coverage tile as two rows of the client's.
@@ -399,7 +451,6 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
 - **On the Overview, left open by D40** (critic Pass 4):
   - **Nothing within one scroll says whether the client is still treating,** by the lead's re-count after D40 on the real matter. It is the one question of the 90-second test that the Overview misses (see [Verified](#verified)).
   - **The open-request count mixes the firm's requests with demands made of the client.** About half of the 44, by the critic's count, are defense or carrier demands for the client's records, which the firm owes. A record request carries no direction. Adding one needs a prompt line and a re-read of the request records. Finding 7.
-  - **Most of the records behind the incident account cannot be opened from the Overview.** On the real matter the account cites 9 records, one more than a margin will expand. So it shows two chips and "+7 more" as a plain count. The reviewer counted this through the API after D40. Finding 10.
   - **Defense medical exams sit in the Treatment lane** of the story, because a diagnosis maps to that lane. Their reports' own dates disagree with a firm note and the calendar, which put the exams about six months later. The chips support what is shown. Finding 10.
 - **No full digest has run on the D36 models.** The whole-case cost at those models is an estimate; see [Cost per case](#cost-per-case).
 - **Pages read before a provider was known never get that provider.** Two fixes are written up in `STATUS.md`; neither is built.
@@ -439,7 +490,7 @@ Measured with `GET /api/ops/cost` and the `llm_calls` table, on the hackathon's 
 | **One full digest** | | **514** | **$7.65** |
 
 That is 1,728,515 input and 329,989 output tokens. Another 184 calls were rejected by the API (HTTP 400 or 401), and they used no tokens and cost nothing.
-- **Reopening the matter costs nothing,** because no page load calls a model.
+- **Reopening the matter costs nothing,** because no page load calls a model. The one chat request a page load makes is `GET .../chat/budget`, which reads the day's spend from `llm_calls`.
 - **A second digest over unchanged inputs makes no model call,** because results are cached by input hash (`backend/tests/test_pipeline_second_digest.py`).
 
 **The trial's model runs, measured on 2026-10-08 (D36, D41 to D43).** These ran on Anthropic's paid tier:
@@ -478,11 +529,22 @@ They re-ran only the calls whose prompts or inputs had changed, so they price an
 - **All five runs:** 56 paid calls, $0.4022. No call failed. Runs (a) and (b) ran against a $2 stop, and (c) to (e) against a $1 stop.
   - Pipeline reports no retries and no 429s.
   - Each run was tried first on a copy of the database: 6 calls for $0.0148 before (a) and (b), 19 calls for $0.043 before (c), 17 calls for $0.1031 before (d), and 5 calls for $0.0760 before (e), with no error. D42 and D43 together, trials included, cost $0.365. The copies are not in `app.db`, so these figures are from pipeline's reports.
-- **`GET /api/ops/cost` now reports the matter's total:** 754 calls and 23 cache hits, 2,011,271 input and 399,826 output tokens, $8.05. That covers the October 2 digest, its 184 rejected calls, and the five runs. The reviewer read runs (c) to (e) from the `llm_calls` table, with the database opened read-only.
+- **`GET /api/ops/cost` now reports the matter's total:** 754 calls and 23 cache hits, 2,011,271 input and 399,826 output tokens, $8.05. That covers the October 2 digest, its 184 rejected calls, and the five runs. The reviewer read runs (c) to (e) from the `llm_calls` table, with the database opened read-only. The same figures came back on 2026-10-09, after the two questions below, since the route counts the chatbot apart.
 
 **A whole case at the D36 models: about $1.40, an estimate, not measured.** No full digest has run on these models. The estimate prices the October 2 digest's tokens at the D36 rates:
 - **Extraction, about $0.48 to $0.54.** The October 2 extraction used 1,481,705 input and 289,882 output tokens. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output of the October 2 Sonnet calls (2.2 in pipeline's trial, 2.5 over the 9 records in the runs). The ratio was measured on records only, and most extraction calls read scanned pages.
 - **The merge, about $0.89.** On October 2 it used 246,810 input and 40,107 output tokens on Opus. These are priced at Sonnet's rates, assuming Sonnet uses as many tokens.
+
+**Ask, measured on 2026-10-09 (D49, D50).** A question is one call to `claude-sonnet-5-5`, at $2 per million input tokens and $10 per million output tokens. `GET /api/ops/cost` reports chat apart from the digest, as `chat_calls` and `chat_cost_micro_usd`; on the real matter it reads 2 calls and $0.178.
+
+| Question | Tokens in / out | Cost |
+|---|---|---|
+| The first, with a money tile attached, before the D50 trim | 68,974 / 1,007 | $0.148 |
+| The second, with the stage attached, after the trim | 13,279 / 364 | $0.030 |
+
+- Each turn's cost is from `GET .../chat/threads/{id}`, read by the reviewer. The token counts are the lead's; at the prices above they give each turn's cost to the micro-dollar.
+- **The first question cost three times the plan's estimate.** Its model input was about 76,000 characters, by pipeline's measure. By the lead's reading, the tokens billed also add up two attempts at the call. D50 trimmed the input (compact JSON, at most 25 rows per item pointed at, 40 retrieved facts, an overview of at most 20 facts) and logs a line when a call needs a second attempt.
+- **A cap of $2 a day per matter** (`CHAT_DAILY_BUDGET_USD`) stops Ask once that day's chat calls reach it, until local midnight. At the second question's cost, that is about 66 questions a day.
 
 ## Where data lives
 
@@ -497,6 +559,7 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
     - every model call, with its tokens, cost and cached response;
     - provider links and their opens, the stub users and their visits;
     - calls, transcripts and notes;
+    - Ask's threads and turns: each question, the ids of the items attached to it, the answer's sentences with the fact ids each cites, and the ids of the facts sent to the model (D49);
     - sync and digest runs;
     - Clio's OAuth tokens.
   - **`files/`** holds the downloaded documents, and **`pages/`** the rendered page images.
@@ -506,6 +569,7 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
 - **`.env`**, at the repository root, holds the Clio credentials and the model key. It is never committed.
 - **Outside the machine:**
   - The model provider receives page images and record text during a digest, and a call's transcript when notes are requested. That was Anthropic for the October 2 digest and the trial's runs (D36).
+  - **A question asked in Ask** goes to the model provider, Anthropic in the trial (D49), with the records it attaches, the facts retrieved for it, excerpts of the pages they were read from, an overview of the case, the stored brief's sentences, the computed totals, and the thread's earlier turns. The answer is stored in Clarity's database, and nothing goes to Clio.
   - The Gemini trials on copies of the real matter's database (D34, D36) sent some of its content to Google's free tier, whose terms allow Google to use it. D36 stopped this.
   - On a call, Chrome's speech recognition sends the microphone audio to Google's speech service. The consent step says so (D27).
 
@@ -522,8 +586,9 @@ backend/app/
     mapping.py, matter_fields.py, ledger.py   custom fields and contact roles mapped to canonical slots, so no matter's labels are in code
     merge.py, brief.py, cross_check.py        significance, the brief, and the specials and policy-limit cross-checks
     call_notes.py            notes from a call transcript, each quoting it
+    chat.py                  Ask: one model call per question, and the code checks on every sentence's citations (D49)
     llm.py                   every model call: cached by input hash, costed, rate-limited
-    prompts/                 versioned prompt files, one per input: pages, records, and notes and emails (`extract_note.txt`, D42), so a note-prompt change never re-reads the custom-field record behind the money tiles
+    prompts/                 versioned prompt files, one per input: pages, records, and notes and emails (`extract_note.txt`, D42), so a note-prompt change never re-reads the custom-field record behind the money tiles; `chat_answer.txt` for Ask
   services/                  queries and rules behind the routes
     visibility.py            visible_facts_for_share: the provider boundary, default-deny
     provider_view.py         the provider payload, built only from that function's output
@@ -531,13 +596,17 @@ backend/app/
     brief_check.py           brief figures checked against today's facts when served (D12)
     incident.py              the incident's date and the account most records give (D39)
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
+    chat.py                  Ask: threads and turns, the daily cap, the answer run in the background
+    chat_context.py, chat_attachments.py, chat_pages.py   what a question sends: the overview, ranked facts, attached items resolved in the matter, page excerpts; and search
+    chat_view.py             a turn as served: withdrawn sentences, figures checked against today's file, chips added for supported figures (D50)
+    cost.py                  what the model calls cost, the chatbot apart from the digest
     kpis.py, providers.py, calls.py, ...
-  api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               481 tests; fixtures/synthetic_matter.py is the invented matter
+  api/                       thin routes: matters, facts, shares, provider, calls, chat, ops
+backend/tests/               533 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
-  api/                       types.ts mirrors schemas.py; TanStack Query hooks
-  pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
-  lib/                       formatting, labels, consent wording, speech transcript
+  api/                       types.ts mirrors schemas.py; TanStack Query hooks (chat.ts for Ask)
+  pages/, components/        firm views (firm/), provider link and composer (share/), calls/, ask/ (the Ask bar, handle, panel and view), shared/
+  lib/                       formatting, labels, consent wording, speech transcript, Ask's state, targets and starter questions
 scripts/check.sh             the screener's checks; export_raw.py feeds the case-data scan
 tests/                       repository-wide Node tests: no case data, nothing private
 docs/                        architecture, digest pipeline, Clio API notes, UI, briefs, reviews, track history
@@ -545,7 +614,7 @@ docs/                        architecture, digest pipeline, Clio API notes, UI, 
 .claude/                     agent roles, path ownership and its hook (the trial)
 ```
 
-`docs/architecture.md` and `docs/digest-pipeline.md` explain the design, and `docs/ui.md` the screens. All three describe the work through D43, the court events included (`1695ba2`). The shortest route through the code is:
+`docs/architecture.md` and `docs/digest-pipeline.md` explain the design, and `docs/ui.md` the screens. All three describe the work through D43, the court events included (`1695ba2`). The lead amended `docs/architecture.md`, `docs/ui.md` and `docs/project.md` for the chatbot (D49, `d3f99ff`), and `docs/ui.md` also records D44 to D47. `docs/digest-pipeline.md` does not describe the chat call; `docs/chat-contract.md` holds its interface, its settings and D50's lower defaults. The shortest route through the code is:
 1. `backend/app/clio/client.py`
 2. `backend/app/digest/extract.py` with `verify.py`
 3. `backend/app/services/visibility.py` with `backend/tests/test_visibility.py`
@@ -560,8 +629,8 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D43, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D50, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 
-The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. D40 fixed the critic's fourth-pass findings in code. D41 added court events to the story and limited provider updates to stage moves, with one paid re-read of the pleadings ($0.04). D42 and D43 re-read the notes about court events and rewrote the brief to cover the suit ($0.37 with trials). The commits are `git log 987c1bf..kit-trial`.
+The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. D40 fixed the critic's fourth-pass findings in code. D41 added court events to the story and limited provider updates to stage moves, with one paid re-read of the pleadings ($0.04). D42 and D43 re-read the notes about court events and rewrote the brief to cover the suit ($0.37 with trials). On 2026-10-09, D44 to D48 changed how the Overview and the source drawer read, with no model call. D49 reopened scope past the freeze for one feature, Ask, the point-and-ask chatbot, and D50 trimmed what a question sends after the first one cost $0.148. The commits are `git log 987c1bf..kit-trial`.
