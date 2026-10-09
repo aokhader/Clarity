@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D52 (2) done: Close asks once, Open/Closed groups, closed thread read-only with transcript link, panel too; headless, chat mocked | Lead: check in browser once backend's close route is live | backend: `closed_by` on `ChatThreadSummaryOut`, so Closed rows say who closed | | 2026-10-09 12:24 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | Pass 6 (H5) done: added chips open wrong records; stage date misleads; stage item thin | Stand by | | Narrow D50 (3); drop stage fact date; firm-wide chat cap | 2026-10-09 10:48 |
-| reviewer | H5 README done: Ask view, chat cost, data out, stubs, map, D44–D48 fixes; check.sh no FAIL, 533; Node tests SKIPPED | Standing by; clone servers stopped | | | 2026-10-09 10:50 |
+| reviewer | H8 README for D52: close/transcript, stage date, 2 Ask shots, costs; check.sh no FAIL, 544; Node tests SKIPPED | Standing by | | Lead: real matter's 3rd Ask answer (12:03) has a date marked not in file; critic unread | 2026-10-09 13:55 |
 
 ## Stubs and shortcuts
 

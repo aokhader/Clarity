@@ -15,8 +15,12 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) | ![Calls: who to call next, and the consent step before transcription](docs/screenshots/calls.png) |
 | **Documents** | **The Overview at phone width** |
 | ![Documents: every cited source grouped by record type, a filter button per type with its count, and under each source the facts it holds, each a link that opens it](docs/screenshots/documents.png) | <img src="docs/screenshots/overview-phone.png" width="300" alt="The Overview at 390 pixels wide: the rail folded into a top bar with a Menu button, the header and stage track wrapped, the bottom line with a checked figure and its chip, and What happened with the chips under each line"> |
+| **Ask, an answered question** | **Ask, the same thread closed** |
+| ![The Ask view, scrolled below the header: the matter's questions on the left, one thread under Open with a Close button; on the right the question How is this figure reached?, with the Medical specials tile attached and its chips, five answer sentences each with its source chips beneath it, the answer's time and cost, and the follow-up box](docs/screenshots/ask.png) | ![The same thread after Close: the list reads No open questions and holds it under Closed; on the right a note that Demo Attorney closed it and that this is the transcript as it read then, a Download transcript link and a New question button, then the same five sentences and chips, with no follow-up box](docs/screenshots/ask-closed.png) |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). They were taken on 2026-10-08, before D44 to D50, so they show neither the Ask bar nor the later changes to the Overview: each block on a card of its own, the story newest first, and "Deadlines and follow-ups" as the title of the Now block. **The Ask view has no screenshot yet:** an answer on the invented matter would need a model call.
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
+- **The first ten** were taken on 2026-10-08, before D44 to D50, so they show neither the Ask bar nor the later changes to the Overview: each block on a card of its own, the story newest first, and "Deadlines and follow-ups" as the title of the Now block.
+- **The two Ask screenshots** were taken by the lead on 2026-10-09 after D52, and committed in `69285d3`. The answer is a real one: one question to `claude-sonnet-5-5` on the invented matter, $0.017, never a seeded answer (D52). The reviewer read that server's `GET /api/ops/cost` (1 chat call, 17,398 micro-dollars) and the thread through its GET routes, which call no model.
 
 ## Run it
 
@@ -144,7 +148,7 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 
 ### The views
 
-The firm side has six views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents, Calls and Ask. Every view but Ask carries the Ask bar above it (see [Ask](#ask-point-at-something-and-ask-d49-to-d51)). The reviewer re-read this section against the code under `frontend/src/components/` and `frontend/src/pages/firm/` at `d8cc936`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), the court events (D41 to D43), the reading and layout fixes of D44 to D48, and the chatbot (D49, D50). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+The firm side has six views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents, Calls and Ask. Every view but Ask carries the Ask bar above it (see [Ask](#ask-point-at-something-and-ask-d49-to-d52)). The reviewer re-read this section against the code under `frontend/src/components/` and `frontend/src/pages/firm/` at `d8cc936`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), the court events (D41 to D43), the reading and layout fixes of D44 to D48, and the chatbot (D49, D50). The reviewer re-read the Ask section at `69285d3`, for D52. What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
 
 **On every view, the identity header:**
 - a breadcrumb (Cases, the client, the view);
@@ -183,7 +187,7 @@ In What happened, The story so far and Where it stands, each line's source chips
 - closing the source drawer returns focus to the chip that opened it;
 - under each scanned page in the drawer, a "Page text" disclosure holds the page's text as its text alternative.
 
-#### Ask: point at something and ask (D49 to D51)
+#### Ask: point at something and ask (D49 to D52)
 
 Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and the provider's own page renders no handle, bar or panel. The design and the rules are in `docs/chat-contract.md`.
 
@@ -191,7 +195,7 @@ Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and t
   - **Search** lists the records that match as you type (`GET /api/matters/{id}/search`), with no model call. Choosing a hit attaches it.
   - **Pointing:** drag the grip handle onto any row, tile or stage step, and that item's records are attached. Or click the handle (or press Enter on it) to start pick mode: every target is outlined, and the next one clicked, or reached with Tab and chosen with Enter, is attached. Pick mode is the single-pointer and keyboard path that WCAG 2.5.7 asks for.
   - **Starter questions:** two or three per kind of item (a bill, a deadline, an event, an injury, a money tile, a provider, a call, a document, the stage, any other fact). They are generic and written in code; the item, sent as ids, is what makes the question about this case. The server resolves each item inside the matter and labels it itself.
-- **The thread** opens in a side panel that is not a dialog, so the page stays usable beside it, and a chip in it opens the source drawer. **The Ask view** (`?view=ask`) lists the matter's threads, newest first, and shows the chosen one at full width. Threads are kept per matter for the whole firm, and can be archived.
+- **The thread** opens in a side panel that is not a dialog, so the page stays usable beside it, and a chip in it opens the source drawer. **The Ask view** (`?view=ask`) lists the matter's threads in two groups, Open (latest activity first) and Closed (latest closed first), and shows the chosen one at full width. Threads are kept per matter for the whole firm.
 - **The answer:** asking starts one model call in the background, and the page polls until the whole answer is ready. In code, before it is stored:
   - every sentence must cite fact ids the model was shown, and a sentence citing any other id is dropped;
   - a sentence with no citation is dropped, unless it only says that the file does not answer, and such a sentence may state no amount or date.
@@ -199,12 +203,21 @@ Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and t
   - a sentence citing a fact that can no longer be shown is withdrawn, and counted;
   - each sentence's amounts and dates are checked against today's file, as the brief's are (D12), so an answer given before a correction says so;
   - a sentence's chips are the facts the model cited, in its order. A figure other records state keeps its `supported` verdict but adds no chips (D51, undoing D50 (3), whose added chips opened records sharing only a date or an amount with the sentence).
+- **Closing a thread (D52)** keeps it as a record. "Archive" is gone.
+  - An open thread's row has **Close**, which asks once in place: "Close this thread? It keeps a transcript and takes no more questions." It calls `POST /api/matters/{id}/chat/threads/{tid}/close`, which replaced `.../archive` and refuses with 409 while a turn is still being answered.
+  - **Closing freezes the thread** in a table of its own, `chat_transcripts`: its turns exactly as served at that moment, with their verdicts, chips and withdrawn counts, and a plain-text transcript. A closed thread is served from that copy, never checked again against a later file.
+  - **A closed thread is read-only,** in the Ask view and in the side panel: no follow-up box and no Retry, and a question or retry sent to it anyway is refused with 409. In their place it says who closed it and when, with **Download transcript** and **New question**.
+  - **Download transcript** serves `GET /api/matters/{id}/chat/threads/{tid}/transcript` as text, `clarity-thread-{tid}.txt`. It names the matter by its number, the thread, and who closed it and when. Then, for each question: who asked and when, the items pointed at, each answer sentence followed by its sources by name and page, any verdict other than supported or unchecked (with the file's own figure where it differs), the withdrawn count, and the cost. Code writes it when the thread closes, with no model call (`backend/app/services/chat_transcript.py`). The file name carries no case data.
 - **Spend:** a cap of `CHAT_DAILY_BUDGET_USD` a day per matter, $2 by default, from local midnight. Past it, Ask answers 429 and stores nothing. With no chat model set, the bar says what to set, and a question asked anyway is stored as "no model", with a retry.
 
 ### Verified
 
 Seen working on the hackathon's matter, and by whom.
 
+- **The stage date (D52), on the real matter on 2026-10-09.** The stage fact had been dated by the Clio matter record's last edit of any kind, and an answer in Ask gave that as the day the case changed stage (critic, Pass 6). The sync now asks Clio for `matter_stage_updated_at` and dates the stage by it, or leaves the stage undated; it never uses the record's last edit (`728dcc4`, tests in `backend/tests/test_pipeline_stage_date.py`).
+  - **By pipeline:** a re-sync, which brought nothing new but the stage date, then a digest that made no paid call and answered 3 from the cache, with a backup before each.
+  - **By the reviewer,** from pipeline's snapshots taken before the sync and after the digest: the stage fact keeps its id and its date, and that date now equals Clio's stage date; the money tiles and the brief are unchanged. `GET /api/ops/cost` still reads 754 model calls, with cache hits up from 23 to 26.
+  - On this matter Clio's stage date is the same day as the record's last edit, so the date on screen did not move. The fix matters for a matter edited after its stage changed.
 - **The Overview pass (D38 to D40), measured by the lead on the real matter in Chrome on 2026-10-08:**
   - **The 90-second test, re-counted after D40 at 1440×900: 9 of the 12 questions** in `docs/ui.md` are answered on the first screen, above the fold at 900 px, against a target of at least 9.
     - Not on the first screen: whether the client is still treating, what changed lately, and what has happened so far in order.
@@ -285,7 +298,7 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 533 pass at `68fd0a1`, through `check.sh` on 2026-10-09.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 544 pass at `69285d3`, through `check.sh` on 2026-10-09.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
@@ -328,11 +341,17 @@ By the lead, in the browser, on the clean clone's invented matter:
 
 Unit tests pass. None of these has been seen in the browser on the real matter since it was last changed, except where an entry says so.
 
-- **Ask, the chatbot (D49, D50).** Tests: `backend/tests/test_chat_api.py`, `test_backend_chat_view.py` and `test_pipeline_chat.py`, 49 tests among the backend's 533, all passing at `68fd0a1` through `check.sh`.
-  - **Two answers on the real matter so far,** both on 2026-10-09. The reviewer read them through the API's GET routes, which call no model:
+- **Ask, the chatbot (D49 to D52).** Tests: `backend/tests/test_chat_api.py`, `test_backend_chat_view.py` and `test_pipeline_chat.py`, 54 tests among the backend's 544, all passing at `69285d3` through `check.sh`.
+  - **Three answers on the real matter so far,** all on 2026-10-09. The reviewer read them through the API's GET routes, which call no model:
     - the first, with a money tile attached, before the D50 trim: 6 sentences, each citing facts; 5 state figures, all `supported`, and one states none (`unchecked`);
     - the second, with the stage attached, after the trim: 3 sentences, each citing facts; 2 `supported` and one `unchecked`;
-    - neither has a sentence withdrawn.
+    - the third, a follow-up in the second thread with no item attached, asked at 12:03 PDT: 3 sentences, each citing facts; 2 `supported`, and one marked "not in the file", because a date it states is not found in the file, though its amount is supported. No review pass has read this answer yet, so whether the date is wrong or only written in a form the checker misses is not known;
+    - none has a sentence withdrawn.
+  - **Closing a thread (D52):**
+    - **By the reviewer, on 2026-10-09, on the invented matter of the lead's screenshots,** through GET routes only: the thread list holds the one thread with its `closed_at`; the thread names Demo Attorney as who closed it; and the transcript route answered 200 as `text/plain`, with `attachment; filename="clarity-thread-1.txt"`. The file held the matter's number, who closed the thread and when, the question and its item, the five sentences each with its sources by title and page, and the cost.
+    - **By the lead, on the invented matter:** a question in a closed thread is refused with 409, and the transcript of a thread in another matter is 404. The two Ask screenshots show the view before and after Close.
+    - **By backend, on a copy of the real database:** both threads load, and close and download work. On the real API both threads are still open; the first was archived before D52, and an archived thread froze nothing, so it is served as open until someone closes it.
+    - **By ui-builder:** the Close confirmation, the Open and Closed groups, and the read-only thread, in the view and the panel, tested headless with chat mocked. Nobody has reported closing a thread on the real matter in the browser.
   - **By the lead, in the browser on the real matter, before D50 (H4):**
     - search with Enter attaches an item; pick mode by click attaches one; a drag attaches when the pointer moves;
     - the Ask view renders; at 320 px nothing scrolls sideways;
@@ -413,8 +432,11 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
   - **Pricing:**
     - a chat call of which any attempt was answered by the refusal fallback is priced wholly at the fallback's rates, an upper bound;
     - a response that names the chat model plus an 8-digit date counts as the chat model, not the fallback (both `backend/app/digest/llm.py`).
-  - **Chat on `openai` or `gemini`** sends its own output limit, but no effort setting and no fallback. The two answers so far came through Anthropic (D49) (`backend/app/digest/llm.py`).
-  - **The figure check passes a date that any record of that day states,** and a stage fact is dated by the Clio record's last edit, so an answer can name that edit as the day the case changed stage (critic, Pass 6; left to the Manager under D51).
+  - **Chat on `openai` or `gemini`** sends its own output limit, but no effort setting and no fallback. Every answer so far came through Anthropic (D49) (`backend/app/digest/llm.py`).
+  - **The figure check passes a date that any record of that day states,** even one the sentence does not cite (critic, Pass 6; left to the Manager under D51). The other half of that finding, the stage dated by the Clio record's last edit, is fixed and applied (D52; see [Verified](#verified)).
+  - **A firm-wide chat cap** does not exist; the cap is per matter (critic, Pass 6; left to the Manager).
+  - **A Closed row in the list names who asked, not who closed.** The list's summary carries no `closed_by`; ui-builder has asked backend for it in `STATUS.md`. The thread itself names who closed it (`frontend/src/components/ask/ChatThreadRow.tsx`).
+  - **The close time lives in D49's `archived_at` column,** since `upgrade_schema` cannot rename a column. A thread archived before D52 froze nothing, so it is served as open until it is closed, as the real matter's first thread is (`backend/app/models.py`).
 - **The source drawer** steps through at most 1,000 sources of one item. A longer list stops at the 1,000th, and its count reads 1,000 (`frontend/src/lib/useSourceDrawer.ts`, D47).
 - **Page and link details:**
   - The provider page does not show the firm's name; no synced record carries it.
@@ -529,20 +551,23 @@ They re-ran only the calls whose prompts or inputs had changed, so they price an
 - **All five runs:** 56 paid calls, $0.4022. No call failed. Runs (a) and (b) ran against a $2 stop, and (c) to (e) against a $1 stop.
   - Pipeline reports no retries and no 429s.
   - Each run was tried first on a copy of the database: 6 calls for $0.0148 before (a) and (b), 19 calls for $0.043 before (c), 17 calls for $0.1031 before (d), and 5 calls for $0.0760 before (e), with no error. D42 and D43 together, trials included, cost $0.365. The copies are not in `app.db`, so these figures are from pipeline's reports.
-- **`GET /api/ops/cost` now reports the matter's total:** 754 calls and 23 cache hits, 2,011,271 input and 399,826 output tokens, $8.05. That covers the October 2 digest, its 184 rejected calls, and the five runs. The reviewer read runs (c) to (e) from the `llm_calls` table, with the database opened read-only. The same figures came back on 2026-10-09, after the two questions below, since the route counts the chatbot apart.
+- **`GET /api/ops/cost` now reports the matter's total:** 754 calls and 23 cache hits, 2,011,271 input and 399,826 output tokens, $8.05. That covers the October 2 digest, its 184 rejected calls, and the five runs. The reviewer read runs (c) to (e) from the `llm_calls` table, with the database opened read-only. On 2026-10-09, after the questions below and D52's digest, it reads the same calls, tokens and cost, with 26 cache hits: the route counts the chatbot apart, and that digest made no paid call.
 
 **A whole case at the D36 models: about $1.40, an estimate, not measured.** No full digest has run on these models. The estimate prices the October 2 digest's tokens at the D36 rates:
 - **Extraction, about $0.48 to $0.54.** The October 2 extraction used 1,481,705 input and 289,882 output tokens. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output of the October 2 Sonnet calls (2.2 in pipeline's trial, 2.5 over the 9 records in the runs). The ratio was measured on records only, and most extraction calls read scanned pages.
 - **The merge, about $0.89.** On October 2 it used 246,810 input and 40,107 output tokens on Opus. These are priced at Sonnet's rates, assuming Sonnet uses as many tokens.
 
-**Ask, measured on 2026-10-09 (D49, D50).** A question is one call to `claude-sonnet-5-5`, at $2 per million input tokens and $10 per million output tokens. `GET /api/ops/cost` reports chat apart from the digest, as `chat_calls` and `chat_cost_micro_usd`; on the real matter it reads 2 calls and $0.178.
+**Ask, measured on 2026-10-09 (D49 to D52).** A question is one call to `claude-sonnet-5-5`, at $2 per million input tokens and $10 per million output tokens. `GET /api/ops/cost` reports chat apart from the digest, as `chat_calls` and `chat_cost_micro_usd`; on the real matter it reads 3 calls and $0.216.
 
 | Question | Tokens in / out | Cost |
 |---|---|---|
 | The first, with a money tile attached, before the D50 trim | 68,974 / 1,007 | $0.148 |
 | The second, with the stage attached, after the trim | 13,279 / 364 | $0.030 |
+| The third, a follow-up in the second thread, no item attached | not read | $0.038 |
+| On the invented matter, for the Ask screenshots (D52): the Medical specials tile and a starter question | not read | $0.017 |
 
-- Each turn's cost is from `GET .../chat/threads/{id}`, read by the reviewer. The token counts are the lead's; at the prices above they give each turn's cost to the micro-dollar.
+- Each turn's cost is from `GET .../chat/threads/{id}`, read by the reviewer. The first two token counts are the lead's; at the prices above they give each turn's cost to the micro-dollar. The last two are read from the API alone, which reports cost, not tokens.
+- Closing a thread and downloading its transcript make no model call: code writes the transcript from the stored turns.
 - **The first question cost three times the plan's estimate.** Its model input was about 76,000 characters, by pipeline's measure. By the lead's reading, the tokens billed also add up two attempts at the call. D50 trimmed the input (compact JSON, at most 25 rows per item pointed at, 40 retrieved facts, an overview of at most 20 facts) and logs a line when a call needs a second attempt.
 - **A cap of $2 a day per matter** (`CHAT_DAILY_BUDGET_USD`) stops Ask once that day's chat calls reach it, until local midnight. At the second question's cost, that is about 66 questions a day.
 
@@ -560,6 +585,7 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
     - provider links and their opens, the stub users and their visits;
     - calls, transcripts and notes;
     - Ask's threads and turns: each question, the ids of the items attached to it, the answer's sentences with the fact ids each cites, and the ids of the facts sent to the model (D49);
+    - each closed thread's frozen copy, in `chat_transcripts`: its turns as served when it closed, and the text transcript the download serves (D52);
     - sync and digest runs;
     - Clio's OAuth tokens.
   - **`files/`** holds the downloaded documents, and **`pages/`** the rendered page images.
@@ -598,11 +624,12 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     chat.py                  Ask: threads and turns, the daily cap, the answer run in the background
     chat_context.py, chat_attachments.py, chat_pages.py   what a question sends: the overview, ranked facts, attached items resolved in the matter, page excerpts; and search
-    chat_view.py             a turn as served: withdrawn sentences, figures checked against today's file, the model's own chips (D51)
+    chat_view.py             a turn as served: withdrawn sentences, figures checked against today's file, the model's own chips (D51); a closed thread from its frozen copy (D52)
+    chat_transcript.py       a closed thread's text transcript, written in code when it closes (D52)
     cost.py                  what the model calls cost, the chatbot apart from the digest
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, chat, ops
-backend/tests/               533 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               544 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks (chat.ts for Ask)
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, ask/ (the Ask bar, handle, panel and view), shared/
@@ -610,11 +637,11 @@ frontend/src/
 scripts/check.sh             the screener's checks; export_raw.py feeds the case-data scan
 tests/                       repository-wide Node tests: no case data, nothing private
 docs/                        architecture, digest pipeline, Clio API notes, UI, briefs, reviews, track history
-  screenshots/               the ten screenshots above, all of the invented matter
+  screenshots/               the twelve screenshots above, all of the invented matter
 .claude/                     agent roles, path ownership and its hook (the trial)
 ```
 
-`docs/architecture.md` and `docs/digest-pipeline.md` explain the design, and `docs/ui.md` the screens. All three describe the work through D43, the court events included (`1695ba2`). The lead amended `docs/architecture.md`, `docs/ui.md` and `docs/project.md` for the chatbot (D49, `d3f99ff`), and `docs/ui.md` also records D44 to D47. `docs/digest-pipeline.md` does not describe the chat call; `docs/chat-contract.md` holds its interface, its settings and D50's lower defaults. The shortest route through the code is:
+`docs/architecture.md` and `docs/digest-pipeline.md` explain the design, and `docs/ui.md` the screens. All three describe the work through D43, the court events included (`1695ba2`). The lead amended `docs/architecture.md`, `docs/ui.md` and `docs/project.md` for the chatbot (D49, `d3f99ff`), and `docs/architecture.md` and `docs/chat-contract.md` again for closing a thread (D52, `2ed7ddd`); `docs/ui.md` also records D44 to D47. `docs/digest-pipeline.md` does not describe the chat call; `docs/chat-contract.md` holds its interface, its settings, D50's lower defaults and D52's close and transcript. The shortest route through the code is:
 1. `backend/app/clio/client.py`
 2. `backend/app/digest/extract.py` with `verify.py`
 3. `backend/app/services/visibility.py` with `backend/tests/test_visibility.py`
@@ -629,8 +656,8 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D51, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D52, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 
-The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. D40 fixed the critic's fourth-pass findings in code. D41 added court events to the story and limited provider updates to stage moves, with one paid re-read of the pleadings ($0.04). D42 and D43 re-read the notes about court events and rewrote the brief to cover the suit ($0.37 with trials). On 2026-10-09, D44 to D48 changed how the Overview and the source drawer read, with no model call. D49 reopened scope past the freeze for one feature, Ask, the point-and-ask chatbot, and D50 trimmed what a question sends after the first one cost $0.148. The commits are `git log 987c1bf..kit-trial`.
+The trial added the draft checker (D2) and Calls (D8). It fixed most of the Track A review's pipeline defects and of the critic's findings; the rest are listed under Half-done. Features were frozen at D32. On 2026-10-08 the Manager reopened the UI for one pass, so the Overview answers in 90 seconds what the case is about, what has happened and where it stands (D38, D39); it made no model call. D40 fixed the critic's fourth-pass findings in code. D41 added court events to the story and limited provider updates to stage moves, with one paid re-read of the pleadings ($0.04). D42 and D43 re-read the notes about court events and rewrote the brief to cover the suit ($0.37 with trials). On 2026-10-09, D44 to D48 changed how the Overview and the source drawer read, with no model call. D49 reopened scope past the freeze for one feature, Ask, the point-and-ask chatbot, and D50 trimmed what a question sends after the first one cost $0.148. D51 undid D50's added chips after the critic's sixth pass. D52 dated the stage by Clio's own stage date, with no paid call, replaced archiving a thread with closing it into a frozen transcript, and added the Ask screenshots from one real question on the invented matter ($0.017). The commits are `git log 987c1bf..kit-trial`.

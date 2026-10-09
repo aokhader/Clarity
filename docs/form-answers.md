@@ -41,7 +41,7 @@ Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 a
 
 Reopening the matter costs $0, because results are stored and cached by input hash. A second digest over unchanged inputs makes no model call (`backend/tests/test_pipeline_second_digest.py`).
 
-**Ask, the point-and-ask chatbot (D49), measured on 2026-10-09:** a question is one `claude-sonnet-5-5` call. The first cost $0.148; after D50 trimmed what a question sends, the second cost $0.030. `GET /api/ops/cost` reports chat apart from the digest (`chat_calls`, `chat_cost_micro_usd`), and a cap of $2 a day per matter stops it.
+**Ask, the point-and-ask chatbot (D49), measured on 2026-10-09:** a question is one `claude-sonnet-5-5` call. The first cost $0.148; after D50 trimmed what a question sends, the second cost $0.030 and a follow-up $0.038 (3 calls, $0.216 in all on the real matter). The question behind the Ask screenshots, on the invented matter, cost $0.017. Closing a thread and downloading its transcript make no model call. `GET /api/ops/cost` reports chat apart from the digest (`chat_calls`, `chat_cost_micro_usd`), and a cap of $2 a day per matter stops it.
 
 ## 5. Anything the judges should know
 
@@ -66,7 +66,7 @@ Reopening the matter costs $0, because results are stored and cached by input ha
 - Another party's liability policy (the defense driver's own auto policy) is labelled "Client's other policy" on the firm's Coverage tile. The policy field has no value for another party's liability. Providers never see it, since a link releases only the defendant's limits.
 - A share stores hidden items by fact id. A re-digest that re-reads a record gives its facts new ids, so an item hidden on a share would come back. No share exists on the real matter. This is a gap in the provider boundary, to fix after the freeze.
 - Since D43 the brief states the suit, the earlier dismissal and refiling, and the pleaded limitations defense. Whether it states the defense medical exam findings has not been re-checked; What matters, the ranked feed on For Attorney, shows them.
-- Ask has answered two questions on the real matter. Its search hits show no source chip until the question is asked, a drag does not scroll the page at its edges, and retrieval matches words, not meaning (no embeddings).
+- Ask has answered three questions on the real matter. In the third, the checker marks one sentence's date as not found in the file, and no review pass has read that answer yet. Closing a thread has not been seen in the browser on the real matter. Ask's search hits show no source chip until the question is asked, a drag does not scroll the page at its edges, and retrieval matches words, not meaning (no embeddings).
 - Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
 - A provider link's "shared on" and "expires" dates are UTC days.
 - Pages read before a provider was known never get that provider.
