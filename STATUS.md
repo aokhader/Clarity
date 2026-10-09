@@ -5,7 +5,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | D41 done: provider updates are stage moves only (the preview's dismissal label is gone, no link existed); litigation_event kind; pleadings re-read for $0.09 with the trial (P14); three court events in the story on the real matter, checked against their pages; provider screenshots retaken (c32693d) | Waiting for the reviewer's last README pass | | Manager: next full digest rewrites the brief (~$0.05); clip link; test call (C-T) | 19:06 |
-| pipeline | P15 done: 14 notes re-filed, 10 court events, brief rewritten, tiles unchanged, $0.21 | Standing by | | Date a court event by its note's date? 9 of 10 undated | 2026-10-08 20:06 |
+| pipeline | P16 done (fbcc995): brief cites the suit and defense; notice dated; tiles unchanged; D42+D43 $0.37 | Standing by | | | 2026-10-08 20:29 |
 | backend | B15 b732ad9: court events pinned in key events (3 on the real matter); 462 tests | Stand by | | | 2026-10-08 18:48 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
