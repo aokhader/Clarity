@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | U18 a2b19cd checked; region rows keep the served-order tie-break | Stand by | | | 2026-10-08 20:38 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C5 done (0d60d65): brief omits limitations defense; story lacks first suit; court events doubled | Stand by | | Brief call for limitations; pin court rows by type; no note-date dating; refile one page | 2026-10-08 20:20 |
-| reviewer | D42, D43 in README and form (5bbcd13); runs (d), (e) read from llm_calls; check.sh no FAIL, 481 | Standing by | | | 2026-10-08 20:43 |
+| reviewer | Clone at 827f2d2, seeded; invented matter on :8010 API, :5183 UI | README screenshots, when the lead sends them | | | 2026-10-08 21:23 |
 
 ## Stubs and shortcuts
 
