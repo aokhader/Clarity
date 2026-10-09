@@ -7,12 +7,13 @@ never inside a request, so no page load waits on Clio or a model.
 from functools import partial
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.db import SessionDep, check_database
-from app.models import LlmCall, Page, Source
+from app.models import Source
 from app.schemas import CostOut, DigestStartIn, HealthOut, RunStatusOut
+from app.services.cost import matter_cost
 from app.services.jobs import (
     Job,
     JobAlreadyRunning,
@@ -64,32 +65,12 @@ def digest_status(session: SessionDep) -> RunStatusOut:
 
 @router.get("/cost")
 def cost(session: SessionDep, matter_id: int | None = None) -> CostOut:
-    """Tokens and dollars actually paid. Cache hits cost nothing and are counted apart."""
+    """Tokens and dollars actually paid, the digest apart from the chatbot (D49)."""
     if matter_id is None:
         matter_id = session.scalar(select(Source.matter_id).order_by(Source.id))
     if matter_id is None:
         raise HTTPException(status_code=404, detail="Nothing synced yet")
-    calls, hits, tokens_in, tokens_out, micro = session.execute(
-        select(
-            func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(False)),
-            func.count(LlmCall.id).filter(LlmCall.cache_hit.is_(True)),
-            func.coalesce(func.sum(LlmCall.input_tokens), 0),
-            func.coalesce(func.sum(LlmCall.output_tokens), 0),
-            func.coalesce(func.sum(LlmCall.cost_micro_usd), 0),
-        ).where(LlmCall.matter_id == matter_id)
-    ).one()
-    pages = session.scalar(
-        select(func.count(Page.id)).join(Source).where(Source.matter_id == matter_id)
-    )
-    return CostOut(
-        matter_id=matter_id,
-        pages=pages or 0,
-        model_calls=calls,
-        cache_hits=hits,
-        input_tokens=tokens_in,
-        output_tokens=tokens_out,
-        cost_micro_usd=micro,
-    )
+    return matter_cost(session, matter_id)
 
 
 def _start(job: Job, work: JobWork) -> None:
