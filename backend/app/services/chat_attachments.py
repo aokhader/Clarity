@@ -12,6 +12,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.digest.chat import PageExcerpt
 from app.models import Call, Fact, FactKind, Source, SourceType
 from app.schemas import (
@@ -36,6 +37,8 @@ AskRef = (
 
 # The most facts one item carries (AskItemOut.facts), its own first, then restatements.
 MAX_ITEM_FACTS = 50
+# The kinds that record the case moving: a stage change, and a court event (D41).
+_MOVED_THE_CASE = (FactKind.STATUS_CHANGE, FactKind.LITIGATION_EVENT)
 
 _KIND_WORDS: dict[FactKind, str] = {
     FactKind.CASE_STAGE: "Stage",
@@ -172,9 +175,7 @@ def _resolve(
         case AskKpiRef():
             return _kpi(ref, renderable)
         case AskStageRef():
-            stage = matter_stage(session, matter_id)
-            facts = [renderable[r.id] for r in stage.facts if r.id in renderable]
-            return _Resolved("Case stage", facts[:MAX_ITEM_FACTS])
+            return _stage(session, matter_id, renderable)
 
 
 def _facts(ref: AskFactsRef, renderable: dict[int, Fact]) -> _Resolved:
@@ -237,6 +238,29 @@ def _call(
         _dated("Call", call.started_at.date()),
         _most_significant(notes)[:MAX_ITEM_FACTS],
     )
+
+
+def _stage(session: Session, matter_id: int, renderable: dict[int, Fact]) -> _Resolved:
+    """The header's stage facts, then the dated events that moved the case (D51).
+
+    The stage field says where the case is, not how it got there, so a question about
+    the stage also carries the status changes and court events, latest first. The cap
+    is the number of an item's rows the model is shown, so the significance ranking
+    that picks those rows (`digest/chat.py`) drops none of them.
+    """
+    header = matter_stage(session, matter_id).facts
+    stage = [renderable[r.id] for r in header if r.id in renderable]
+    moves = sorted(
+        (
+            f
+            for f in renderable.values()
+            if f.kind in _MOVED_THE_CASE and f.event_date is not None
+        ),
+        key=lambda f: (-(f.event_date or date.min).toordinal(), -f.significance, f.id),
+    )
+    facts = list({f.id: f for f in [*stage, *moves]}.values())
+    cap = min(get_settings().chat_item_facts, MAX_ITEM_FACTS)
+    return _Resolved("Case stage", facts[:cap])
 
 
 def _kpi(ref: AskKpiRef, renderable: dict[int, Fact]) -> _Resolved:

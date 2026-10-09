@@ -114,7 +114,7 @@ def test_an_amount_that_differs_from_the_file_is_marked_with_the_files_figure(
     assert mention.file_amount_cents == 344_000
 
 
-def test_a_figure_only_an_uncited_fact_states_adds_that_facts_chip(
+def test_a_sentences_chips_are_the_facts_it_cites_in_the_models_order(
     seeded: Session,
 ) -> None:
     injury = _fact(seeded, FactKind.INJURY)  # A: states no amount
@@ -123,47 +123,29 @@ def test_a_figure_only_an_uncited_fact_states_adds_that_facts_chip(
         seeded,
         [
             ("The client has a neck strain; the offer is $40,000.", [injury.id], False),
-            ("The insurer offered $40,000.", [offer.id], False),
-        ],
-    )
-
-    [turn] = chat_view.thread_out(seeded, thread).turns
-
-    uncited, cited = turn.sentences
-    # Every figure on screen has a chip whose source states it (D50, rule 3): the
-    # sentence's own citation first, then the fact behind the figure.
-    assert uncited.verdict == "supported"
-    assert [r.id for r in uncited.facts] == [injury.id, offer.id]
-    # A figure the sentence's own citation states adds nothing.
-    assert [r.id for r in cited.facts] == [offer.id]
-
-
-def test_a_figure_gets_the_facts_that_state_it_before_those_a_total_adds_up(
-    seeded: Session,
-) -> None:
-    injury = _fact(seeded, FactKind.INJURY)
-    specials = _fact(seeded, FactKind.MEDICAL_SPECIALS)  # states $3,440 itself
-    expenses = seeded.scalars(
-        select(Fact.id).where(
-            Fact.matter_id == MATTER_ID, Fact.kind == FactKind.EXPENSE
-        )
-    ).all()
-    thread = _done_turn(
-        seeded,
-        [
-            # Also today's bills total, which every bill fact adds up to.
+            # Also today's bills total, which no cited fact states.
             ("The medical bills come to $3,440.", [injury.id], False),
-            # Only today's spend total: no record states it.
-            ("The firm has spent $60.", [injury.id], False),
+            (
+                "The insurer offered $40,000 for the neck strain.",
+                [offer.id, injury.id],
+                False,
+            ),
         ],
     )
 
     [turn] = chat_view.thread_out(seeded, thread).turns
 
-    bills, spend = turn.sentences
-    assert [r.id for r in bills.facts] == [injury.id, specials.id]
-    assert spend.facts[0].id == injury.id
-    assert {r.id for r in spend.facts[1:]} == set(expenses) and len(expenses) == 2
+    amount_only_b_states, total, both = turn.sentences
+    # A figure other records state keeps its verdict, and its mention names them, but
+    # adds no chip: a record sharing only an amount may not hold the sentence (D51).
+    assert amount_only_b_states.verdict == "supported"
+    assert [r.id for r in amount_only_b_states.facts] == [injury.id]
+    [mention] = amount_only_b_states.mentions
+    assert mention.verdict == "supported" and offer.id in {r.id for r in mention.facts}
+    assert total.verdict == "supported"
+    assert [r.id for r in total.facts] == [injury.id]
+    # The model's order holds, not the fact ids' or the file's.
+    assert [r.id for r in both.facts] == [offer.id, injury.id]
 
 
 def test_a_not_in_file_sentence_cites_nothing_and_is_unchecked(seeded: Session) -> None:

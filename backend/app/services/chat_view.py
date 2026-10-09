@@ -8,9 +8,10 @@ served:
   screen without a source;
 - every other sentence's amounts and dates are checked against today's file
   (`brief_check.check_sentence`, D12), so an answer given before a correction says so;
-- a figure the check finds supported only by facts the sentence does not cite adds
-  those facts' chips after the cited ones (D50), so every figure on screen has a chip
-  whose source holds it (rule 3);
+- a sentence's chips are the facts the model cited, in its order, and no others (D51).
+  A figure that other records state keeps its verdict and names them in its mention,
+  but adds no chip: a record that shares only a date or an amount with the sentence
+  does not hold what it says;
 - the items are resolved again for their labels and facts. One that no longer
   resolves keeps a generic label and no facts rather than failing the thread.
 """
@@ -27,10 +28,8 @@ from app.schemas import (
     ChatThreadOut,
     ChatThreadSummaryOut,
     ChatTurnOut,
-    DraftMentionOut,
-    FactRef,
 )
-from app.services.brief_check import check_sentence, figures_stated_by, file_values
+from app.services.brief_check import check_sentence, file_values
 from app.services.chat_attachments import (
     AskRef,
     ItemNotInMatter,
@@ -72,7 +71,7 @@ def turn_out(
                 )
             )
             continue
-        ids = sentence.get("fact_ids", [])
+        ids = list(dict.fromkeys(sentence.get("fact_ids", [])))
         if not ids or not all(i in renderable for i in ids):
             withdrawn += 1
             continue
@@ -81,7 +80,7 @@ def turn_out(
         sentences.append(
             ChatSentenceOut(
                 text=text,
-                facts=_chips(text, cited, mentions, renderable),
+                facts=[fact_ref(f) for f in cited],
                 verdict=verdict,
                 mentions=mentions,
                 not_in_file=False,
@@ -102,37 +101,6 @@ def turn_out(
         asked_at=turn.created_at,
         answered_at=turn.finished_at,
     )
-
-
-def _chips(
-    text: str,
-    cited: list[Fact],
-    mentions: list[DraftMentionOut],
-    renderable: dict[int, Fact],
-) -> list[FactRef]:
-    """The sentence's cited facts, then, for each supported figure no cited fact
-    states, the facts that state it, each fact once.
-
-    A figure that matches a computed total is supported by every fact the total adds
-    up, and none of those records states the total; a provider's bills can be a
-    hundred facts. So the facts that state the figure themselves are preferred, and the
-    total's facts are added only when no fact does."""
-    chips = {f.id: fact_ref(f) for f in cited}
-    uncovered = [
-        m
-        for m in mentions
-        if m.verdict == "supported" and not any(r.id in chips for r in m.facts)
-    ]
-    if not uncovered:
-        return list(chips.values())
-    behind = [
-        renderable[r.id] for m in uncovered for r in m.facts if r.id in renderable
-    ]
-    stated = figures_stated_by(text, behind)
-    for mention in uncovered:
-        for ref in stated.get((mention.start, mention.end)) or mention.facts:
-            chips.setdefault(ref.id, ref)
-    return list(chips.values())
 
 
 def thread_out(session: Session, thread: ChatThread) -> ChatThreadOut:
