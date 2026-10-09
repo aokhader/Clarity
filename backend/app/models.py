@@ -392,3 +392,68 @@ class Call(Base):
     )
     notes_error: Mapped[str | None] = mapped_column(Text)
     source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"))
+
+
+class ChatStatus(StrEnum):
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    NO_MODEL = (
+        "no_model"  # the chat settings are missing; the question stands unanswered
+    )
+
+
+class ChatThread(Base):
+    """A conversation about one matter (D49), visible to the whole firm, never in Clio."""
+
+    __tablename__ = "chat_threads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+    archived_at: Mapped[datetime | None]
+
+    turns: Mapped[list["ChatTurn"]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="ChatTurn.id",
+    )
+
+
+class ChatTurn(Base):
+    """One question and its checked answer.
+
+    `items_json` holds the item refs as the client sent them, ids only; the server
+    resolves them again each time the turn is served. `answer_json` holds the
+    sentences and the fact ids each cites, never a verdict: verdicts are computed
+    against today's file when the turn is served (D12).
+    """
+
+    __tablename__ = "chat_turns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True
+    )
+    matter_id: Mapped[int] = mapped_column(index=True)
+    asked_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    question: Mapped[str] = mapped_column(Text)
+    items_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    status: Mapped[ChatStatus] = mapped_column(
+        _enum_column(ChatStatus), default=ChatStatus.RUNNING
+    )
+    # {sentences: [{text, fact_ids, not_in_file}], no_answer, dropped}
+    answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Every fact id the model was shown, so a later reader can audit the answer.
+    context_fact_ids_json: Mapped[list[int] | None] = mapped_column(JSON)
+    llm_call_id: Mapped[int | None] = mapped_column(
+        ForeignKey("llm_calls.id", ondelete="SET NULL")
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[datetime | None]
+
+    thread: Mapped[ChatThread] = relationship(back_populates="turns")

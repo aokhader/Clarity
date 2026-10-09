@@ -852,7 +852,8 @@ class AskCallRef(BaseModel):
 
 class AskKpiRef(BaseModel):
     kind: Literal["kpi"] = "kpi"
-    name: Literal["case_value", "coverage", "medical_specials", "firm_spend"]  # KpiOut.name
+    # KpiOut.name
+    name: Literal["case_value", "coverage", "medical_specials", "firm_spend"]
 
 
 class AskStageRef(BaseModel):
@@ -909,7 +910,8 @@ class ChatTurnOut(BaseModel):
     # Sentences hidden at serve time, since a cited fact is no longer renderable.
     withdrawn: int
     error: str | None  # failed: a short reason, never record text
-    cost_micro_usd: int | None  # the answer's model call, None while running or when cached
+    # The answer's model call; None while running or when it was cached.
+    cost_micro_usd: int | None
     asked_by: str | None  # the stub user's name
     asked_at: datetime
     answered_at: datetime | None
