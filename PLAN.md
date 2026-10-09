@@ -112,7 +112,7 @@ The order:
 - [x] Litigation history: the Manager approved the re-read (2026-10-08), see D41 below.
 
 **D41, litigation history and the provider updates (Manager, 2026-10-08)**
-- [ ] B14 backend: kind `litigation_event` (internal by default-deny, in the key events, schema upgraded in place); provider updates show stage moves only, labelled by code.
+- [x] B14 backend: kind `litigation_event` (internal by default-deny, in the key events, schema upgraded in place); provider updates show stage moves only, labelled by code.
 - [ ] P14 pipeline: the extraction prompt records court events as `litigation_event` with the filing, service or decision date; `status_change` only for stage moves. Estimate, then the runbook: a trial on a copy, a backup, the run (stop at $1).
 - [ ] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows.
 
