@@ -27,7 +27,7 @@ Decided (details in DECISIONS.md):
 
 - **D49 (2026-10-09, past the freeze, Manager):** the "point and ask" chatbot. Details under "Chat (D49)"; the contract is `docs/chat-contract.md`.
 
-Waiting for the Manager: the rest of the critic's Pass 6 follow-ups (a date check that passes on any record of that day; a firm-wide chat cap).
+Waiting for the Manager: a firm-wide chat cap (Pass 6); closed threads' chips keyed by fact ids (Pass 7, finding 3).
 
 ## Overview pass (D38, D39)
 
@@ -170,7 +170,12 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - **(2) Close, not archive:** backend 259e41f, 2b12871, e28626f; ui-builder b1abf13. Closing freezes the turns and a text transcript in `chat_transcripts`; Open and Closed groups; read-only with a download. Checked on the invented matter: 409 on asking in a closed thread, 404 for the transcript across matters.
   - **(3) The screenshots:** `docs/screenshots/ask.png` and `ask-closed.png`, from one real question on the invented matter ($0.017).
   - Tests: 544 backend, typecheck and lint clean.
-- [ ] H8 critic Pass 7 and reviewer README for D52.
+- [x] H8 critic Pass 7 (f80aad2) and reviewer README (48b01b8) for D52. Pass 7 found Clio's stage time equal to the record's creation (an import, not a stage move), a source's own date marked "not in file", and closed threads' chips keyed by fact id. Fixed under D53, except the last.
+- [x] H9 D53:
+  - pipeline 4ea0a6e: the stage is dated only when Clio's stage time is later than the record's creation; chat prompt v2.
+  - backend 808c407: a cited fact's own record date counts; the matter drawer shows "Stage last changed in Clio"; the transcript marks low confidence.
+  - The run: 2 Sonnet calls, $0.078 (estimate $0.080); backup `app.db.bak-20261009T210210Z-pre-d53`. The stage is now undated, the KPI tiles unchanged, the brief rewritten (all citations renderable), and the two chat sentences that gave the import time withdrawn. 553 tests.
+- [ ] H10 reviewer: README for D53. Left to the Manager: a closed thread's chips are fact ids, which a re-read replaces (Pass 7, finding 3).
 
 **Cut order for chat:**
 1. drag (pick mode keeps "point and ask");

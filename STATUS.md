@@ -9,7 +9,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | backend | D53 (1, 2, 3) done (808c407): cited record's own date counts; drawer 'Stage last changed in Clio'; transcript '(low confidence)'; 553 passed; real T2 t3 S2 now supported | Standing by | | Lead: restart the API. T2 t3 S3 withdrawn: digest replaced stage fact 1929 | 2026-10-09 14:05 |
 | ui-builder | D52 (2) done: Close asks once, Open/Closed groups, closed thread read-only with transcript link, panel too; headless, chat mocked | Lead: check in browser once backend's close route is live | backend: `closed_by` on `ChatThreadSummaryOut`, so Closed rows say who closed | | 2026-10-09 12:24 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
-| critic | Pass 6 (H5) done: added chips open wrong records; stage date misleads; stage item thin | Stand by | | Narrow D50 (3); drop stage fact date; firm-wide chat cap | 2026-10-09 10:48 |
+| critic | Pass 7 (H8, D52): stage date is Clio record creation, still misleads; T2 t3 S2 false "Not in file"; frozen chips break on re-read | Stand by | | Undate stage fact; source date counts as cited; freeze chip source+page | 2026-10-09 13:55 |
 | reviewer | H8 README for D52: close/transcript, stage date, 2 Ask shots, costs; check.sh no FAIL, 544; Node tests SKIPPED | Standing by | | Lead: real matter's 3rd Ask answer (12:03) has a date marked not in file; critic unread | 2026-10-09 13:55 |
 
 ## Stubs and shortcuts
