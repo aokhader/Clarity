@@ -151,7 +151,7 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - `CostOut` split, and `cached_failed_calls` ignoring chat;
   - `test_chat_api.py` and `test_backend_chat_view.py`.
   180 min
-- [ ] H3 ui-builder:
+- [x] H3 ui-builder (06a8c55, 2227593, 25d6fcf, dc91ba5; nothing cut):
   - `api/chat.ts`, `AskProvider`, `ChatPanel`, `ChatTurn` (answers through the brief's sentence component), `AskView` (`?view=ask`);
   - pick mode, then drag, through `useAskTarget` wired into the rows, tiles and steps;
   - the `AskBar` with search, chips and starters;
