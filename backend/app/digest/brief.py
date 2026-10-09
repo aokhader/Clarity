@@ -26,6 +26,8 @@ from app.services.bills import count_bills
 FIGURE_KINDS = {FactKind.CASE_VALUE, FactKind.MEDICAL_SPECIALS, FactKind.POLICY_LIMIT}
 # Facts the stage rests on, always in view whatever their score.
 STAGE_KINDS = {FactKind.CASE_STAGE, FactKind.STATUS_CHANGE, FactKind.LITIGATION_EVENT}
+# How a pleading's statements about fault and its defenses are read.
+PLEADING_KINDS = {FactKind.LIABILITY, FactKind.OTHER}
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 Stage = Literal[
     "intake",
@@ -121,12 +123,32 @@ def brief_payload(session: Session, matter_id: int) -> dict[str, Any]:
         for f in facts
         if f.source.clio_type is SourceType.MATTER or f.kind in FIGURE_KINDS
     ]
-    included = {f.id: f for f in top + stage_facts + open_tasks + figures}
+    included = {
+        f.id: f for f in top + stage_facts + _court_papers(facts) + open_tasks + figures
+    }
     return {
         "facts": [_row(f) for f in included.values()],
         "key_figures": key_figures(facts),
         "open_task_ids": [f.id for f in open_tasks],
     }
+
+
+def _court_papers(facts: list[Fact]) -> list[Fact]:
+    """What the court papers say about fault and defenses, most significant first.
+
+    A court paper is a document a litigation event was read from. A pleaded defense is
+    read as liability or other, and ranks below the medical record's many facts, so
+    without this the brief could not say where the litigation stands.
+    """
+    papers = {
+        f.source_id
+        for f in facts
+        if f.kind is FactKind.LITIGATION_EVENT
+        and f.source.clio_type is SourceType.DOCUMENT
+    }
+    pleaded = [f for f in facts if f.source_id in papers and f.kind in PLEADING_KINDS]
+    pleaded.sort(key=lambda f: (-f.significance, f.id))
+    return pleaded[: get_settings().brief_court_fact_limit]
 
 
 def key_figures(facts: list[Fact]) -> dict[str, Any]:

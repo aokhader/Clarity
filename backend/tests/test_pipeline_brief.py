@@ -214,6 +214,43 @@ def test_the_matters_own_fields_reach_the_model_however_they_rank(
     assert incident.id in {row["fact_id"] for row in rows}
 
 
+def test_a_court_papers_pleaded_defenses_reach_the_model_however_they_rank(
+    data_dir: Path, session: Session
+) -> None:
+    pleading = _source(session, SourceType.DOCUMENT, {"name": "Invented pleading"})
+    note = _source(session, SourceType.NOTE, {"subject": "Invented note"})
+    # The test helper keys a source by the size of its raw record.
+    other_record = _source(
+        session, SourceType.DOCUMENT, {"name": "Invented record", "id": 2}
+    )
+    for _ in range(60):
+        _fact(session, other_record, page_no=1, significance=90)
+    _fact(
+        session,
+        pleading,
+        FactKind.LITIGATION_EVENT,
+        page_no=1,
+        value_json={"event": "answered"},
+        significance=70,
+    )
+    defense = _fact(session, pleading, FactKind.OTHER, page_no=3, significance=40)
+    fault = _fact(session, pleading, FactKind.LIABILITY, page_no=2, significance=30)
+    visit = _fact(session, pleading, FactKind.TREATMENT_VISIT, page_no=4)
+    aside = _fact(session, note, FactKind.OTHER, significance=40)
+
+    ids = {row["fact_id"] for row in brief_payload(session, MATTER)["facts"]}
+
+    assert {defense.id, fault.id} <= ids
+    # Only what a court paper says about fault and defenses, and not a note's aside.
+    assert visit.id not in ids and aside.id not in ids
+
+
+def test_the_prompt_asks_where_the_litigation_stands() -> None:
+    text = llm.load_prompt("brief").text
+    assert "When the stage is litigation" in text
+    assert "defense pleaded" in text and "dismissal or refiling" in text
+
+
 def test_the_prompt_forbids_questions_the_input_answers() -> None:
     assert "already answers" in llm.load_prompt("brief").text
 

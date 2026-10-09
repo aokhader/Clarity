@@ -73,6 +73,12 @@ def test_the_prompts_keep_court_events_out_of_status_changes(prompt: str) -> Non
     assert "never a status_change" in line
 
 
+def test_the_page_prompt_counts_a_pre_suit_notice_and_not_a_signature() -> None:
+    line = _prompt_line("extract_page", "litigation_event")
+    assert "a notice the law requires before suit served or filed" in line
+    assert "not a court event of its own" in line
+
+
 @pytest.fixture
 def filing_page(session: Session) -> Source:
     document = Source(

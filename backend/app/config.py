@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     score_passes: int = Field(default=2, ge=1)
     # Facts, by significance, the brief model sees besides the ones always included.
     brief_fact_limit: int = Field(default=40, ge=1)
+    # Of what the court papers say about fault and defenses (a pleaded defense), the
+    # most significant facts the brief model always sees, whatever their rank.
+    brief_court_fact_limit: int = Field(default=8, ge=0)
 
     # Storage
     data_dir: Path = Path("data")
