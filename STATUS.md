@@ -5,7 +5,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | Role | Now | Next | Blocked on | Needs decision | Updated |
 |---|---|---|---|---|---|
 | lead | D38-D40 Overview pass done: 90-second first screen (9 of 12 on the real matter at 1440x900), legal-memo restyle, margin citations; Lighthouse a11y 100 on all firm views and /p/:token; critic Pass 4 fixed (D40); six screenshots retaken (506267f) | Waiting for the reviewer's README pass, then check.sh | | Manager: litigation-history re-read (cents, D40); push; clip link; test call (C-T) | 15:18 |
-| pipeline | P14: page prompt v4 (34cd09d), record prompt kept v3 (33e620d), --keep-brief (2e82a45); 459 pass | On go: trial on a copy, backup, re-read 13 pleading pages | Go-ahead for the paid re-read | 13 pages, 21 calls, about $0.05; keep the brief? | 2026-10-08 18:29 |
+| pipeline | P14 run done: 13 pages, 7 litigation events, 0 failures, $0.086 with trial | Standing by | | Story shows no litigation event: dated ones score below 88 | 2026-10-08 18:43 |
 | backend | D41: litigation_event 811f22c (contract: kind, LitigationEventPayload); stage-move updates 764bd38; 437 | Stand by | lead: KIND_LABELS litigation_event in lib/labels.ts (typecheck fails); restart :8000 (stale) | | 2026-10-08 17:55 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
@@ -23,4 +23,5 @@ New ones only, one line each when written: what, why, file. The hackathon's are 
 - C-P: a date said on a call without a year is placed at the nearest such day to the call, within six months, else left out (backend/app/digest/call_notes.py)
 - P14: extract_record stays v3, so notes and emails still read court events as other; any bump re-reads the matter's custom fields, since their marker is the cache key (backend/app/digest/extract.py)
 - P14: `reextract --keep-brief` leaves the brief as it was; the next full digest writes it, one merge call (backend/app/cli.py)
+- P14 run: the brief is kept and now stale against the facts, so the next digest (CLI or in-app) makes one Sonnet call (backend/app/digest/brief.py)
 - P4 known issue: pages read before a provider was known never get that provider. Fix (1): store provider_name_as_written on facts (new column, needs reset or a migration), re-resolve in code after mapping, no model call. Fix (2): re-read pages when the provider list changes, one call per page (backend/app/digest/extract.py)
