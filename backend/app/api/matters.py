@@ -84,6 +84,13 @@ def matter_key_events(
     return key_events.matter_key_events(session, matter_id, today, limit)
 
 
+@router.get("/matters/{matter_id}/key-events/undated")
+def matter_undated_court_events(
+    matter_id: MatterId, session: SessionDep
+) -> list[FactOut]:
+    return key_events.matter_undated_court_events(session, matter_id)
+
+
 @router.get("/matters/{matter_id}/timeline")
 def matter_timeline(
     matter_id: MatterId,

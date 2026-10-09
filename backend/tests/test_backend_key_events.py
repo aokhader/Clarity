@@ -15,7 +15,9 @@ from app.schemas import FactOut, validate_payload
 from app.services.key_events import (
     KEY_EVENT_KINDS,
     KEY_EVENTS_PER_KIND,
+    UNDATED_COURT_EVENTS_LIMIT,
     matter_key_events,
+    matter_undated_court_events,
 )
 from app.services.matter_queries import FEED_CANDIDATES_PER_ROW
 from tests.fixtures.synthetic_matter import MATTER_ID
@@ -346,6 +348,73 @@ def test_court_events_are_pinned_by_type_then_significance(session: Session) -> 
     assert undated.id not in ids
 
 
+def _undated(session: Session) -> list[FactOut]:
+    return matter_undated_court_events(session, MATTER)
+
+
+def test_an_undated_dismissal_is_listed_and_dated_events_are_not(
+    session: Session,
+) -> None:
+    dismissed = _court_event(session, "Action dismissed", None, 40, "dismissed")
+    filed = _court_event(session, "Complaint filed", _days_ago(90), 90, "filed")
+
+    rows = _undated(session)
+
+    assert [row.id for row in rows] == [dismissed.id]
+    assert filed.id not in _ids(rows)
+
+
+def test_an_undated_event_that_a_dated_record_of_another_kind_states_is_left_out(
+    session: Session,
+) -> None:
+    served = _court_event(session, "Defense medical reports served", None, 60, "served")
+    _add(
+        session,
+        FactKind.RECORDS_RECEIVED,
+        "Defense medical reports served",
+        _days_ago(40),
+        value={"description": "Reports"},
+    )
+    renewed = _court_event(session, "Action renewed", None, 50, "renewed")
+
+    assert [row.id for row in _undated(session)] == [renewed.id]
+    assert served.id not in _ids(_undated(session))
+
+
+def test_undated_restatements_fold_and_the_order_is_by_type_then_significance(
+    session: Session,
+) -> None:
+    record = _source(session)
+    other = _court_event(session, "Conference held", None, 99, "other")
+    lead = _court_event(session, "Action dismissed", None, 40, "dismissed")
+    again = _court_event(
+        session, "Action dismissed by the court", None, 30, "dismissed", record
+    )
+    _court_event(session, "Action dismissed", None, 20, "dismissed", record)
+    renewed = _court_event(session, "Action renewed", None, 10, "renewed")
+
+    rows = _undated(session)
+
+    assert [row.id for row in rows] == [lead.id, renewed.id, other.id]
+    assert [ref.id for ref in rows[0].restated_by] == [again.id]
+
+
+def test_at_most_five_undated_court_events_are_listed(session: Session) -> None:
+    titles = (
+        "Motion argued",
+        "Order entered",
+        "Hearing held",
+        "Deposition taken",
+        "Stipulation signed",
+        "Subpoena served",
+        "Conference adjourned",
+    )
+    for n, title in enumerate(titles):
+        _court_event(session, title, None, 50 + n)
+
+    assert len(_undated(session)) == UNDATED_COURT_EVENTS_LIMIT == 5
+
+
 def test_a_deadline_is_never_a_key_event(session: Session) -> None:
     """A date set for a hearing does not say the hearing took place (D40)."""
     _incident(session)
@@ -482,5 +551,8 @@ def test_the_route_lists_the_synthetic_matter_and_refuses_unknown_ones(
     assert [r["event_date"] for r in rows] == sorted(r["event_date"] for r in rows)
 
     assert client.get("/api/matters/999/key-events").status_code == 404
+    assert client.get("/api/matters/999/key-events/undated").status_code == 404
+    undated = client.get(f"/api/matters/{MATTER_ID}/key-events/undated")
+    assert undated.status_code == 200 and undated.json() == []
     assert client.get(f"/api/matters/{MATTER_ID}/key-events?limit=0").status_code == 422
     assert len(client.get(f"/api/matters/{MATTER_ID}/key-events?limit=2").json()) == 2

@@ -1,7 +1,8 @@
 """The story so far: what has happened on a matter, oldest first, each event once.
 
-The incident leads, then the court events, then the most significant other events
-(D41, D43).
+The incident leads, then the court events, then the most significant other events.
+Court events no record dates cannot be placed in the story, so they are listed apart,
+less any that a dated record of another kind already states (D41, D43).
 """
 
 from datetime import date
@@ -13,7 +14,7 @@ from app.schemas import FactOut, LitigationEventPayload
 from app.services.fact_views import renderable_facts, with_restatements
 from app.services.incident import incident_account, incident_fact
 from app.services.matter_queries import FEED_CANDIDATES_PER_ROW
-from app.services.restatements import group_restatements
+from app.services.restatements import group_restatements, restates_across_kinds
 
 # At most this many key events of one kind, so one busy kind cannot fill the list.
 KEY_EVENTS_PER_KIND = 3
@@ -36,6 +37,7 @@ KEY_EVENT_KINDS = (
 # a filing, a dismissal and a refiling outrank an exchange of papers, whatever the
 # scores. Every other event type comes after these.
 COURT_EVENT_ORDER = ("filed", "dismissed", "renewed", "answered")
+UNDATED_COURT_EVENTS_LIMIT = 5
 
 
 def matter_key_events(
@@ -75,6 +77,38 @@ def matter_key_events(
     chosen = (pinned + leaders)[:limit]
     chosen.sort(key=lambda g: (_ordinal(g[0].event_date), g[0].id))
     return [with_restatements(group) for group in chosen]
+
+
+def matter_undated_court_events(
+    session: Session, matter_id: int, limit: int = UNDATED_COURT_EVENTS_LIMIT
+) -> list[FactOut]:
+    """Court events no record dates, in `COURT_EVENT_ORDER` then by significance, each
+    once, at most `limit`.
+
+    One that restates a dated fact of any kind is left out: a note that says reports
+    were served, with no day, restates the dated record of their receipt, which already
+    places the event. A court event is never dated by the note that reports it, since a
+    note can be written before what it describes (D43).
+    """
+    undated = list(
+        session.scalars(
+            renderable_facts(matter_id).where(
+                Fact.kind == FactKind.LITIGATION_EVENT, Fact.event_date.is_(None)
+            )
+        )
+    )
+    if not undated:
+        return []
+    dated = list(
+        session.scalars(renderable_facts(matter_id).where(Fact.event_date.is_not(None)))
+    )
+    groups = group_restatements(sorted(undated, key=_court_order))
+    unplaced = [
+        g
+        for g in groups
+        if not any(restates_across_kinds(f, d) for f in g for d in dated)
+    ]
+    return [with_restatements(group) for group in unplaced[:limit]]
 
 
 def _court_events(session: Session, matter_id: int, today: date) -> list[list[Fact]]:

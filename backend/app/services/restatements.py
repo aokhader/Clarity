@@ -57,6 +57,13 @@ def one_per_record(group: list[Fact]) -> list[Fact]:
     return kept
 
 
+def restates_across_kinds(fact: Fact, other: Fact) -> bool:
+    """Whether two facts say the same thing whatever their kinds and dates: most of
+    their title words are shared. For an undated fact that another record files under
+    another kind with a date (D43)."""
+    return _same_words(fact.title, other.title)
+
+
 def _restates(fact: Fact, lead: Fact) -> bool:
     if fact.kind is not lead.kind:
         return False
