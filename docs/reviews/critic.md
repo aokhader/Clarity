@@ -2,6 +2,127 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 5 (D41–D42), 2026-10-08 20:17 PDT
+
+C5, on the real matter after D40, the P14 re-read of the pleadings and the P15 re-read of 14 notes and emails, with the brief rewritten. I used the running API on port 8000 and the code at `e49b743`. `c82cd68` landed during the pass and touches only docs. `data/app.db` was opened read-only. I sent only GETs, plus the in-memory `POST .../shares/preview`; the `shares` table held 0 rows before and after. I made no model call.
+
+The complaint's pages are scans with no text layer, so I read them as images from `/api/pages/{id}/image` (pages 1, 2, 6, 7 and 8). Everything else I checked against the source view's text.
+
+Traced by hand:
+- the brief: its headline, 4 sentences, 4 open questions, and the 14 facts they cite;
+- all 17 `litigation_event` facts, against their pages or messages, and against the dated records of other kinds that state the same events;
+- the 10 rows of the story so far;
+- every provider's preview, with default settings and with every setting on;
+- the Pass 4 fixes, in the API and the code.
+
+### Findings
+
+1. **The rewritten brief, and the first screen with it, say nothing about the limitations fight. The rewrite dropped what the earlier brief had.**
+   - Where: `GET /api/matters/{id}/brief`, generated at the P15 run; the Now strip's Statute cell.
+   - Saw:
+     - The answer pleads the statute of limitations as an affirmative defense (fact 2071, significance 80; its quote is on page 3). Next to it is a defense for failure to give the required pre-suit notice.
+     - The first action was dismissed for that missing notice (fact 2060, significance 93) and refiled under the savings statute (fact 2031, significance 92). These are the two weightiest court events in the store.
+     - The new brief mentions none of them. The brief replaced at P15 had an open question on exactly this, and it is gone.
+     - The Statute cell reads "Met". Its chip opens the firm's Clio task, which says the limit was satisfied. That is correct as the firm's view and sourced. But with the brief silent and the dismissal not in the story (#2), the Overview now reads as if limitations were no issue, when the defense pleads that the suit is barred.
+   - Expected: one sentence, or at least an open question, that says the action was dismissed once and refiled, and that the answer pleads limitations.
+   - Owner: pipeline, with the Manager. It takes a prompt line and one brief call, about 5 cents at D36 rates (Needs decision 1). Otherwise, a README known issue.
+
+2. **The story so far shows the refiled suit, but not the first suit or its dismissal. Its third court row is a minor expert exchange.**
+   - Where: `services/matter_queries.py`. `PINNED_EVENT_KINDS` pins up to 3 dated court events by significance (B15).
+   - Saw:
+     - The pinned rows are the refiled suit's filing (fact 2022, significance 80), the answer (fact 2063, 78) and a defense expert exchange served by email (fact 2134, 66).
+     - The first suit's filing (fact 2051, 60, dated) loses its place to the expert exchange.
+     - The dismissal and the renewal (2060, 2031) have no date, so they can never enter the story.
+     - Read in order, the story goes from the demand to "complaint filed", with nothing to say this is the second action. That second action is what the limitations defense turns on.
+     - The rows run in date order, the incident and treatment rows sit correctly beside the court rows, and every court row's chip holds its text and date.
+   - Expected:
+     - court events pinned by type first (filed, dismissed, renewed, answered, then served, motions and the rest), so the first suit appears;
+     - the undated court events named in one line under the story, linking to the timeline filtered to court events.
+   - Owner: backend (the pin order); ui-builder (the undated line). Needs decision 2, code only.
+
+3. **The same court events sit under two kinds, dated in one and undated in the other. 9 of the 10 note and email events are undated.**
+   - Where: the facts written by P14 and P15. The For Attorney timeline lists each one separately.
+   - Saw:
+     - **The pre-suit notice.** The complaint dates its second service, on pages 6 and 7. The re-read filed it as kind `other` (fact 2059), not as a court event. The note's version (fact 2088) is a `litigation_event` with no date.
+     - **The refiling.** The renewal (fact 2031) is the same act as the filing (fact 2022).
+     - **Note events restating dated records of other kinds:**
+
+       | Note event | Dated record of another kind |
+       |---|---|
+       | 2098, defense reports served | 479, `records_received`, dated |
+       | 2101, an expert disclosure | 486, `records_received`, dated |
+       | 2114, the defense's discovery demands | 401, `record_request`, dated |
+       | 2097, the exams attended | 220 and 221 (note), 476 (email); `deadline` facts with no date |
+       | 2108, the further conference set | 434 (email), a `deadline`; 2096, `other` |
+
+     - Every one of the 11 undated court events is right to be undated by its own source. I checked the dismissal and the renewal on the scanned pages; the notes say "now" or give no day.
+   - Pipeline asks whether to date a court event by its note's date (STATUS). **No.**
+     - Note 85 is dated before the email that delivered the defense demands it says were exchanged, and before the answer that carried them.
+     - Note 73 is dated before the emails that served the two reports it says were served.
+     - So a note's date is when the firm wrote about the event. It can come before the event, and dating by it would put story rows out of order.
+   - Expected: an undated court event folds, as a restatement, into a dated fact from another record that states the same event, whatever its kind. The dated pre-suit notice becomes a court event.
+   - Owner: backend (restatements across kinds, code only); pipeline (fact 2059's kind, a re-read of one page, a cent or two). Needs decisions 3 and 4.
+
+4. **Minor.**
+   - The answer's chip (fact 2063) highlights only the document's heading. Its filing date is in the clerk's stamp on the same page, which the quote leaves out. The filing's chip (fact 2022) quotes the stamp itself, so a pipeline prompt line would make the two consistent.
+   - The attorney's verification of the complaint (fact 2062, significance 15) is filed as a court event. It is a signature on the complaint, not something the court or a party did.
+   - Fact 2101 (an expert disclosure served) is event `other`, where `served` fits.
+   - **Injuries, residual from Pass 4 #9:** the regions are right, but the first region's row leads with a chiropractic complaint line (fact 1163), not the diagnosis. Each finding there is stated by one record, so ties go to the served order. The knees, which the brief names, come sixth. The head and the brain are counted as two regions.
+   - **Carried:**
+     - the two defense-exam rows from one page;
+     - the defense exams in the Treatment lane;
+     - 7 of the incident account's 9 records sit behind a "+7 more" that cannot be opened (README known issues).
+
+### Verified correct
+
+- **The brief.**
+  - All 14 cited facts open a source that holds them: 1929, 1964, 1968, 1967, 1957, 1958, 1959, 1518, 8, 1991, 1952, 1998, and the stage facts 2089 and 2063.
+  - D12 marks: the headline and sentences 1 to 3 are `supported`; sentence 4 has no figure.
+  - Its two figures equal the Case value and Coverage leads. Its stage and its "liability contested" agree with the stage track and the Liability rows. Its injury sentence matches its own sources (the knees missing from the Overview's rows is #4).
+  - Nothing in it contradicts the story or the Now strip. It no longer has a "Next step" sentence to compete with the Overdue cell.
+  - Open questions:
+    - the date of the further conference is in no record, so the question is fair;
+    - the question on how the cap fits a self-insured defendant reflects a real tension in the file: a 2023 coverage note, the defense driver's own policy, and a later confirmation of limits.
+- **Court events.**
+  - 17 facts, all internal.
+  - The 6 dated ones each carry the date their source gives:
+    - 2051 and 2052, page 6 of the complaint;
+    - 2022, the clerk's stamp;
+    - 2062, page 8;
+    - 2063, the stamp in the page text;
+    - 2134, the date of the email that served it.
+  - Event types are right, apart from #4.
+- **Story so far:**
+  - no deadlines;
+  - the incident row cites 9 records (8 others), as D40 set;
+  - oldest first;
+  - court rows in the Case lane.
+- **Provider boundary.**
+  - With default settings, the ten previews release 858 facts. None is internal, none is a `litigation_event`, none is another provider's bill, record or request, and none is flagged as strategy.
+  - Recent updates holds one code-written "Moved to litigation", undated. "Last movement" is left out. The note is empty.
+  - With every setting on, 3,568 facts with the same result. The limits are the defendant's two, labelled (D37).
+  - The only shareable status change (fact 2089) reaches a provider as the code label, never its model-written title.
+- **Pass 4 fixes hold.**
+  - #1, the statute: fact 2 carries `status: complete`, and `NowStrip.tsx:96-135` shows "Met" with the date, in neutral.
+  - #2, the injury count: none is shown.
+  - #3, restatements: the incident account and the story count records.
+  - #4, the stage track: earlier steps read "earlier stage" (`StageTrack.tsx:43-47`).
+  - #5, the story: `KEY_EVENT_KINDS` has no deadlines.
+  - #8, the Now cell: it reads "Overdue" when its item is (`NowStrip.tsx:105`).
+  - #9, the injuries: one row per region (residual in #4).
+  - Also:
+    - "Open requests" replaces "waiting on others";
+    - Liability shows facts 292 and 291, and 291 says liability is contested.
+- **D42's condition:** the four money tiles carry the same values and fact counts as at Pass 4.
+- **`check.sh` at `c82cd68`, with this section on disk:** lint ok, Clio read-only (8 passed), no case data (4), nothing private (4), backend tests (472 passed), frontend types ok. Other Node tests SKIPPED (none). No step failed.
+
+### Needs decision (for the lead)
+
+1. **The limitations risk in the brief** (#1): add a prompt line ("name any pleaded defense that could end the case, and any dismissal or refiling of the action") and run one brief call, about 5 cents, with the Manager's go-ahead. Otherwise, a README known issue. Recommendation: the call. It is the one point the litigation history adds.
+2. **Court rows in the story** (#2): pin by event type before significance, and add one line naming the undated court events. Recommendation: now, code only.
+3. **Dating a court event by its note** (#3): no. Fold an undated court event into a dated restatement of any kind instead. Recommendation: backend, code only, after (2).
+4. **The dated pre-suit notice** (#3): re-read its page so it becomes a court event (a cent or two), or leave it as a known issue. Recommendation: fold it into the next paid run, if there is one.
+
 ## Pass 4 (D38 Overview), 2026-10-08 14:39 PDT
 
 C4, on the real matter after the D38 Overview pass. I used the running API on port 8000 and read the code at `e61aee2`. `692af64` to `4cb81ba` landed during the pass and touch only tests, fixtures and docs, so the traced path did not change. There was no browser. I read what each block renders from `OverviewView.tsx` and its components, and called the routes those components call. `data/app.db` was opened read-only. I sent only GETs: no visit recorded, no share, no model call.
