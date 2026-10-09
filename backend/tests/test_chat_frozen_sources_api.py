@@ -26,7 +26,10 @@ from app.models import (
     SourceType,
     User,
 )
+from app.schemas import DraftMentionOut
+from app.services import chat_view
 from app.services.chat_frozen import GONE
+from app.services.fact_views import fact_ref
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID
 
 OTHER_MATTER = MATTER_ID + 1
@@ -243,6 +246,51 @@ def test_an_id_a_re_read_gives_another_fact_still_opens_the_cited_source(
         "A different finding"
     )
     assert _frozen(client, thread_id, bill_id).json() == before
+
+
+def test_a_figure_marks_chip_is_frozen_with_the_sentences_chips(
+    seeded: Session,
+    client: TestClient,
+    user_id: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A "differs" mark cites the fact holding the file's figure, which need not be one
+    of the sentence's chips; the closed thread's mark must still open it."""
+    bill = _fact(seeded, FactKind.MEDICAL_BILL, ORTHO_ID)
+    lien = _fact(seeded, FactKind.LIEN)
+    bill_id, lien_id = bill.id, lien.id
+    mark = DraftMentionOut(
+        start=29,
+        end=35,
+        text="$2,480",
+        kind="amount",
+        verdict="differs",
+        reason="the file states another figure",
+        facts=[fact_ref(lien)],
+        file_amount_cents=248_000,
+        file_date=None,
+    )
+    monkeypatch.setattr(
+        chat_view, "check_sentence", lambda text, cited, file: ("differs", [mark])
+    )
+    thread_id = _answered_thread(seeded, user_id, [bill_id], [])
+    before = _cut_to_page(client.get(f"/api/facts/{lien_id}/source").json())
+
+    [turn] = _close(client, user_id, thread_id)["turns"]
+
+    [sentence] = turn["sentences"]
+    assert [f["id"] for f in sentence["facts"]] == [bill_id]
+    assert [f["id"] for f in sentence["mentions"][0]["facts"]] == [lien_id]
+    assert _frozen_rows(seeded, thread_id) == 2
+    assert _frozen(client, thread_id, lien_id).json() == before
+    # A thread closed before D54 freezes the mark's fact on first open, too.
+    seeded.execute(delete(ChatFrozenSource))
+    seeded.commit()
+    backfilled = _frozen(client, thread_id, lien_id)
+    assert backfilled.status_code == 200, backfilled.text
+    assert backfilled.json() == before
+    _simulate_re_read(seeded, seeded.get(Fact, lien_id))
+    assert _frozen(client, thread_id, lien_id).json() == before
 
 
 # --- Who may open it ------------------------------------------------------------------------

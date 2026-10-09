@@ -2,10 +2,10 @@
 
 A closed thread is the firm's record of what was cited. Its chips are fact ids, and a
 re-read replaces fact ids, so a chip could open nothing, or another fact that took the
-same id. Closing therefore stores, for every fact the frozen turns cite (sentence chips
-and item chips), the drawer's `FactSourceOut` as it was served then, its pages cut to
-the cited page. The frozen route serves that copy. Page image URLs still point at the
-live file; the text is what was frozen.
+same id. Closing therefore stores, for every fact the frozen turns cite (sentence
+chips, figure marks and item chips), the drawer's `FactSourceOut` as it was served
+then, its pages cut to the cited page. The frozen route serves that copy. Page image
+URLs still point at the live file; the text is what was frozen.
 
 A thread closed before D54 has no copies: one is built the first time a chip is opened,
 if the cited fact still exists. Nothing here calls a model.
@@ -32,13 +32,17 @@ class FrozenSourceNotFound(LookupError):
 
 
 def cited_refs(turns: Iterable[ChatTurnOut]) -> dict[int, FactRef]:
-    """Every fact the turns cite, by id, in the order first cited: each sentence's
-    chips, then each item's."""
+    """Every fact a chip of the turns opens, by id, in the order first cited: each
+    sentence's chips and its figure marks' chips (a "differs" mark cites the file's
+    figure), then each item's."""
     refs: dict[int, FactRef] = {}
     for turn in turns:
         for sentence in turn.sentences:
             for ref in sentence.facts:
                 refs.setdefault(ref.id, ref)
+            for mention in sentence.mentions:
+                for ref in mention.facts:
+                    refs.setdefault(ref.id, ref)
         for item in turn.items:
             for ref in item.facts:
                 refs.setdefault(ref.id, ref)
