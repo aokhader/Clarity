@@ -80,6 +80,27 @@ class Settings(BaseSettings):
     # most significant facts the brief model always sees, whatever their rank.
     brief_court_fact_limit: int = Field(default=8, ge=0)
 
+    # Chat (D49): the Ask panel's answers, through the provider and key above.
+    # No model means chat is off. Prices are USD per million tokens.
+    chat_model: str | None = None
+    chat_price_in: Decimal | None = None
+    chat_price_out: Decimal | None = None
+    # What an answer costs when the server-side refusal fallback gave it with
+    # another model.
+    chat_fallback_price_in: Decimal = Decimal(5)
+    chat_fallback_price_out: Decimal = Decimal(25)
+    # The model thinks before answering, and thinking counts against this.
+    chat_max_output_tokens: int = Field(default=16000, ge=256)
+    chat_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    # 0 is no pacing of chat's own; on the merge model it shares merge's (D36).
+    chat_rpm: int = Field(default=0, ge=0)
+    # Per matter, summed from local midnight.
+    chat_daily_budget_usd: Decimal = Field(default=Decimal(2), ge=0)
+    chat_context_facts: int = Field(default=60, ge=1)
+    chat_context_pages: int = Field(default=6, ge=0)
+    chat_page_chars: int = Field(default=3000, ge=1)
+    chat_history_turns: int = Field(default=4, ge=0)
+
     # Storage
     data_dir: Path = Path("data")
 
@@ -135,6 +156,17 @@ class Settings(BaseSettings):
     @property
     def models_configured(self) -> bool:
         return bool(self.llm_api_key and self.extract_model and self.merge_model)
+
+    @property
+    def chat_configured(self) -> bool:
+        # Prices are required too: an answer with no price would count as $0 against
+        # the daily cap.
+        return bool(
+            self.llm_api_key
+            and self.chat_model
+            and self.chat_price_in is not None
+            and self.chat_price_out is not None
+        )
 
 
 @lru_cache

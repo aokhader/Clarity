@@ -18,7 +18,15 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.digest import llm
 from app.digest.records import display_date, parse_date
-from app.models import Digest, DigestKind, Fact, FactKind, SourceType, utcnow
+from app.models import (
+    Digest,
+    DigestKind,
+    Fact,
+    FactKind,
+    Source,
+    SourceType,
+    utcnow,
+)
 from app.schemas import BriefContent
 from app.services.bills import count_bills
 
@@ -127,7 +135,7 @@ def brief_payload(session: Session, matter_id: int) -> dict[str, Any]:
         f.id: f for f in top + stage_facts + _court_papers(facts) + open_tasks + figures
     }
     return {
-        "facts": [_row(f) for f in included.values()],
+        "facts": [fact_row(f) for f in included.values()],
         "key_figures": key_figures(facts),
         "open_task_ids": [f.id for f in open_tasks],
     }
@@ -183,13 +191,15 @@ def dollars(cents: int) -> str:
     return f"{sign}${Decimal(abs(cents)) / 100:,.2f}"
 
 
-def _row(fact: Fact) -> dict[str, Any]:
+def fact_row(fact: Fact) -> dict[str, Any]:
+    """One fact as a model sees it: money in dollars, dates as the app writes them, and
+    its source by name. The brief and chat both read facts this way."""
     return {
         "fact_id": fact.id,
         "kind": fact.kind.value,
         "title": fact.title,
         "date": display_date(fact.event_date),
-        "source": _source_label(fact),
+        "source": source_label(fact.source, fact.page_no),
         "significance": fact.significance,
         "confidence": fact.confidence.value,
         "value": _display_value(fact.value_json or {}),
@@ -211,14 +221,13 @@ def _display_value(value: dict[str, Any]) -> dict[str, Any]:
     return shown
 
 
-def _source_label(fact: Fact) -> str:
+def source_label(source: Source, page_no: int | None) -> str:
     """The source by name and date, so facts from two records stay apart."""
-    source = fact.source
     raw = source.raw_json or {}
     match source.clio_type:
         case SourceType.DOCUMENT:
             name = str(raw.get("name") or raw.get("filename") or "Document")
-            return f"{name}, page {fact.page_no}" if fact.page_no else name
+            return f"{name}, page {page_no}" if page_no else name
         case SourceType.NOTE | SourceType.COMMUNICATION:
             subject = str(raw.get("subject") or source.clio_type.value.capitalize())
             return _dated(subject, raw.get("date"))

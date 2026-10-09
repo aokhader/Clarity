@@ -51,11 +51,78 @@ TOOL_INSTRUCTION = (
 # as failed until `cli digest --retry-failed`.
 RETRY_STATUSES = {429, 500, 502, 503, 504, 529}
 
-Role = Literal["extract", "merge"]
+Role = Literal["extract", "merge", "chat"]
+# The server-side refusal fallback (chat only): when the chat model declines, the API
+# answers with another model, named in the response, and that call is priced at the
+# fallback rates.
+CHAT_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 class ModelsNotConfigured(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class RoleSettings:
+    """What one role runs on: its model, its prices per million tokens, its pace."""
+
+    model: str | None
+    price_in: Decimal | None
+    price_out: Decimal | None
+    rpm: int
+    max_output_tokens: int
+    # Says which .env lines to fill when the model is missing.
+    missing_model: str
+
+
+def role_settings(role: Role) -> RoleSettings:
+    settings = get_settings()
+    digest_missing = "Set EXTRACT_MODEL and MERGE_MODEL in .env"
+    match role:
+        case "extract":
+            return RoleSettings(
+                settings.extract_model,
+                settings.extract_price_in,
+                settings.extract_price_out,
+                settings.extract_rpm,
+                settings.llm_max_output_tokens,
+                digest_missing,
+            )
+        case "merge":
+            return RoleSettings(
+                settings.merge_model,
+                settings.merge_price_in,
+                settings.merge_price_out,
+                settings.merge_rpm,
+                settings.llm_max_output_tokens,
+                digest_missing,
+            )
+        case "chat":
+            return RoleSettings(
+                settings.chat_model,
+                settings.chat_price_in,
+                settings.chat_price_out,
+                _chat_rpm(),
+                settings.chat_max_output_tokens,
+                "Set CHAT_MODEL in .env",
+            )
+
+
+def _chat_rpm() -> int:
+    """Chat's pace. The limiter is keyed by model name, so on the merge model (D36)
+    chat queues with the digest's merge calls; with no CHAT_RPM it takes that role's
+    limit, and with both set the stricter one holds."""
+    settings = get_settings()
+    shared = [
+        rpm
+        for model, rpm in (
+            (settings.merge_model, settings.merge_rpm),
+            (settings.extract_model, settings.extract_rpm),
+        )
+        if model and model == settings.chat_model
+    ]
+    limits = [rpm for rpm in (settings.chat_rpm, *shared) if rpm > 0]
+    return min(limits) if limits else 0
 
 
 class ExtractionFailed(Exception):
@@ -65,10 +132,17 @@ class ExtractionFailed(Exception):
 class NoStructuredOutput(ExtractionFailed):
     """The model answered without a usable tool call; the tokens were still billed."""
 
-    def __init__(self, message: str, tokens_in: int, tokens_out: int) -> None:
+    def __init__(
+        self,
+        message: str,
+        tokens_in: int,
+        tokens_out: int,
+        served_model: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
+        self.served_model = served_model
 
 
 @dataclass(frozen=True)
@@ -102,13 +176,10 @@ class ModelRequest:
 
     @property
     def model(self) -> str:
-        settings = get_settings()
-        name = (
-            settings.extract_model if self.role == "extract" else settings.merge_model
-        )
-        if not name:
-            raise ModelsNotConfigured("Set EXTRACT_MODEL and MERGE_MODEL in .env")
-        return name
+        role = role_settings(self.role)
+        if not role.model:
+            raise ModelsNotConfigured(role.missing_model)
+        return role.model
 
     @property
     def cache_key(self) -> str:
@@ -133,6 +204,9 @@ class ModelResult:
     input_tokens: int = 0
     output_tokens: int = 0
     error: str | None = None
+    # The model the response names, when it is not the one asked for: the chat
+    # fallback answered (see `_served_by_fallback`).
+    fallback_model: str | None = None
 
 
 def run_batch(session: Session, requests: list[ModelRequest]) -> list[BaseModel | None]:
@@ -230,7 +304,8 @@ def _record(
         LlmCall(
             matter_id=request.matter_id,
             purpose=request.purpose,
-            model=request.model,
+            # The model that answered; the cache key keeps the one asked for.
+            model=outcome.fallback_model or request.model,
             cache_key=request.cache_key,
             response_json=outcome.data,
             input_tokens=outcome.input_tokens,
@@ -257,37 +332,62 @@ def _record(
 def _execute(request: ModelRequest) -> ModelResult:
     """Call the model; on a schema failure or a missing tool call, ask once more."""
     total_in = total_out = 0
+    # When any attempt was answered by the chat fallback, every token of the call is
+    # priced at the fallback's higher rates: an upper bound, never an undercount.
+    fallback: str | None = None
     feedback: str | None = None
     for _attempt in range(2):
         try:
-            data, tokens_in, tokens_out = _send(request, feedback)
+            data, tokens_in, tokens_out, served = _send(request, feedback)
         except NoStructuredOutput as error:
             total_in += error.tokens_in
             total_out += error.tokens_out
+            fallback = fallback or _served_by_fallback(request, error.served_model)
             feedback = f"Your previous answer had {error}. {_answer_instruction()}"
             continue
         except (httpx.HTTPError, ExtractionFailed, ValueError) as error:
             return ModelResult(
-                None, total_in, total_out, f"{type(error).__name__}: {error}"
+                None, total_in, total_out, f"{type(error).__name__}: {error}", fallback
             )
         total_in += tokens_in
         total_out += tokens_out
+        fallback = fallback or _served_by_fallback(request, served)
         try:
             validated = request.output.model_validate(data)
         except ValidationError as error:
             feedback = f"Your previous output did not match the schema: {error}"[:2000]
             continue
-        return ModelResult(validated.model_dump(mode="json"), total_in, total_out)
-    return ModelResult(None, total_in, total_out, f"no valid output: {feedback}")
+        return ModelResult(
+            validated.model_dump(mode="json"), total_in, total_out, None, fallback
+        )
+    return ModelResult(
+        None, total_in, total_out, f"no valid output: {feedback}", fallback
+    )
 
 
-def _send(request: ModelRequest, feedback: str | None) -> tuple[Any, int, int]:
+def _served_by_fallback(request: ModelRequest, served: str | None) -> str | None:
+    """The model that answered a chat call, when it is not the chat model: the
+    server-side refusal fallback. A dated snapshot of the model asked for is the same
+    model. Digest roles have no fallback, so they always answer None."""
+    if request.role != "chat" or not served:
+        return None
+    asked = request.model
+    if served == asked or re.fullmatch(rf"{re.escape(asked)}-\d{{8}}", served):
+        return None
+    return served
+
+
+def _send(
+    request: ModelRequest, feedback: str | None
+) -> tuple[Any, int, int, str | None]:
+    """The output, its tokens in and out, and the model the response names, if any."""
     settings = get_settings()
     if settings.llm_api_key is None:
         raise ModelsNotConfigured("Set LLM_API_KEY in .env")
     # The cost-per-case figure must be real: a call with no price would count as $0.
     prefix = request.role.upper()
-    if None in _prices(request.role):
+    role = role_settings(request.role)
+    if role.price_in is None or role.price_out is None:
         raise ModelsNotConfigured(
             f"Set {prefix}_PRICE_IN and {prefix}_PRICE_OUT in .env"
         )
@@ -318,9 +418,10 @@ def media_type(image: bytes) -> str:
 
 def _send_anthropic(
     request: ModelRequest, user_text: str, schema: dict[str, Any]
-) -> tuple[Any, int, int]:
+) -> tuple[Any, int, int, str | None]:
     settings = get_settings()
     assert settings.llm_api_key is not None
+    role = role_settings(request.role)
     content: list[dict[str, Any]] = [
         {
             "type": "image",
@@ -336,9 +437,9 @@ def _send_anthropic(
     # The output comes back as the input of one tool call. Current Claude models reject
     # a forced `tool_choice`, so the call is requested in the system prompt instead,
     # and `_execute` asks again when it is missing.
-    body = {
+    body: dict[str, Any] = {
         "model": request.model,
-        "max_tokens": settings.llm_max_output_tokens,
+        "max_tokens": role.max_output_tokens,
         "system": f"{request.prompt.text}\n\n{TOOL_INSTRUCTION}",
         "messages": [{"role": "user", "content": content}],
         "tools": [
@@ -350,15 +451,23 @@ def _send_anthropic(
         ],
         "tool_choice": {"type": "auto"},
     }
+    headers = {
+        "x-api-key": settings.llm_api_key.get_secret_value(),
+        "anthropic-version": ANTHROPIC_VERSION,
+    }
+    if request.role == "chat":
+        # Added after the digest's fields, so extract and merge bodies, and the cache
+        # behind them, are unchanged. No `thinking` field: leaving it out gives adaptive
+        # thinking, and a disabled value is refused; the effort sets how much.
+        body["output_config"] = {"effort": settings.chat_effort}
+        body["fallbacks"] = "default"
+        headers["anthropic-beta"] = CHAT_FALLBACK_BETA
     response = _post(
         f"{settings.llm_endpoint}/messages",
         model=request.model,
-        rpm=_rpm(request.role),
+        rpm=role.rpm,
         json=body,
-        headers={
-            "x-api-key": settings.llm_api_key.get_secret_value(),
-            "anthropic-version": ANTHROPIC_VERSION,
-        },
+        headers=headers,
         timeout=settings.llm_timeout_seconds,
     )
     if response.status_code >= 400:
@@ -367,21 +476,27 @@ def _send_anthropic(
     usage = payload.get("usage") or {}
     tokens_in = int(usage.get("input_tokens", 0))
     tokens_out = int(usage.get("output_tokens", 0))
+    served = payload.get("model")
+    served = str(served) if served else None
     stop_reason = payload.get("stop_reason")
     blocks = [b for b in payload.get("content", []) if b.get("type") == "tool_use"]
     if stop_reason in ("max_tokens", "refusal") or not blocks:
         # Paid for even though unusable, so the tokens still go into the cost figure.
         raise NoStructuredOutput(
-            f"no {TOOL_NAME} call (stop_reason {stop_reason})", tokens_in, tokens_out
+            f"no {TOOL_NAME} call (stop_reason {stop_reason})",
+            tokens_in,
+            tokens_out,
+            served,
         )
-    return blocks[0].get("input"), tokens_in, tokens_out
+    return blocks[0].get("input"), tokens_in, tokens_out, served
 
 
 def _send_openai(
     request: ModelRequest, user_text: str, schema: dict[str, Any]
-) -> tuple[Any, int, int]:
+) -> tuple[Any, int, int, str | None]:
     settings = get_settings()
     assert settings.llm_api_key is not None
+    role = role_settings(request.role)
     content: list[dict[str, Any]] = [
         {
             "type": "image_url",
@@ -399,7 +514,7 @@ def _send_openai(
     )
     body = {
         "model": request.model,
-        "max_completion_tokens": settings.llm_max_output_tokens,
+        "max_completion_tokens": role.max_output_tokens,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system},
@@ -409,7 +524,7 @@ def _send_openai(
     response = _post(
         f"{settings.llm_endpoint}/chat/completions",
         model=request.model,
-        rpm=_rpm(request.role),
+        rpm=role.rpm,
         json=body,
         headers={"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"},
         timeout=settings.llm_timeout_seconds,
@@ -423,12 +538,13 @@ def _send_openai(
         json.loads(text),
         int(usage.get("prompt_tokens", 0)),
         int(usage.get("completion_tokens", 0)),
+        None,
     )
 
 
 def _send_gemini(
     request: ModelRequest, user_text: str, schema: dict[str, Any]
-) -> tuple[Any, int, int]:
+) -> tuple[Any, int, int, str | None]:
     """Google's generateContent, with the output constrained to the request's schema.
 
     The key travels in a header, never in the URL, which proxies and logs record.
@@ -436,6 +552,7 @@ def _send_gemini(
     settings = get_settings()
     assert settings.llm_api_key is not None
     key = settings.llm_api_key.get_secret_value()
+    role = role_settings(request.role)
     parts: list[dict[str, Any]] = [
         {
             "inline_data": {
@@ -452,7 +569,7 @@ def _send_gemini(
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseJsonSchema": schema,
-            "maxOutputTokens": settings.llm_max_output_tokens,
+            "maxOutputTokens": role.max_output_tokens,
         },
     }
     url = f"{settings.llm_endpoint}/models/{request.model}:generateContent"
@@ -460,7 +577,7 @@ def _send_gemini(
     response = _post(
         url,
         model=request.model,
-        rpm=_rpm(request.role),
+        rpm=role.rpm,
         json=body,
         headers=headers,
         timeout=settings.llm_timeout_seconds,
@@ -478,7 +595,7 @@ def _send_gemini(
         response = _post(
             url,
             model=request.model,
-            rpm=_rpm(request.role),
+            rpm=role.rpm,
             json=body,
             headers=headers,
             timeout=settings.llm_timeout_seconds,
@@ -501,7 +618,7 @@ def _send_gemini(
     )
     reason = candidates[0].get("finishReason")
     try:
-        return json.loads(text), tokens_in, tokens_out
+        return json.loads(text), tokens_in, tokens_out, None
     except ValueError:
         # Paid for even though unusable, so the tokens still go into the cost figure.
         raise NoStructuredOutput(
@@ -603,11 +720,6 @@ class RateLimiter:
 _LIMITER = RateLimiter()
 
 
-def _rpm(role: Role) -> int:
-    settings = get_settings()
-    return settings.extract_rpm if role == "extract" else settings.merge_rpm
-
-
 def _post(url: str, *, model: str = "", rpm: int = 0, **kwargs: Any) -> httpx.Response:
     """POST, retrying rate limits, overload, and dropped connections with backoff.
 
@@ -697,20 +809,19 @@ def _retry_wait(response: httpx.Response) -> float | None:
 
 
 def _cost_micro_usd(role: Role, outcome: ModelResult) -> int:
-    """USD per million tokens times tokens is exactly micro-dollars."""
-    price_in, price_out = _prices(role)
+    """USD per million tokens times tokens is exactly micro-dollars. An answer from
+    the chat fallback is priced at the fallback's rates, so the daily cap stays real."""
+    if outcome.fallback_model is not None:
+        settings = get_settings()
+        price_in: Decimal | None = settings.chat_fallback_price_in
+        price_out: Decimal | None = settings.chat_fallback_price_out
+    else:
+        prices = role_settings(role)
+        price_in, price_out = prices.price_in, prices.price_out
     total = Decimal(outcome.input_tokens) * (price_in or Decimal(0)) + Decimal(
         outcome.output_tokens
     ) * (price_out or Decimal(0))
     return int(total.to_integral_value())
-
-
-def _prices(role: Role) -> tuple[Decimal | None, Decimal | None]:
-    """USD per million input and output tokens for the model that plays this role."""
-    settings = get_settings()
-    if role == "extract":
-        return settings.extract_price_in, settings.extract_price_out
-    return settings.merge_price_in, settings.merge_price_out
 
 
 def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
