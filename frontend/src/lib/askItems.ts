@@ -43,6 +43,12 @@ export function askRefKey(ref: AskItemRef): string {
   }
 }
 
+/** Text cut to a chip's length, with an ellipsis when it was longer. */
+export function cutLabel(text: string): string {
+  const label = text.replace(/\s+/g, ' ').trim()
+  return label.length > LABEL_CHARS ? `${label.slice(0, LABEL_CHARS - 1).trimEnd()}…` : label || 'Item'
+}
+
 /** Marks text inside a target that is not part of its label, such as its source chips. */
 export const ASK_SKIP_ATTRIBUTE = 'data-ask-skip'
 
@@ -59,8 +65,7 @@ export function labelOfElement(element: HTMLElement): string {
     const text = node.textContent?.trim()
     if (text) pieces.push(text)
   }
-  const label = pieces.join(' ').replace(/\s+/g, ' ').trim()
-  return label.length > LABEL_CHARS ? `${label.slice(0, LABEL_CHARS - 1).trimEnd()}…` : label || 'Item'
+  return cutLabel(pieces.join(' '))
 }
 
 /** What a target carries in its `data-ask-item` attribute. */

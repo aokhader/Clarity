@@ -2,8 +2,10 @@ import { useLayoutEffect, useRef, useState } from 'react'
 
 import type { ProviderItemOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
+import { factsRef } from '@/lib/askItems'
 import { formatDate, formatMoney } from '@/lib/format'
 import { KIND_LABELS } from '@/lib/labels'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 type ProviderItemListProps = {
@@ -47,6 +49,8 @@ function useVisibleRowsHeight(rows: number | null) {
 export function ProviderItemList({ items, empty, onOpenSource, scroll }: ProviderItemListProps) {
   const scrolls = scroll !== undefined && items.length > scroll.rows
   const { containerRef, height } = useVisibleRowsHeight(scrolls ? scroll.rows : null)
+  // Targets only in the firm's preview; on the provider's own page there is no AskProvider.
+  const askTarget = useAskTargetProps()
 
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{empty}</p>
@@ -62,7 +66,10 @@ export function ProviderItemList({ items, empty, onOpenSource, scroll }: Provide
       >
         <ul className="divide-y">
           {items.map((item) => (
-            <li key={item.fact_id} className="flex items-baseline gap-4 py-2 text-sm">
+            <li
+              key={item.fact_id}
+              {...askTarget(factsRef([{ id: item.fact_id }]), item.kind === 'bill' ? 'bill' : 'fact')}
+              className="flex items-baseline gap-4 py-2 text-sm">
               <span className="w-24 shrink-0 tabular-nums text-muted-foreground">
                 {item.on ? formatDate(item.on) : 'Undated'}
               </span>

@@ -1,6 +1,8 @@
 import type { CallRole, CallTargetOut } from '@/api/types'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { Button } from '@/components/ui/button'
+import { factsRef } from '@/lib/askItems'
+import { useAskTarget } from '@/lib/useAskTarget'
 
 const ROLE_LABELS: Record<CallRole, string> = {
   client: 'Client',
@@ -25,8 +27,9 @@ type CallTargetRowProps = {
 
 /** Someone to call: why, with the item's source, when they were last reached, and their number. */
 export function CallTargetRow({ target, chosen, onChoose }: CallTargetRowProps) {
+  const askTarget = useAskTarget(target.reason_fact && factsRef([target.reason_fact]), 'fact')
   return (
-    <li className="flex items-start justify-between gap-3 py-3">
+    <li {...askTarget} className="flex items-start justify-between gap-3 py-3">
       <div className="min-w-0 space-y-0.5 text-sm">
         <p className="font-medium leading-snug">{target.name ?? 'Name not in file'}</p>
         <p className="text-xs text-muted-foreground">{ROLE_LABELS[target.role]}</p>

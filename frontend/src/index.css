@@ -133,6 +133,20 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /* Point and ask (D49). In pick mode every target is outlined, so the user sees what can
+     be chosen; the one under the pointer, being dragged over, or focused gets the solid
+     ring. Outlines take no space, so nothing on the page moves. */
+  :root[data-ask-picking] [data-ask-item] {
+    outline: 1px dashed var(--ring);
+    outline-offset: 2px;
+    cursor: pointer;
+  }
+  :root[data-ask-picking] [data-ask-item]:hover,
+  :root[data-ask-picking] [data-ask-item]:focus-visible,
+  [data-ask-item][data-ask-hover] {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
   /* The drawer's slide and the skeleton's pulse are the only motion; both stop here. */
   @media (prefers-reduced-motion: reduce) {
     *,

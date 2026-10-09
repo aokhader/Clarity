@@ -1,8 +1,10 @@
 import type { FactOut } from '@/api/types'
+import { factsRef } from '@/lib/askItems'
 import { actionDueDate, actionOwner, dueTone } from '@/lib/facts'
 import { daysFromToday, formatDate, formatDueIn } from '@/lib/format'
 import { WAITING_ON_LABELS } from '@/lib/labels'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
+import { useAskTarget } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 /** "Open request", not "Waiting": a record request does not say who it waits on (D40). */
@@ -31,8 +33,9 @@ export function ActionRow({ fact, status }: { fact: FactOut; status: ActionStatu
   const days = due === null ? null : daysFromToday(due)
   const note = noteOf(fact)
   const owner = actionOwner(fact)
+  const askTarget = useAskTarget(factsRef([fact]), 'deadline')
   return (
-    <tr className="border-b align-top transition-colors hover:bg-muted">
+    <tr {...askTarget} className="border-b align-top transition-colors hover:bg-muted">
       <td className="px-6 py-3.5">
         <button
           type="button"

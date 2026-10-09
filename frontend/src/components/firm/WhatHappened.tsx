@@ -42,6 +42,7 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
               <MarginCited
                 as="div"
                 facts={[account.fact, ...account.restated_by]}
+                askStarter="event"
                 className="text-base leading-relaxed text-pretty"
               >
                 {account.text}
@@ -81,7 +82,7 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
               ) : (
                 <ul>
                   {regions.map(({ region, lead, facts }) => (
-                    <MarginCited key={region} facts={facts} dense className="text-[15px]">
+                    <MarginCited key={region} facts={facts} dense askStarter="injury" className="text-[15px]">
                       <span className="font-medium">{lead.title}</span>
                       <span className="text-muted-foreground">
                         {' · '}

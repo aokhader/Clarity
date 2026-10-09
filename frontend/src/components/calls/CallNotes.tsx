@@ -4,6 +4,8 @@ import { LoadError } from '@/components/shared/LoadError'
 import { Loading } from '@/components/shared/Loading'
 import { SourceChip } from '@/components/shared/SourceChip'
 import { Skeleton } from '@/components/ui/skeleton'
+import { factsRef } from '@/lib/askItems'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 
 const KIND_LABELS: Record<CallNoteKind, string> = {
   summary: 'Summary',
@@ -25,6 +27,7 @@ const STATUS_TEXT: Record<NotesStatus, string | null> = {
 /** After the call: notes drawn from the transcript, each opening the words it came from. */
 export function CallNotes({ callId }: { callId: number }) {
   const detail = useCallDetail(callId)
+  const askTarget = useAskTargetProps()
   if (detail.isPending) return <Loading label="Loading the call"><Skeleton className="h-32 w-full" /></Loading>
   if (detail.isError) {
     return <LoadError what="the call's notes" error={detail.error} onRetry={() => void detail.refetch()} />
@@ -48,7 +51,7 @@ export function CallNotes({ callId }: { callId: number }) {
         ) : (
           <ul className="divide-y rounded-md border">
             {notes.map((note) => (
-              <li key={note.fact.id} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
+              <li key={note.fact.id} {...askTarget(factsRef([note.fact]), 'call')} className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
                 <span>
                   <span className="mr-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     {KIND_LABELS[note.kind]}

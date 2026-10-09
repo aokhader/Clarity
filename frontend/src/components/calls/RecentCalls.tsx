@@ -6,6 +6,7 @@ import { Panel } from '@/components/shared/Panel'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTime } from '@/lib/format'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 
 const NOTES_TEXT: Record<NotesStatus, string> = {
   not_started: 'On the call',
@@ -25,6 +26,7 @@ type RecentCallsProps = {
 /** Calls placed from Clarity on this matter, newest first, each opening its notes. */
 export function RecentCalls({ matterId, openCallId, onOpen }: RecentCallsProps) {
   const calls = useMatterCalls(matterId)
+  const askTarget = useAskTargetProps()
   if (calls.isSuccess && calls.data.length === 0) return null
   return (
     <Panel title="Recent calls">
@@ -33,7 +35,7 @@ export function RecentCalls({ matterId, openCallId, onOpen }: RecentCallsProps) 
       {calls.isSuccess && (
         <ul className="-my-2 divide-y">
           {calls.data.map((call) => (
-            <li key={call.call_id} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <li key={call.call_id} {...askTarget({ kind: 'call', call_id: call.call_id }, 'call')} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="min-w-0">
                 <p className="font-medium">{call.target.name ?? 'Name not in file'}</p>
                 <p className="text-xs text-muted-foreground tabular-nums">

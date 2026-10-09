@@ -4,6 +4,7 @@ import { useId } from 'react'
 import type { StageOut } from '@/api/types'
 import { SourceChipList } from '@/components/shared/SourceChipList'
 import { STAGE_LABELS, STAGE_STEPS, STEP_OF_STAGE } from '@/lib/labels'
+import { useAskTarget } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 /**
@@ -35,7 +36,14 @@ const LABEL_STYLES: Record<StepState, string> = {
  */
 export function StageTrack({ stage }: { stage: StageOut }) {
   const summaryId = useId()
-  if (stage.stage === null) return <p className="text-sm text-muted-foreground">Stage not found in file</p>
+  const askTarget = useAskTarget({ kind: 'stage' }, 'stage')
+  if (stage.stage === null) {
+    return (
+      <p {...askTarget} className="text-sm text-muted-foreground">
+        Stage not found in file
+      </p>
+    )
+  }
 
   const position = STEP_OF_STAGE[stage.stage]
   const label = STAGE_LABELS[stage.stage]
@@ -47,7 +55,7 @@ export function StageTrack({ stage }: { stage: StageOut }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <div {...askTarget} className="flex flex-wrap items-center gap-x-6 gap-y-2">
       <ol aria-label="Case progress" className="flex flex-wrap items-center gap-y-2">
         {STAGE_STEPS.map((step, index) => {
           const state = stateOf(index + 1)

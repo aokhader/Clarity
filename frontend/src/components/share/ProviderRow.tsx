@@ -7,6 +7,7 @@ import { SendUpdateDialog } from '@/components/share/SendUpdateDialog'
 import { ShareStatus } from '@/components/share/ShareStatus'
 import { Button } from '@/components/ui/button'
 import { formatCount, formatMoney } from '@/lib/format'
+import { useAskTarget } from '@/lib/useAskTarget'
 
 type ProviderRowProps = {
   matterId: number
@@ -22,9 +23,10 @@ export function ProviderRow({ matterId, provider, liveUrl, onShare, now }: Provi
   const revoke = useRevokeShare(matterId)
   const [confirming, setConfirming] = useState(false)
   const shareId = provider.share?.share_id
+  const askTarget = useAskTarget({ kind: 'provider', contact_id: provider.contact_id }, 'provider')
 
   return (
-    <li className="py-3">
+    <li {...askTarget} className="py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 text-sm">
           <p className="font-medium leading-snug">{provider.name}</p>

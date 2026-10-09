@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams } from 'react-router'
 
 import type { MatterHeaderOut } from '@/api/types'
+import { AskBar } from '@/components/ask/AskBar'
 import { AskView } from '@/components/ask/AskView'
 import { ChatPanel } from '@/components/ask/ChatPanel'
 import { CallsView } from '@/components/calls/CallsView'
@@ -63,6 +64,8 @@ function MatterLayout({ matterId, view }: { matterId: number; view: MatterViewId
           <MatterShell matterId={matterId} viewLabel={viewLabel}>
             {(header) => (
               <>
+                {/* The Ask view has its own composer in the bar's place. */}
+                {view !== 'ask' && <AskBar matterId={matterId} />}
                 <ViewContent view={view} matterId={matterId} header={header} />
                 <MatterFooter header={header} />
               </>

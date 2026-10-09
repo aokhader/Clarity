@@ -75,7 +75,7 @@ export function ChatPanel({ matterId }: { matterId: number }) {
         )}
       </div>
       <div className="border-t px-4 py-3">
-        <ChatComposer matterId={matterId} />
+        <ChatComposer matterId={matterId} withHandle />
       </div>
     </aside>
   )

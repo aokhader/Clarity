@@ -3,7 +3,9 @@ import { Fragment, useId } from 'react'
 import { useMatterUndatedCourtEvents } from '@/api/matters'
 import type { FactOut } from '@/api/types'
 import { BriefCitations } from '@/components/firm/BriefCitations'
+import { factsRef } from '@/lib/askItems'
 import { LITIGATION_EVENT_LABELS } from '@/lib/labels'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 
 function eventWord(fact: FactOut): string {
   return fact.kind === 'litigation_event' ? LITIGATION_EVENT_LABELS[fact.value.event] : 'Court event'
@@ -17,6 +19,7 @@ function eventWord(fact: FactOut): string {
 export function UndatedCourtEvents({ matterId }: { matterId: number }) {
   const events = useMatterUndatedCourtEvents(matterId)
   const baseId = useId()
+  const askTarget = useAskTargetProps()
   if (!events.isSuccess || events.data.length === 0) return null
   return (
     <p className="mt-2 text-sm text-muted-foreground">
@@ -24,7 +27,7 @@ export function UndatedCourtEvents({ matterId }: { matterId: number }) {
       {events.data.map((fact, index) => (
         <Fragment key={fact.id}>
           {index > 0 && <span aria-hidden> · </span>}
-          <span className="inline-flex items-center gap-1.5">
+          <span {...askTarget(factsRef([fact, ...fact.restated_by]), 'event')} className="inline-flex items-center gap-1.5">
             <span id={`${baseId}-${index}`} className="text-foreground">
               {eventWord(fact)}
             </span>

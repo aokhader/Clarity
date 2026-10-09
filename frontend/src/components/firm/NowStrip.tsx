@@ -139,6 +139,7 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
           <NowCell
             label="Last client contact"
             facts={contact ? [contact.fact] : []}
+            askStarter="event"
             detail={contact && <span className="tabular-nums">{formatDate(contact.on)}</span>}
           >
             {contact ? contactValue(contact.on) : <span className="text-muted-foreground">None found in file</span>}

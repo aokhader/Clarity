@@ -22,7 +22,8 @@ export function SourceChipList({ facts, max = 3, describedBy }: SourceChipListPr
   const among = facts.map((fact) => fact.id)
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    // data-ask-skip: a row's chips are not part of its label when it is pointed at (D49).
+    <span data-ask-skip className="inline-flex flex-wrap items-center gap-1">
       {shown.map((fact) => (
         <SourceChip key={fact.id} fact={fact} describedBy={describedBy} among={among} />
       ))}

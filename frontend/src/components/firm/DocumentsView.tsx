@@ -7,6 +7,7 @@ import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/format'
 import { SOURCE_LABELS } from '@/lib/labels'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ function firstDate(facts: FactOut[]): string | null {
 export function DocumentsView({ matterId }: { matterId: number }) {
   const timeline = useMatterTimeline(matterId, null, '')
   const drawer = useSourceDrawer()
+  const askTarget = useAskTargetProps()
   const [filter, setFilter] = useState<SourceType | null>(null)
 
   if (timeline.isPending) return <Skeleton className="h-96 w-full" />
@@ -74,7 +76,10 @@ export function DocumentsView({ matterId }: { matterId: number }) {
               {ofType.map((source) => {
                 const date = firstDate(source.facts)
                 return (
-                  <li key={source.sourceId} className="grid grid-cols-1 gap-x-4 gap-y-1 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                  <li
+                    key={source.sourceId}
+                    {...askTarget({ kind: 'source', source_id: source.sourceId }, 'document')}
+                    className="grid grid-cols-1 gap-x-4 gap-y-1 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
                     <span className={cn('text-sm tabular-nums', date ? 'text-foreground/80' : 'text-muted-foreground')}>
                       {date ? formatDate(date) : 'Undated'}
                     </span>

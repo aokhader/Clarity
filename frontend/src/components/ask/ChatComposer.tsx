@@ -1,5 +1,6 @@
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 
+import { AskHandle } from '@/components/ask/AskHandle'
 import { AskItemChip } from '@/components/ask/AskItemChip'
 import { BudgetNote } from '@/components/ask/BudgetNote'
 import { Button } from '@/components/ui/button'
@@ -13,11 +14,18 @@ import { useAskQuestion } from '@/lib/useAskQuestion'
  * open, else a new thread. Enter asks and Shift+Enter starts a new line. Ask is off, with
  * the reason beside it, while the answer is being written or once the day's budget is spent.
  */
-export function ChatComposer({ matterId }: { matterId: number }) {
+type ChatComposerProps = {
+  matterId: number
+  /** Offer the pointing handle, where there are rows to point at (the panel, not the Ask view). */
+  withHandle?: boolean
+}
+
+export function ChatComposer({ matterId, withHandle = false }: ChatComposerProps) {
   const ask = useAskContext()
   const question = useAskQuestion(matterId)
   const fieldId = useId()
   const reasonId = useId()
+  const field = useRef<HTMLTextAreaElement>(null)
   const submit = () => question.submit(ask.draft, { openPanel: false })
 
   return (
@@ -42,7 +50,9 @@ export function ChatComposer({ matterId }: { matterId: number }) {
         {question.following ? 'Follow-up question' : 'Question'}
       </label>
       <div className="flex items-end gap-2">
+        {withHandle && <AskHandle onPicked={() => requestAnimationFrame(() => field.current?.focus())} />}
         <textarea
+          ref={field}
           id={fieldId}
           rows={2}
           value={ask.draft}

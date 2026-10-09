@@ -21,6 +21,7 @@ export function SourceChip({ fact, describedBy, among, className }: SourceChipPr
   return (
     <button
       type="button"
+      data-ask-skip
       onClick={() => open(fact.id, among)}
       aria-label={`Open source: ${label}${low ? ', low confidence' : ''}`}
       aria-describedby={describedBy}

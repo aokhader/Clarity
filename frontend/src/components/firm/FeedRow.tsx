@@ -1,16 +1,22 @@
 import type { FactOut } from '@/api/types'
 import { RevealOnHover } from '@/components/firm/RevealOnHover'
 import { SourceChipList } from '@/components/shared/SourceChipList'
+import { factsRef } from '@/lib/askItems'
+import { starterKindOf } from '@/lib/askStarters'
 import { formatDate } from '@/lib/format'
 import { KIND_LABELS } from '@/lib/labels'
+import { useAskTarget } from '@/lib/useAskTarget'
 
 /**
  * One fact in What Matters and the timeline: date, kind, and what it says. In the ranked
  * feed a fact stands for the records that restate it, so its chips open each of them.
  */
 export function FeedRow({ fact }: { fact: FactOut }) {
+  const askTarget = useAskTarget(factsRef([fact, ...fact.restated_by]), starterKindOf(fact.kind))
   return (
-    <li className="group/src grid grid-cols-1 gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[7.5rem_8rem_minmax(0,1fr)] sm:items-center">
+    <li
+      {...askTarget}
+      className="group/src grid grid-cols-1 gap-x-4 gap-y-0.5 py-3 sm:grid-cols-[7.5rem_8rem_minmax(0,1fr)] sm:items-center">
       <span className={fact.event_date ? 'text-sm tabular-nums text-muted-foreground' : 'text-sm text-muted-foreground italic'}>
         {fact.event_date ? formatDate(fact.event_date) : 'Undated'}
       </span>

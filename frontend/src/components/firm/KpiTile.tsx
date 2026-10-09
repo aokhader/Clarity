@@ -7,6 +7,7 @@ import { KpiLeadFigure } from '@/components/firm/KpiLeadFigure'
 import { KpiValueRow } from '@/components/firm/KpiValueRow'
 import { SourceChipList } from '@/components/shared/SourceChipList'
 import { foldIntoLead } from '@/lib/kpis'
+import { useAskTarget } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 const KPI_LABELS: Record<KpiOut['name'], string> = {
@@ -47,6 +48,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
   const folded = leads ? foldIntoLead(kpi.name, first, rest) : null
   const labelId = useId()
   const figureId = useId()
+  const askTarget = useAskTarget({ kind: 'kpi', name: kpi.name }, 'kpi')
   // Under a lead figure the warning is a note beneath it; with no lead it closes the tile.
   const disagreement = kpi.sources_disagree && (
     <p className={cn('flex items-center gap-1 text-xs font-medium text-warning', leads && 'mt-1')}>
@@ -56,7 +58,7 @@ export function KpiTile({ kpi }: { kpi: KpiOut }) {
   )
   return (
     // One neutral surface for all four tiles; colour marks only the disagreement note.
-    <div className="flex min-w-0 flex-col @min-[60rem]:px-5 @min-[60rem]:first:pl-0 @min-[60rem]:last:pr-0">
+    <div {...askTarget} className="flex min-w-0 flex-col @min-[60rem]:px-5 @min-[60rem]:first:pl-0 @min-[60rem]:last:pr-0">
       {/* The label has its line to itself, so it never wraps to make room for chips. */}
       <h3 id={labelId} className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
         {KPI_LABELS[kpi.name]}
