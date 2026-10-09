@@ -7,7 +7,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | lead | Docs brought up to D43 (architecture, ui, project, digest-pipeline: 1695ba2, be8d813); four new screenshots of the invented matter (af595b2: Overview one scroll down, source drawer, Documents, phone width); reviewer put all ten in the README (aecba2f), check.sh clean, 481 tests; clone servers stopped | Standing by | | Manager: push; clip link; test call (C-T) | 21:35 |
 | pipeline | P16 done (fbcc995): brief cites the suit and defense; notice dated; tiles unchanged; D42+D43 $0.37 | Standing by | | | 2026-10-08 20:29 |
 | backend | B16: court events by type 63e64ab; undated list c891e7a (GET .../key-events/undated); 481 | Stand by | | Lead: looser cross-kind matcher? (see report) | 2026-10-08 20:33 |
-| ui-builder | U18 a2b19cd checked; region rows keep the served-order tie-break | Stand by | | | 2026-10-08 20:38 |
+| ui-builder | D45 drawer bfe1ebf: quote callout, text in paragraphs/lists, field grid plus prose | Lead: check drawer in browser | | Measure 32em, not 68ch (68ch gave ~90 chars) | 2026-10-09 00:33 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | C5 done (0d60d65): brief omits limitations defense; story lacks first suit; court events doubled | Stand by | | Brief call for limitations; pin court rows by type; no note-date dating; refile one page | 2026-10-08 20:20 |
 | reviewer | README: ten screenshots, captions checked (aecba2f); check.sh no FAIL, 481; Node tests SKIPPED | Standing by; clone still serving :8010, :5183 | | | 2026-10-08 21:34 |
