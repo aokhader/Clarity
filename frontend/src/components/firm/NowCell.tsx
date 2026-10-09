@@ -13,9 +13,9 @@ type NowCellProps = {
 }
 
 /**
- * One cell of the Now strip: a small label on its own line, the value, then a detail
- * line ending in the value's chips, so a label never wraps to make room for them. In a
- * row of four the cells are divided by hairlines (NowStrip); narrower, they stack.
+ * One cell of Deadlines and follow-ups (NowStrip): a small label on its own line, the
+ * value, then a detail line ending in the value's chips, so a label never wraps to make
+ * room for them. In a row of four the cells are divided by hairlines; narrower, they stack.
  */
 export function NowCell({ label, facts = [], detail, children }: NowCellProps) {
   const valueId = useId()

@@ -47,7 +47,7 @@ It is equally explicit that existing dashboards fail because they show counts an
 
 **3. Trace a fact (firm).** Click any chip, date, or amount. A drawer opens with the source note, email, or PDF page, with the supporting quote highlighted.
 
-**4. Work the file (firm).** The action board on For Attorney is a table of overdue and upcoming items and open requests. The Overview's Now strip counts them and gives the days since anyone last spoke to the client.
+**4. Work the file (firm).** The action board on For Attorney is a table of overdue and upcoming items and open requests. The Overview's Deadlines and follow-ups row counts them and gives the days since anyone last spoke to the client.
 
 **5. Share with a provider (firm).** Pick a provider from the providers panel. Preview exactly what they will see. Toggle sections, hide individual items, add a note, set an expiry, and copy a link.
 

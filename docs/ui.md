@@ -41,7 +41,7 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 | Documents| WHAT HAPPENED    the incident account                | [src]     |
 | Calls    |   Injuries       up to three                         | [src]     |
 |          |   Liability      the leading liability fact          | [src]     |
-|          | NOW   Next step | Statute | Last client contact | counts         |
+|          | DEADLINES AND FOLLOW-UPS  Next step | Statute | Contact | counts |
 | Viewing  | MONEY Case value | Coverage | Medical specials | Firm spend      |
 | as       +----------------------------------------------- end of screen ----+
 |          | THE STORY SO FAR  key events, newest first, numbered | [src]     |
@@ -59,7 +59,7 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 - **StageTrack.** The stage, shown once on every view: five steps, the current one marked, "Step N of 5: Label" in text, an "inferred" marker and a chip. Earlier steps are filled but never marked "completed": a case in litigation can still be treating (D40). Settled and closed fill the track.
 - **BottomLine.** The brief headline in large serif, as a margin-cited row.
 - **WhatHappened.** The incident account (`incident_account`: a model fact on the incident day, never the Clio field), the injuries as one row per body region, most-stated first, up to three, with no injury count (D40), and the two most significant liability facts, so a contested point is not shown as settled. Each a margin-cited row; "Not found in file" when absent.
-- **NowStrip.** Cells divided by hairlines: the next step, labelled "Overdue" when it is (the first overdue item, else the first task, else the first deadline that is not the statute), the statute with a countdown in words (amber within 90 days, red once passed, and "Met" in neutral ink when its Clio task is complete), the last client contact (words as well as amber after 30 days), and the overdue, upcoming and open-request counts linking to For Attorney.
+- **NowStrip, titled Deadlines and follow-ups (D47; Now before).** Cells divided by hairlines: the next step, labelled "Overdue" when it is (the first overdue item, else the first task, else the first deadline that is not the statute), the statute with a countdown in words (amber within 90 days, red once passed, and "Met" in neutral ink when its Clio task is complete), the last client contact (words as well as amber after 30 days), and the overdue, upcoming and open-request counts linking to For Attorney.
 - **Money row.** The four KPI tiles in one row. Each shows the value, a one-line basis, and a source chip. When two sources disagree, show both values with a warning marker. When nothing supports the KPI, show "Not found in file".
 - **WhereItStands.** The brief's sentences, one margin-cited row each, then "Not answered by the file" from `open_questions` as a neutral list. In litigation, one sentence says where the suit stands: the defenses pleaded and any earlier dismissal or refiling (brief prompt version 5, D43).
 - **KeyEvents.** About ten key events from `/key-events`, which returns them oldest first; shown newest first and numbered down, so the incident stays 1 (D47). The rows are chosen in this order:

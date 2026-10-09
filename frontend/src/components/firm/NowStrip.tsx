@@ -82,8 +82,8 @@ function toDoText(actions: ActionsOut): ReactNode {
 }
 
 /**
- * Where the case is today, in one row: the next step, the statute, the last client
- * contact, and what is open. Each value cites its fact; the counts link to the action
+ * Deadlines and follow-ups, in one row: the next step, the statute, the last client
+ * contact, and what is open (titled "Now" before D47). Each value cites its fact; the counts link to the action
  * board on For Attorney. The next step gets twice the width, since its title is a
  * sentence where the others are a date or a count.
  */
@@ -98,7 +98,7 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
   const failed = [actions, deadlines].filter((query) => query.isError)
 
   return (
-    <Section title="Now">
+    <Section title="Deadlines and follow-ups">
       <div className="@container">
         <div className="grid grid-cols-1 gap-x-8 gap-y-5 @min-[36rem]:grid-cols-2 @min-[60rem]:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] @min-[60rem]:divide-x">
           <NowCell
@@ -149,7 +149,7 @@ export function NowStrip({ matterId, header }: { matterId: number; header: Matte
       {failed[0] && (
         <div className="mt-4">
           <LoadError
-            what="part of the Now strip"
+            what="some of the deadlines and follow-ups"
             error={failed[0].error}
             onRetry={() => failed.forEach((query) => void query.refetch())}
           />
