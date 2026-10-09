@@ -5,10 +5,9 @@ The reads of court filings used to be stored as `other`, or as a `status_change`
 no stage whose free-text label could reach a provider. Only the model API is faked
 (`llm._execute`); parsing, quote checks, payloads and storage are the real path.
 
-The page prompt carries the new kind. The record prompt waits for the next re-read of
-records: a new version of it would make the next digest read the matter's custom
-fields again, and with them its limit and damages facts. The code rules below apply to
-both.
+The page prompt and the note prompt carry the new kind. The custom-field record keeps
+its own prompt (D42), so these changes never send it back to the model. The code rules
+below apply to every read.
 """
 
 from collections import Counter
@@ -42,6 +41,7 @@ from app.models import (
 from app.schemas import LitigationEventType
 
 MATTER = 41
+COURT_EVENT_PROMPTS = ("extract_page", "extract_note")
 FILING_LINE = "The verified complaint in this action was filed on March 4, 2021."
 PAGE_TEXT = (
     f"INVENTED COUNTY COURT\nInvented Plaintiff v. Invented Defendant\n{FILING_LINE}"
@@ -57,14 +57,18 @@ def _prompt_line(prompt: str, kind: str) -> str:
     return line
 
 
-def test_the_page_prompt_defines_litigation_events_with_every_event_type() -> None:
-    line = _prompt_line("extract_page", "litigation_event")
+@pytest.mark.parametrize("prompt", COURT_EVENT_PROMPTS)
+def test_the_prompts_define_litigation_events_with_every_event_type(
+    prompt: str,
+) -> None:
+    line = _prompt_line(prompt, "litigation_event")
     for event in get_args(LitigationEventType):
         assert event in line, event
 
 
-def test_the_page_prompt_keeps_court_events_out_of_status_changes() -> None:
-    line = _prompt_line("extract_page", "status_change")
+@pytest.mark.parametrize("prompt", COURT_EVENT_PROMPTS)
+def test_the_prompts_keep_court_events_out_of_status_changes(prompt: str) -> None:
+    line = _prompt_line(prompt, "status_change")
     assert "to_stage is required" in line
     assert "never a status_change" in line
 

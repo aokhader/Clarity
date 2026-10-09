@@ -45,6 +45,12 @@ _DIGITS = re.compile(r"\d")
 # Structured records produce these kinds in code; the extractor never does.
 CODE_ONLY_KINDS = {FactKind.CASE_STAGE, FactKind.TASK}
 ExtractKind = Literal[tuple(k.value for k in FactKind if k not in CODE_ONLY_KINDS)]  # type: ignore[valid-type]
+# Notes and emails are marked read by a hash of their own content, the custom-field
+# record by its request's cache key, which holds its prompt's name and version. Each has
+# a prompt of its own, so a new note prompt never sends the custom fields, and the
+# money tiles' facts with them, back to the model (D42).
+NOTE_PROMPT = "extract_note"
+FIELDS_PROMPT = "extract_record"
 DocumentType = Literal[
     "medical_record",
     "bill",
@@ -144,13 +150,17 @@ def _record_units(
             counts["unchanged"] += 1
             continue
         text = record_text(source)
-        units.append(_record_unit(source, text, providers, matter_id))
+        units.append(_record_unit(source, text, providers, matter_id, NOTE_PROMPT))
     # The custom fields code cannot read go in as one record, sourced to the matter.
     # The mapping decides its content, so its marker is the request's cache key. An
     # unchanged one is not applied again, so dedup's removals among its facts stand.
     if mapping.matter is not None and mapping.extraction_text:
         unit = _record_unit(
-            mapping.matter, mapping.extraction_text, providers, matter_id
+            mapping.matter,
+            mapping.extraction_text,
+            providers,
+            matter_id,
+            FIELDS_PROMPT,
         )
         if mapping.matter.content_hash == unit.request.cache_key:
             counts["unchanged"] += 1
@@ -160,7 +170,11 @@ def _record_units(
 
 
 def _record_unit(
-    source: Source, text: str, providers: dict[int, str], matter_id: int
+    source: Source,
+    text: str,
+    providers: dict[int, str],
+    matter_id: int,
+    prompt: str,
 ) -> Unit:
     return Unit(
         source=source,
@@ -168,7 +182,7 @@ def _record_unit(
         request=llm.ModelRequest(
             purpose="extract_record",
             role="extract",
-            prompt=llm.load_prompt("extract_record"),
+            prompt=llm.load_prompt(prompt),
             user_text=_with_providers(text, providers),
             output=Extraction,
             matter_id=matter_id,

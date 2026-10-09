@@ -17,7 +17,7 @@ from app.models import Fact, FactKind, Source, SourceType
 
 QUOTE = "Invented line for a test"
 POLICIES = ("defendant_liability", "client_no_fault", "client_um_uim", "client_other")
-EXTRACTION_PROMPTS = ("extract_page", "extract_record")
+EXTRACTION_PROMPTS = ("extract_page", "extract_record", "extract_note")
 
 
 def _fact_from(kind: str, amount: float | None, detail: dict[str, Any]) -> Fact:
