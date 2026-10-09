@@ -35,14 +35,18 @@ _VALUE_FIELDS = (
     "custom_field_values{id,field_name,field_type,value,custom_field,picklist_option}"
 )
 MATTER_SEARCH_FIELDS = "id,display_number,description,updated_at"
+_MATTER_FULL = (
+    "id,etag,display_number,description,status,open_date,close_date",
+    "practice_area{name},matter_stage{name},client{id,name}",
+    "responsible_attorney{name}",
+    _VALUE_FIELDS,
+    "created_at,updated_at",
+)
+# `matter_stage_updated_at` dates the stage fact. Should Clio refuse it, the next list
+# is the same without it, so the custom fields and the stage still come back.
 MATTER_FIELDS = (
-    _fields(
-        "id,etag,display_number,description,status,open_date,close_date",
-        "practice_area{name},matter_stage{name},client{id,name}",
-        "responsible_attorney{name}",
-        _VALUE_FIELDS,
-        "created_at,updated_at",
-    ),
+    _fields(*_MATTER_FULL, "matter_stage_updated_at"),
+    _fields(*_MATTER_FULL),
     "id,etag,display_number,description,status,created_at,updated_at,client{id,name}",
 )
 CUSTOM_FIELD_FIELDS = (

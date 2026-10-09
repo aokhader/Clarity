@@ -100,7 +100,9 @@ def stage_facts(matter: Source, stage: CaseStage | None) -> list[Fact]:
             FactKind.CASE_STAGE,
             f"Stage: {label or stage}",
             quote,
-            event_date=parse_date(matter.raw_json.get("updated_at")),
+            # The day the stage last changed, or no date. `updated_at` is the record's
+            # last edit of any kind, which a reader takes for the day the case moved.
+            event_date=parse_date(matter.raw_json.get("matter_stage_updated_at")),
             # Inferred when Clio has no stage and the status alone decided it.
             value_json=build_payload(
                 FactKind.CASE_STAGE, None, {"stage": stage, "inferred": not label}
