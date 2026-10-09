@@ -10,7 +10,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | ui-builder | D54 done: closed thread's chips open the frozen route (`&frozen=`), drawer says "As cited when this thread was closed.", step keeps it, close drops it; headless 14/14, chat mocked | Lead: check in browser (demo, thread 1) | backend: freeze mention-mark chips too (`sentence.mentions[].facts`), else a closed thread's differs chip 404s | | 2026-10-09 14:31 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
 | critic | Pass 7 (H8, D52): stage date is Clio record creation, still misleads; T2 t3 S2 false "Not in file"; frozen chips break on re-read | Stand by | | Undate stage fact; source date counts as cited; freeze chip source+page | 2026-10-09 13:55 |
-| reviewer | H10 README for D53: stage undated, own-date check, prompt v2, frozen chips; check.sh no FAIL, 553; Node tests SKIPPED | Standing by | lead: docs/clio-api.md:67 still gives D52's stage dating, not D53's | | 2026-10-09 14:14 |
+| reviewer | README for D54: frozen sources in Ask and Built, lightly tested (backend, lead, reviewer GETs), route, table, map; D53 half-done item removed; image limit and pre-D54 first-open gap (matches kind and page, not record) under Half-done; check.sh no FAIL, 560; Node tests SKIPPED (verified nothing) | Standing by | | backend/Manager: pre-D54 first-open check compares source type and page, not source id | 2026-10-09 14:39 |
 
 ## Stubs and shortcuts
 
