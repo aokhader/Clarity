@@ -109,7 +109,12 @@ The order:
 **D40, the critic's Pass 4 fixes (code only, no model call)**
 - [x] Backend: a deadline read from a Clio task carries the task's status, so a met statute is neither "passed" nor upcoming; key events drop deadlines; `restated_by` counts records, not pages.
 - [x] ui-builder: "Met" for a met statute; earlier stages not marked completed; two liability facts; injuries by body region (the treating providers' finding first, no count); "Overdue" and "open requests" labels; the coverage label not repeated.
-- [ ] Litigation history (suit, dismissal, renewal, answer) is missing from the story: needs a prompt line and a re-read of the pleadings, cents of API credit. Waits on the Manager.
+- [x] Litigation history: the Manager approved the re-read (2026-10-08), see D41 below.
+
+**D41, litigation history and the provider updates (Manager, 2026-10-08)**
+- [ ] B14 backend: kind `litigation_event` (internal by default-deny, in the key events, schema upgraded in place); provider updates show stage moves only, labelled by code.
+- [ ] P14 pipeline: the extraction prompt records court events as `litigation_event` with the filing, service or decision date; `status_change` only for stage moves. Estimate, then the runbook: a trial on a copy, a backup, the run (stop at $1).
+- [ ] L3 lead: the label and lane for the new kind; check the story on the real matter after the run; the critic re-checks the new rows.
 
 ## Calls (D8: option A now, B later)
 
