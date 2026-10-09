@@ -9,7 +9,7 @@ Each role edits only its own row. Keep cells under 15 words. Update with /status
 | backend | B15 b732ad9: court events pinned in key events (3 on the real matter); 462 tests | Stand by | | | 2026-10-08 18:48 |
 | ui-builder | Region rows by records stating them 53523da; D40 3277eba, c9be7b4; check.sh clean | Lead checks the injury rows | | Region rows: diagnosis before served order on ties? | 2026-10-08 15:01 |
 | researcher | Done: briefs/model-pricing.md, paid-tier prices; unblocks lead and pipeline (P10, D34) | Idle | lead: commit model-pricing.md (no shell) | Manager: which paid provider and model for the runs | 2026-10-08 |
-| critic | C4 done (3ad4026): met statute shows red "passed"; "All 192 injuries"; incident cited 179x, disputed | Stand by | | Met-statute status; drop past deadlines from story; litigation re-read; request direction; liability rows | 2026-10-08 14:43 |
+| critic | C5 done (0d60d65): brief omits limitations defense; story lacks first suit; court events doubled | Stand by | | Brief call for limitations; pin court rows by type; no note-date dating; refile one page | 2026-10-08 20:20 |
 | reviewer | Done: upgrade-schema and reset in README (1ba8bb7); check.sh no FAIL, 466. Clone servers stopped | Standing by | | | 2026-10-08 19:09 |
 
 ## Stubs and shortcuts
