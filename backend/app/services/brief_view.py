@@ -32,7 +32,11 @@ def matter_brief(session: Session, matter_id: int) -> BriefOut:
     try:
         content = BriefContent.model_validate(digest.content_json)
     except ValidationError as error:
-        log.warning("brief %s does not match BriefContent: %s", digest.id, error)
+        # Field paths only: the error's own text quotes the stored brief (case text).
+        fields = sorted({".".join(map(str, e["loc"])) for e in error.errors()})
+        log.warning(
+            "brief %s does not match BriefContent at %s", digest.id, ", ".join(fields)
+        )
         raise BriefNotFound(
             f"the stored brief for matter {matter_id} is invalid"
         ) from error
