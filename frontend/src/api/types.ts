@@ -786,14 +786,10 @@ export type ChatThreadOut = {
   updated_at: IsoDateTime
   /** Oldest first; a closed thread's turns as frozen when it closed (D52). */
   turns: ChatTurnOut[]
-  /**
-   * D52: set once the thread is closed; it takes no more questions. The server always
-   * sends both fields. They are optional only until `storeTurn` in api/chat.ts seeds a
-   * new thread with them (ui-builder), so test with `!= null`, not `!== null`.
-   */
-  closed_at?: IsoDateTime | null
+  /** D52: set once the thread is closed; it takes no more questions. */
+  closed_at: IsoDateTime | null
   /** The stub user who closed it. */
-  closed_by?: string | null
+  closed_by: string | null
 }
 
 export type ChatThreadSummaryOut = {
