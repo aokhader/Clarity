@@ -175,7 +175,7 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - pipeline 4ea0a6e: the stage is dated only when Clio's stage time is later than the record's creation; chat prompt v2.
   - backend 808c407: a cited fact's own record date counts; the matter drawer shows "Stage last changed in Clio"; the transcript marks low confidence.
   - The run: 2 Sonnet calls, $0.078 (estimate $0.080); backup `app.db.bak-20261009T210210Z-pre-d53`. The stage is now undated, the KPI tiles unchanged, the brief rewritten (all citations renderable), and the two chat sentences that gave the import time withdrawn. 553 tests.
-- [ ] H10 reviewer: README for D53. Left to the Manager: a closed thread's chips are fact ids, which a re-read replaces (Pass 7, finding 3).
+- [x] H10 reviewer: README for D53 (4760fa7; check.sh no FAIL, 553 tests). Left to the Manager: a closed thread's chips are fact ids, which a re-read replaces (Pass 7, finding 3).
 
 **Cut order for chat:**
 1. drag (pick mode keeps "point and ask");
