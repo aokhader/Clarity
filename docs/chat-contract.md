@@ -274,7 +274,8 @@ def answer_question(
 | `CHAT_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh` or `max`; sent as `output_config.effort` |
 | `CHAT_RPM` | 0 | 0 means no pacing of its own. The same model as merge shares its limiter (D36) |
 | `CHAT_DAILY_BUDGET_USD` | 2 | Per matter, from local midnight |
-| `CHAT_CONTEXT_FACTS` | 60 | Retrieved facts per question |
+| `CHAT_CONTEXT_FACTS` | 40 | Retrieved facts per question (D50; was 60) |
+| `CHAT_ITEM_FACTS` | 25 | Rows sent for each item pointed at, its most significant first (D50) |
 | `CHAT_CONTEXT_PAGES` | 6 | Page excerpts per question, attached items' pages included |
 | `CHAT_PAGE_CHARS` | 3000 | Characters per page excerpt |
 | `CHAT_HISTORY_TURNS` | 4 | Earlier turns of the thread sent with a follow-up |
