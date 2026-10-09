@@ -69,12 +69,11 @@
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
-  /* The brief's narrative is set in a serif, interface text and numbers in the sans. */
+  /* The serif is for display lines only: the client's name and the brief's headline. Every
+     line meant to be read, the brief's sentences included, is in the sans, so the page
+     keeps one reading face. */
   --font-serif: "Sitka Text", Charter, "Iowan Old Style", Georgia, serif;
 
-  /* Large type for what the clip has to show on a projector. */
-  --text-brief: 1.25rem;
-  --text-brief--line-height: 1.9rem;
   /* The brief's headline, the bottom line of the case: large, with a display serif's tight leading. */
   --text-headline: 1.625rem;
   --text-headline--line-height: 1.95rem;

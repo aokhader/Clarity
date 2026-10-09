@@ -6,7 +6,7 @@ export function OpenQuestions({ questions }: { questions: string[] }) {
   if (questions.length === 0) return null
   return (
     <section aria-labelledby={headingId} className="mt-5 border-t pt-4">
-      <h3 id={headingId} className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+      <h3 id={headingId} className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
         Not answered by the file
       </h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-[15px]">

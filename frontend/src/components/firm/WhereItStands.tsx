@@ -28,7 +28,7 @@ export function WhereItStands({ matterId }: { matterId: number }) {
           {brief.data.sentences.length > 0 ? (
             <ul className="@container">
               {brief.data.sentences.map((sentence, index) => (
-                <MarginCited key={index} facts={sentence.facts} className="font-serif text-brief text-pretty">
+                <MarginCited key={index} facts={sentence.facts} className="text-base leading-relaxed text-pretty">
                   <BriefSentence text={sentence.text} mentions={sentence.mentions} cited={sentence.facts.length > 0} />
                 </MarginCited>
               ))}

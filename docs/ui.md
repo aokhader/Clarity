@@ -7,7 +7,7 @@
 3. **Two depths.** The default view fits 90 seconds. One toggle opens the full timeline.
 4. **No chat box.** The user should not need to know what to ask.
 5. **Honest uncertainty.** Low-confidence facts carry a visible marker. Disagreeing sources show both values. Missing data says "Not found in file".
-6. **Built to be filmed.** The clip is 90 seconds and the judges see it on a projector. Use large type for the brief, strong contrast, and a 1440 by 900 desktop layout. There is no separate mobile design, but every view reflows down to 320 CSS px so it survives 200% and 400% zoom (WCAG 1.4.10).
+6. **Built to be filmed.** The clip is 90 seconds and the judges see it on a projector. Use large type for the brief's headline, strong contrast, and a 1440 by 900 desktop layout. There is no separate mobile design, but every view reflows down to 320 CSS px so it survives 200% and 400% zoom (WCAG 1.4.10).
 7. **The 90-second test (D38).** The Overview's first screen at 1440 by 900 answers at least 9 of these, and one scroll answers all 12: what kind of case; when it happened; what happened; the injuries; whether the client is still treating; the stage; value against coverage; the statute; what is overdue, next or waited on; the last client contact; what changed lately; what has happened so far, in order.
 
 ## Visual direction
@@ -16,7 +16,7 @@ The audience is trial attorneys. Aim for a legal memo that happens to be interac
 
 - Warm paper background, ivory surfaces, ink text, one ink-blue accent used only for interactive elements
 - Semantic colors for status only: red for overdue or passed, amber for due soon and low confidence, green for confirmed. "Not answered by the file" is neutral, not amber
-- A serif for the client's name and the brief's narrative, a sans-serif for interface text and numbers; tabular figures for money and dates
+- A serif for display lines only, the client's name and the brief's headline; one sans-serif for everything meant to be read, the brief's sentences included (16px, relaxed leading), and for interface text and numbers (D44); tabular figures for money and dates
 - Hairline rules over shadows; 8px radius at most; no cards inside cards; panel headings carry no icon
 - A light rail, 15rem, divided from the page by a hairline
 - Icons from lucide, used sparingly

@@ -17,7 +17,7 @@ const LIABILITY_SHOWN = 2
 
 /** One term and its value: a fixed label column, then the value with its chips in the margin. */
 const ROW = 'grid grid-cols-1 items-baseline gap-x-4 @min-[40rem]:grid-cols-[7rem_minmax(0,1fr)]'
-const TERM = 'text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase'
+const TERM = 'text-xs font-semibold tracking-wider text-muted-foreground uppercase'
 const NOT_FOUND = <p className="py-1.5 text-[15px] text-muted-foreground">Not found in file</p>
 
 /**
@@ -42,7 +42,7 @@ export function WhatHappened({ matterId, account }: { matterId: number; account:
               <MarginCited
                 as="div"
                 facts={[account.fact, ...account.restated_by]}
-                className="font-serif text-brief text-pretty"
+                className="text-base leading-relaxed text-pretty"
               >
                 {account.text}
               </MarginCited>

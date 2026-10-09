@@ -26,7 +26,7 @@ export function NowCell({ label, facts = [], detail, children }: NowCellProps) {
         {children}
       </div>
       {(detail || facts.length > 0) && (
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {detail}
           {facts.length > 0 && <SourceChipList facts={facts} max={1} describedBy={valueId} />}
         </p>
