@@ -27,7 +27,7 @@ Decided (details in DECISIONS.md):
 
 - **D49 (2026-10-09, past the freeze, Manager):** the "point and ask" chatbot. Details under "Chat (D49)"; the contract is `docs/chat-contract.md`.
 
-Waiting for the Manager: the critic's Pass 6 follow-ups under D51 (the stage fact dated by the Clio record's last edit; a date check that passes on any record of that day; a firm-wide chat cap).
+Waiting for the Manager: the rest of the critic's Pass 6 follow-ups (a date check that passes on any record of that day; a firm-wide chat cap).
 
 ## Overview pass (D38, D39)
 
@@ -164,6 +164,13 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - **The live question** (a specials tile and a starter, 2026-10-09): 6 sentences, all cited, every figure supported; 5 of 6 sentences' chips hold their figures. Cost $0.148 for 68,974 tokens in and 1,007 out, three times the estimate. Fixed under D50.
 - [x] H6 D50 (55a564e, 6c6c601, 6cf0a08; 530 tests, check.sh with no FAIL): input 76k to 37k characters with a tile attached, 58k to 30k without; the overview 49 facts to 20; the bar 102px to 36px at rest, so the first screen at 1440×900 shows the bottom line, what happened and the deadlines; the stored answer's figures now carry the chips of the records that state them. Left: one more live question to confirm the cost and see whether a second attempt is logged, with the Manager's go-ahead. pipeline trims the chat input and logs second attempts; backend adds chips for figures supported elsewhere and caps the overview; ui-builder makes the Ask bar one line. Then the lead re-measures (sizes only), and one more live question with the Manager's go-ahead.
 - [x] H5 (critic 13b1ce9: the D50 (3) chips were wrong in 3 of 9 sentences, undone under D51 in da14f92; reviewer 3a77e77, bf1675c) critic: on the real matter, every answer chip opens a source holding its sentence's text; figure marks are right; nothing reaches a provider page. Reviewer: README views, cost and "outside the machine" sections; `check.sh` with no FAIL.
+
+- [x] H7 D52 (Manager, 2026-10-09):
+  - **(1) The stage date:** pipeline 728dcc4, applied 05628be. The sync requests Clio's `matter_stage_updated_at` and the stage fact is dated by it, else undated. The real matter was re-synced (nothing new) and digested (0 paid calls; 2 backups). Clio's stage date equals the record's last edit, so the shown date was the real stage day and nothing moved.
+  - **(2) Close, not archive:** backend 259e41f, 2b12871, e28626f; ui-builder b1abf13. Closing freezes the turns and a text transcript in `chat_transcripts`; Open and Closed groups; read-only with a download. Checked on the invented matter: 409 on asking in a closed thread, 404 for the transcript across matters.
+  - **(3) The screenshots:** `docs/screenshots/ask.png` and `ask-closed.png`, from one real question on the invented matter ($0.017).
+  - Tests: 544 backend, typecheck and lint clean.
+- [ ] H8 critic Pass 7 and reviewer README for D52.
 
 **Cut order for chat:**
 1. drag (pick mode keeps "point and ask");
