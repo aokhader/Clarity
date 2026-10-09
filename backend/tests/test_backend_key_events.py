@@ -12,12 +12,12 @@ from sqlalchemy.orm import Session
 
 from app.models import Confidence, Fact, FactKind, Origin, Source, SourceType
 from app.schemas import FactOut, validate_payload
-from app.services.matter_queries import (
-    FEED_CANDIDATES_PER_ROW,
+from app.services.key_events import (
     KEY_EVENT_KINDS,
     KEY_EVENTS_PER_KIND,
     matter_key_events,
 )
+from app.services.matter_queries import FEED_CANDIDATES_PER_ROW
 from tests.fixtures.synthetic_matter import MATTER_ID
 
 MATTER = 7  # built by the tests below, so no fixture fact is in the way
@@ -246,7 +246,12 @@ def test_a_litigation_event_that_happened_is_a_key_event(session: Session) -> No
 
 
 def _court_event(
-    session: Session, title: str, on: date | None, significance: int
+    session: Session,
+    title: str,
+    on: date | None,
+    significance: int,
+    event: str = "other",
+    source: Source | None = None,
 ) -> Fact:
     return _add(
         session,
@@ -254,7 +259,8 @@ def _court_event(
         title,
         on,
         significance,
-        value={"event": "other"},
+        value={"event": event},
+        source=source,
     )
 
 
@@ -307,6 +313,37 @@ def test_a_limit_below_what_is_pinned_keeps_the_incident_first(
 
     assert _ids(_events(session, limit=2)) == {incident.id, stronger.id}
     assert _ids(_events(session, limit=1)) == {incident.id}
+
+
+def test_a_filing_of_low_significance_outranks_other_court_events(
+    session: Session,
+) -> None:
+    _incident(session)
+    others = [
+        _court_event(session, f"Papers exchanged {n}", _days_ago(80 - n), 90)
+        for n in range(3)
+    ]
+    filed = _court_event(session, "Complaint filed", _days_ago(120), 5, "filed")
+
+    ids = _ids(_events(session))
+
+    assert filed.id in ids
+    assert sum(1 for f in others if f.id in ids) == KEY_EVENTS_PER_KIND - 1
+
+
+def test_court_events_are_pinned_by_type_then_significance(session: Session) -> None:
+    _incident(session)
+    first = _court_event(session, "First complaint filed", _days_ago(300), 10, "filed")
+    second = _court_event(session, "Second complaint filed", _days_ago(90), 20, "filed")
+    answered = _court_event(session, "Answer received", _days_ago(60), 30, "answered")
+    other = _court_event(session, "Expert reports exchanged", _days_ago(30), 95)
+    undated = _court_event(session, "Action dismissed", None, 100, "dismissed")
+
+    ids = _ids(_events(session))
+
+    assert {first.id, second.id, answered.id} <= ids
+    assert other.id not in ids  # the cap of three is taken by the types ahead of it
+    assert undated.id not in ids
 
 
 def test_a_deadline_is_never_a_key_event(session: Session) -> None:

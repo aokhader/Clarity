@@ -7,6 +7,7 @@ from sqlalchemy.orm import contains_eager, object_session
 
 from app.models import Fact, FactKind, Source, SourceType
 from app.schemas import FactOut, FactRef, TaskPayload
+from app.services.restatements import one_per_record
 
 
 def renderable_facts(matter_id: int) -> Select[tuple[Fact]]:
@@ -83,4 +84,13 @@ def fact_ref(fact: Fact) -> FactRef:
         source_type=fact.source.clio_type,
         page_no=fact.page_no,
         confidence=fact.confidence,
+    )
+
+
+def with_restatements(group: list[Fact]) -> FactOut:
+    """A restatement group's lead fact, citing the other records that restate it, one
+    fact each."""
+    group = one_per_record(group)
+    return fact_out(group[0]).model_copy(
+        update={"restated_by": [fact_ref(f) for f in group[1:]]}
     )
