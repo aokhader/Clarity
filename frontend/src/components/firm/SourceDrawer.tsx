@@ -2,6 +2,7 @@ import { ApiError } from '@/api/client'
 import { useFactSource } from '@/api/facts'
 import { FactSourceView } from '@/components/firm/FactSourceView'
 import { FactSummary } from '@/components/firm/FactSummary'
+import { SourceNavigator } from '@/components/firm/SourceNavigator'
 import { LoadError } from '@/components/shared/LoadError'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,7 +11,9 @@ import { returnFocusFromDrawer, useSourceDrawer } from '@/lib/useSourceDrawer'
 /**
  * The right-hand drawer every source chip opens. It follows `?fact=ID`, so a source
  * view can be linked, and Escape, a click outside, or the back button closes it. Focus
- * then returns to the chip that opened it.
+ * then returns to the chip that opened it. Opened with an item's list of sources, it
+ * steps through them; the navigator sits outside the loaded branch, so it stays put
+ * while the next source loads (D46).
  */
 export function SourceDrawer() {
   const { factId, close } = useSourceDrawer()
@@ -27,6 +30,7 @@ export function SourceDrawer() {
           returnFocusFromDrawer()
         }}
       >
+        <SourceNavigator />
         {source.isSuccess ? (
           <>
             <SheetHeader className="border-b px-6 pr-16">

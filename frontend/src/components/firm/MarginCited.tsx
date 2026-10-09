@@ -11,6 +11,8 @@ type MarginCitedProps = {
   as?: 'li' | 'div'
   /** Less padding, for short single-line rows such as a list of injuries. */
   dense?: boolean
+  /** "+N more" opens the next source in the drawer, which steps through them all (D46). */
+  browse?: boolean
   /** Type styles for the text. */
   className?: string
   children: ReactNode
@@ -23,7 +25,14 @@ type MarginCitedProps = {
  * described by the row's text, so two chips of one type tell apart by what they back.
  * Rows sit flush, so the margin rule runs unbroken down a list.
  */
-export function MarginCited({ facts, as: Row = 'li', dense = false, className, children }: MarginCitedProps) {
+export function MarginCited({
+  facts,
+  as: Row = 'li',
+  dense = false,
+  browse = false,
+  className,
+  children,
+}: MarginCitedProps) {
   const textId = useId()
   return (
     <Row
@@ -38,7 +47,7 @@ export function MarginCited({ facts, as: Row = 'li', dense = false, className, c
         {children}
       </div>
       <div className="min-w-0 @min-[40rem]:pl-4">
-        {facts.length > 0 && <BriefCitations facts={facts} describedBy={textId} />}
+        {facts.length > 0 && <BriefCitations facts={facts} describedBy={textId} browse={browse} />}
       </div>
     </Row>
   )

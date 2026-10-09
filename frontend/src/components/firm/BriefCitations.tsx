@@ -21,15 +21,25 @@ function isDocumentPage(fact: FactRef): boolean {
  *
  * Document pages come first, so a scanned page is among the visible chips whenever the
  * sentence cites one, rather than folded behind the Clio record, notes and tasks. The
- * rest keep the order the brief listed them in.
+ * rest keep the order the brief listed them in. With `browse`, "+N more" opens the next
+ * source in the drawer, which steps through all of them in this order (D46).
  */
-export function BriefCitations({ facts, describedBy }: { facts: FactRef[]; describedBy?: string }) {
+export function BriefCitations({
+  facts,
+  describedBy,
+  browse = false,
+}: {
+  facts: FactRef[]
+  describedBy?: string
+  browse?: boolean
+}) {
   const ordered = [...facts.filter(isDocumentPage), ...facts.filter((fact) => !isDocumentPage(fact))]
   return (
     <SourceChipList
       facts={ordered}
       max={CHIPS_PER_SENTENCE}
       expandable={ordered.length <= MAX_EXPANDED_CHIPS}
+      browse={browse}
       describedBy={describedBy}
     />
   )

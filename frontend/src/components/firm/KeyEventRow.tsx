@@ -19,7 +19,7 @@ const LANE_MARKS: Record<Lane, string> = {
 export function KeyEventRow({ fact, number }: { fact: FactOut; number: number }) {
   const lane = laneOf(fact.kind)
   return (
-    <MarginCited facts={[fact, ...fact.restated_by]} className="flex items-baseline gap-3 text-[15px]">
+    <MarginCited browse facts={[fact, ...fact.restated_by]} className="flex items-baseline gap-3 text-[15px]">
       <span aria-hidden className="w-6 shrink-0 text-right text-muted-foreground tabular-nums">
         {number}.
       </span>
