@@ -194,12 +194,55 @@ All firm routes go under `/api/matters/{matter_id}`. An unknown matter returns 4
 | Method and path | Body / query | Answer |
 |---|---|---|
 | `POST /chat/ask` | `ChatAskIn` | 202 `ChatTurnOut` (status running, or no_model when chat is not configured). 404 when the thread is in another matter. 409 when the thread already has a running turn. 422 when an item does not resolve in this matter. 429 over the daily cap. |
-| `GET /chat/threads` | | `ChatThreadSummaryOut[]`: not archived, newest first |
+| `GET /chat/threads` | | `ChatThreadSummaryOut[]`: open threads first, then closed ones (D52) |
 | `GET /chat/threads/{thread_id}` | | `ChatThreadOut`, or 404 when the thread is in another matter |
 | `POST /chat/turns/{turn_id}/retry` | | 202 `ChatTurnOut`. 409 unless the turn is failed or no_model. 404 when the turn is in another matter. 429 over the cap. |
-| `POST /chat/threads/{thread_id}/archive` | | 204 |
+| `POST /chat/threads/{thread_id}/close` | | 200 `ChatThreadOut`; see "Closing a thread (D52)" |
+| `GET /chat/threads/{thread_id}/transcript` | | the frozen text transcript of a closed thread |
 | `GET /chat/budget` | | `ChatBudgetOut` |
 | `GET /search` | `q` (2–200 characters), `limit` (1–20, default 12) | `FactOut[]`: renderable facts matching `q` at word starts, ranked by the chat ranker, one row per restatement group (restated_by filled), no model call |
+
+## Closing a thread (D52)
+
+"Archive" is gone. **Close** ends a thread and keeps it as a record:
+- **No more follow-ups:** asking in a closed thread is a 409, and so is a retry of its turns.
+- **A thread with a running turn cannot be closed (409).**
+- **Closing freezes a transcript** in a new table, `chat_transcripts`. New tables need no rebuild; `upgrade_schema` cannot add a column. It holds:
+  - `turns_json`: the thread's `ChatTurnOut`s exactly as served at that moment, with their verdicts, mentions, chips and `withdrawn`;
+  - `text`: a plain-text transcript.
+- **A closed thread is served from the frozen copy,** never re-checked against today's file. It is the record of what was said then.
+- **The thread's `archived_at` column holds the close time.** Expose it as `closed_at`. Asking no longer reopens a thread; D49's un-archive is gone.
+- **The text transcript, written in code, per turn:**
+  - who asked, when, and the question;
+  - the attached items' labels;
+  - each answer sentence, followed by its sources in brackets (each source as the drawer names it, with its page when it has one);
+  - its verdict, when not supported or unchecked;
+  - the withdrawn count;
+  - the cost.
+
+  Its header gives the matter's display number, the thread title, and who closed it and when. The file name carries no case data: `clarity-thread-{thread_id}.txt`.
+
+Shape changes (additive except the route):
+
+```python
+class ChatThreadOut(BaseModel):          # add
+    closed_at: datetime | None
+    closed_by: str | None
+
+class ChatThreadSummaryOut(BaseModel):   # add
+    closed_at: datetime | None           # threads list: open ones first by updated_at, then closed ones by closed_at, newest first
+```
+
+```ts
+// ChatThreadOut gains closed_at: string | null; closed_by: string | null
+// ChatThreadSummaryOut gains closed_at: string | null
+```
+
+| Method and path | Answer |
+|---|---|
+| `POST /chat/threads/{thread_id}/close` (replaces `/archive`) | 200 `ChatThreadOut` (closed). 404 when the thread is in another matter. 409 while a turn is running. Closing a closed thread returns it unchanged. |
+| `GET /chat/threads` | every thread, open and closed (see the order above) |
+| `GET /chat/threads/{thread_id}/transcript` | `text/plain; charset=utf-8`, `Content-Disposition: attachment; filename="clarity-thread-{thread_id}.txt"`. 404 unless the thread is closed and in this matter. |
 
 ## Pipeline interface (`backend/app/digest/chat.py`, owned by pipeline)
 
@@ -284,7 +327,8 @@ def answer_question(
 
 ## Tables (`backend/app/models.py`, new tables only, so no `cli reset`)
 
-- **`chat_threads`:** `id`, `matter_id` (index), `created_by` (FK users), `title`, `created_at`, `updated_at`, `archived_at`.
+- **`chat_threads`:** `id`, `matter_id` (index), `created_by` (FK users), `title`, `created_at`, `updated_at`, `archived_at` (the close time since D52, exposed as `closed_at`).
+- **`chat_transcripts` (D52):** `thread_id` (PK, FK), `closed_by` (FK users), `closed_at`, `turns_json`, `text`.
 - **`chat_turns`:**
   - `id`, `thread_id` (FK, cascade, index), `matter_id` (index), `asked_by` (FK users).
   - `question`, `items_json` (the refs as sent).

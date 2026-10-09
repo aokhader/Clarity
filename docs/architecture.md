@@ -235,7 +235,8 @@ POST  /api/matters/{id}/chat/ask                 a question with its attached it
 GET   /api/matters/{id}/chat/threads             the matter's threads, newest first
 GET   /api/matters/{id}/chat/threads/{tid}       a thread, its turns, and each answer re-checked
 POST  /api/matters/{id}/chat/turns/{id}/retry    run a failed turn again
-POST  /api/matters/{id}/chat/threads/{tid}/archive
+POST  /api/matters/{id}/chat/threads/{tid}/close  end a thread and freeze its transcript (D52)
+GET   /api/matters/{id}/chat/threads/{tid}/transcript   a closed thread's text transcript
 GET   /api/matters/{id}/chat/budget              today's chat spend against the daily cap
 
 GET   /api/ops/health                            API and database up; whether .env is filled
