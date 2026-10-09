@@ -244,6 +244,22 @@ class ChatThreadSummaryOut(BaseModel):   # add
 | `GET /chat/threads` | every thread, open and closed (see the order above) |
 | `GET /chat/threads/{thread_id}/transcript` | `text/plain; charset=utf-8`, `Content-Disposition: attachment; filename="clarity-thread-{thread_id}.txt"`. 404 unless the thread is closed and in this matter. |
 
+### Frozen sources (D54)
+
+A closed thread's chips open what was cited then, not today's file.
+- **At close:** for every fact the frozen turns cite (sentence chips and item chips), store the drawer's `FactSourceOut` for it, with `source.pages` cut to the fact's own page (all pages when it has none). They go in a new table, `chat_frozen_sources` (`thread_id` FK cascade, `fact_id` with no FK, since the fact may be re-read away, and `source_json`; PK (`thread_id`, `fact_id`)).
+- **Threads closed before D54:** a frozen source is built the first time it is requested, if the fact still exists; otherwise 404.
+- **Images:** page image URLs still point at the live file; the page text is frozen.
+
+| Method and path | Answer |
+|---|---|
+| `GET /chat/threads/{thread_id}/facts/{fact_id}/source` | the frozen `FactSourceOut`. 404 unless the thread is closed, is in this matter, and cites the fact. No contract type changes. |
+
+**Frontend:**
+- A chip inside a closed thread opens the drawer with `&frozen={thread_id}` beside `?fact=`.
+- When `frozen` is set, the drawer (and its prefetch) reads the frozen route instead of `/api/facts/{id}/source`.
+- Stepping through "+N more" keeps `frozen`; closing the drawer drops it.
+
 ## Pipeline interface (`backend/app/digest/chat.py`, owned by pipeline)
 
 Backend's `services/chat_context.py` builds a `ChatInput`, and `services/chat.py` calls `answer_question` from the background thread.
