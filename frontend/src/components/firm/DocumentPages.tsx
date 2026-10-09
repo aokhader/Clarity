@@ -8,11 +8,10 @@ type DocumentPagesProps = {
   pages: FirmPageOut[]
   /** The page the fact was read from; the viewer opens there. */
   citedPageNo: number | null
-  quote: string | null
 }
 
-/** A document's rendered pages, opened at the cited page, with the quote above. */
-export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps) {
+/** A document's rendered pages, opened at the cited page. The quote leads the drawer, above them. */
+export function DocumentPages({ pages, citedPageNo }: DocumentPagesProps) {
   const citedIndex = Math.max(
     0,
     pages.findIndex((page) => page.page_no === citedPageNo),
@@ -24,14 +23,6 @@ export function DocumentPages({ pages, citedPageNo, quote }: DocumentPagesProps)
 
   return (
     <div className="space-y-3">
-      {quote && (
-        <blockquote className="border-l-2 border-primary bg-muted px-3 py-2 text-sm">
-          “{quote}”
-          {citedPageNo !== null && (
-            <footer className="mt-1 text-xs text-muted-foreground">Quoted from page {citedPageNo}</footer>
-          )}
-        </blockquote>
-      )}
       <div className="flex items-center justify-between gap-2">
         <Button variant="outline" size="sm" onClick={() => setIndex(index - 1)} disabled={index === 0}>
           <ChevronLeft aria-hidden />

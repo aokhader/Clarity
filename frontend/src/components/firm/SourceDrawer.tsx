@@ -29,25 +29,25 @@ export function SourceDrawer() {
       >
         {source.isSuccess ? (
           <>
-            <SheetHeader className="border-b pr-12">
-              <SheetTitle className="text-lg">{source.data.fact.title}</SheetTitle>
+            <SheetHeader className="border-b px-6 pr-16">
+              <SheetTitle className="text-lg text-balance">{source.data.fact.title}</SheetTitle>
               <SheetDescription asChild>
                 <div>
                   <FactSummary fact={source.data.fact} />
                 </div>
               </SheetDescription>
             </SheetHeader>
-            <div className="p-4">
+            <div className="px-6 py-5">
               <FactSourceView key={source.data.fact.id} data={source.data} />
             </div>
           </>
         ) : (
           <>
-            <SheetHeader>
+            <SheetHeader className="px-6 pr-16">
               <SheetTitle>{source.isError ? 'Source unavailable' : 'Loading the source'}</SheetTitle>
               <SheetDescription className="sr-only">The record this fact came from.</SheetDescription>
             </SheetHeader>
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 px-6 py-5">
               {source.isError &&
                 (source.error instanceof ApiError && source.error.status === 404 ? (
                   <p className="text-sm text-muted-foreground">

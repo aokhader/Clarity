@@ -69,10 +69,11 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
+          // A 28px button whose hit area the ::after widens to 40px.
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-3 right-3"
+              className="absolute top-3 right-3 transition-colors after:absolute after:-inset-1.5"
               size="icon-sm"
             >
               <XIcon

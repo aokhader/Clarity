@@ -9,7 +9,7 @@ import { quotedInTitleOnly } from '@/lib/quote'
 
 type SourceBodyProps = {
   source: SourceOut
-  /** The supporting quote, when this is the fact's own source. */
+  /** The supporting quote, when this is the fact's own source; marked where it sits in the record. */
   quote: string | null
   /** Where the quote sits in the source's text, when the fact recorded it. */
   quoteSpan?: [number, number] | null
@@ -38,11 +38,11 @@ export function SourceBody({ source, quote, quoteSpan = null, citedPageNo }: Sou
     quotedInTitleOnly(source.text, source.title, quote)
   return (
     <article>
-      <p className="text-xs text-muted-foreground">{meta.join(' · ')}</p>
+      <p className="text-xs text-muted-foreground tabular-nums">{meta.join(' · ')}</p>
       {source.title && <SourceTitle title={source.title} quote={quotedTitle ? quote : null} />}
-      <div className="mt-3">
+      <div className="mt-4">
         {source.pages.length > 0 ? (
-          <DocumentPages pages={source.pages} citedPageNo={citedPageNo} quote={quote} />
+          <DocumentPages pages={source.pages} citedPageNo={citedPageNo} />
         ) : source.sections.length > 0 ? (
           <SourceSections sections={source.sections} title={source.title} quote={quote} />
         ) : source.text ? (

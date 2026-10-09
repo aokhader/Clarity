@@ -9,11 +9,15 @@ type SourceTitleProps = {
 export function SourceTitle({ title, quote }: SourceTitleProps) {
   const span = quote ? findQuote(title, quote) : null
   return (
-    <h3 className="mt-0.5 font-medium">
+    <h3 className="mt-1 text-base font-semibold text-balance">
       {span ? (
         <>
           {title.slice(0, span[0])}
-          <mark className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary">
+          <mark
+            data-quote-mark=""
+            tabIndex={-1}
+            className="rounded-sm bg-primary/10 px-0.5 text-foreground ring-1 ring-primary box-decoration-clone focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             {title.slice(span[0], span[1])}
           </mark>
           {title.slice(span[1])}
