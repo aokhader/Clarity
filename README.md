@@ -12,7 +12,7 @@ Built for the Swans Applied AI Hackathon (Law-Di-Gras, San Diego, October 2, 202
 | **The provider's own page** | **The draft checker, in the share composer** |
 | ![The provider page at /p/token: the provider's own bills, with a lien labelled and kept out of the total](docs/screenshots/provider-page.png) | ![A note to a provider: its bill total supported with a chip, an internal figure locked as Don't send](docs/screenshots/draft-check.png) |
 
-The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33). The provider page and the provider preview were taken before D41. Their "Recent updates" row shows the status change's own free-text label, where the page now writes the stage move in code, "Moved to treatment" (seen by the reviewer in the clone's preview).
+The screenshots show the invented matter that `cli seed-dev` loads, never the real one: a screenshot of the real matter would commit a real person's medical details (D33).
 
 ## Run it
 
@@ -111,7 +111,8 @@ uvicorn app.main:app --port 8000
   - `cli digest --retry-failed` retries model calls that failed.
   - `cli digest --pages-only` renders pages without calling a model.
   - `cli reextract --dry-run` prices a re-read of chosen pages before running it. `--keep-brief` re-reads them and scores their new facts but leaves the stored brief for the next digest to write.
-  - `cli reset` deletes the database and every downloaded file.
+  - `cli upgrade-schema`, with the API stopped, backs up `data/app.db` to `data/backups/app-<time>-pre-upgrade.db` and checks the copy's integrity. It then rebuilds any table whose constraint lacks a new fact kind or source type, or says "Nothing to upgrade". `seed-dev` runs the upgrade itself.
+  - `cli reset` deletes the database and every downloaded file. It refuses while `data/` holds backups; see Tooling, under Known issues.
 
 Without credentials, each command stops with a message, as seen in the clean clone:
 - `auth` names the missing `CLIO_CLIENT_ID` and `CLIO_CLIENT_SECRET`.
@@ -243,12 +244,12 @@ Seen working on the hackathon's matter, and by whom.
 
 By the reviewer, on the invented matter, on 2026-10-07:
 - The steps under [Without Clio](#without-clio-the-invented-matter), in Git Bash on Windows, and `sync` and `digest` with no credentials.
-- `pytest`: 341 passed at `189e7ec`. In the main checkout, 462 pass at `889debf`, through `check.sh` on 2026-10-08.
+- `pytest`: 341 passed at `189e7ec`. In the main checkout, 466 pass at `5966d19`, through `check.sh` on 2026-10-08.
 - `check.sh`: no step failed after `e22a5ae`. Before that commit, the case-data step failed falsely on the invented matter's own fixture.
 - **After the Overview pass, on 2026-10-08:** the clone was pulled to the branch's head, not cloned afresh, and `cli seed-dev` reloaded the invented matter.
   - At `389927b`, every route the Overview calls answered 200 in under 20 ms: the header, the brief, key events, injuries, actions, the liability and deadline timelines, and the changes.
   - At `1707584`, after the fixture gained records that give an incident account (`0deb4a1`), the header's `incident_account` carries its text and one record restating it. `key-events` returned 10 events, oldest first, with that account's fact first.
-  - At `889debf`, after D41, `seed-dev` first failed on the old schema (see Tooling, under Known issues), then passed after `upgrade_schema`. The story's 10 events then included the invented matter's court event. Both providers' previews listed one update, "Moved to treatment".
+  - At `889debf`, after D41, `seed-dev` first failed on the old schema, then passed after `upgrade_schema`. Since `5fb132f`, `seed-dev` upgrades its database itself. The story's 10 events then included the invented matter's court event. Both providers' previews listed one update, "Moved to treatment".
 - Sharing:
   - A created link returns exactly what the preview showed.
   - A withdrawn link returns 410.
@@ -261,7 +262,7 @@ By the reviewer, on the invented matter, on 2026-10-07:
 - After D35's backend change (`01d6e41`), a live link served each item in its bills list as a bill or a lien.
 
 By the lead, in the browser, on the clean clone's invented matter:
-- **On 2026-10-08, after D38 to D40:** the lead retook the six screenshots above from the clone at `6c58e37` (`506267f`):
+- **On 2026-10-08, after D38 to D40:** the lead retook the six screenshots above from the clone at `6c58e37` (`506267f`), and the provider page and preview again after D41 (`c32693d`), whose Recent updates now read "Moved to treatment":
   - the Overview's first screen at 1440×900;
   - For Attorney and the provider preview as full pages;
   - Calls with the consent step, and the draft checker, at 1440×1000;
@@ -387,11 +388,8 @@ The issues that waited on the re-digest, the re-read and the re-sync are resolve
   - `npm install` reports 7 high-severity advisories, all in the dependency tree of `shadcn`, whose stylesheet the app imports. They have not been triaged.
   - On Windows, `uvicorn --reload` sometimes keeps serving old code; restart it if a new route returns 404.
   - The Vite proxy target is fixed at port 8000 (`frontend/vite.config.ts`).
-  - `cli reset` refuses to delete a data directory that holds anything it does not expect, including the backups that `upgrade_schema` makes.
-  - **A database made before a fact kind was added refuses the new kind, and no command upgrades it.**
-    - After D41, `cli seed-dev` on the reviewer's clone, seeded before D41, failed with "CHECK constraint failed: factkind". A fresh clone is not affected.
-    - The fix: stop the API, then from `backend/` run `python -c "from app.db import upgrade_schema; print(upgrade_schema())"`. It backs the database up first.
-    - In the clone it rebuilt the facts table in 1.4 s, and `seed-dev` then passed.
+  - **`cli reset` refuses while `data/` holds backups,** whether in `data/backups/` or the `app.db.bak-*` file an upgrade leaves beside the database. Move or delete them first. This is on purpose, so a reset cannot wipe the backups of a real file. In the reviewer's clone it refused, naming both, and deleted nothing.
+  - **A database made before a new fact kind or source type refuses it** ("CHECK constraint failed") until `cli upgrade-schema` runs (see [With Clio](#with-clio-a-real-matter)). In the reviewer's clone, the command backed up the database, found the copy intact, and reported "Nothing to upgrade".
 
 ## Cost per case
 
@@ -458,7 +456,8 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
     - sync and digest runs;
     - Clio's OAuth tokens.
   - **`files/`** holds the downloaded documents, and **`pages/`** the rendered page images.
-  - **`app.db.bak-<time>`** is the copy `upgrade_schema` takes before upgrading the database in place (D24). The copies taken by hand before each model run (D36) carry the same name.
+  - **`backups/`** holds the copy `cli upgrade-schema` takes before an upgrade, `app-<time>-pre-upgrade.db`.
+  - **`app.db.bak-<time>`** is the copy `upgrade_schema` itself takes, beside the database, before upgrading it in place (D24). The copies taken by hand before each model run (D36) carry the same name.
   - **`raw-export.json`** exists only while `check.sh` runs its case-data step.
 - **`.env`**, at the repository root, holds the Clio credentials and the model key. It is never committed.
 - **Outside the machine:**
@@ -471,7 +470,7 @@ Everything Clarity derives stays on the machine that runs it. Nothing is written
 ```
 backend/app/
   main.py, config.py, db.py, models.py, schemas.py   app, settings (the only reader of the environment), tables, API contract
-  cli.py                     auth, sync, digest, reextract, seed-dev, reset
+  cli.py                     auth, sync, digest, reextract, seed-dev, upgrade-schema, reset
   clio/                      GET-only Clio client, OAuth, sync with ETags
   digest/                    pages -> facts -> brief
     pages.py, structured.py  PDF pages (PyMuPDF), and facts read from structured records in code
@@ -490,7 +489,7 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, ops
-backend/tests/               462 tests; fixtures/synthetic_matter.py is the invented matter
+backend/tests/               466 tests; fixtures/synthetic_matter.py is the invented matter
 frontend/src/
   api/                       types.ts mirrors schemas.py; TanStack Query hooks
   pages/, components/        firm views (firm/), provider link and composer (share/), calls/, shared/
