@@ -2,6 +2,148 @@
 
 Newest pass first. Findings are ranked by how badly each would hurt in front of a trial attorney. Real values are named by field and tile only, never quoted: this file is committed.
 
+## Pass 6 (D49–D50, the chat), 2026-10-09 10:48 PDT
+
+H5, on the real matter, at `68fd0a1`. This pass covers the two stored answers:
+- **Thread 1, turn 1:** the specials tile with a starter, before the D50 trim.
+- **Thread 2, turn 2:** the stage track with a starter, after the trim.
+
+What I used, all read-only:
+- The running API on port 8000. I sent GETs only, and asked no question.
+- `data/app.db` opened read-only, for `chat_turns` (the model's own citations and the context ids) and `llm_calls`.
+- The two scanned complaint pages, read as images.
+
+I made no model call. Below, "T1 S4" means thread 1, sentence 4. Chips are listed in the order the API serves them. The UI draws two chips per sentence and puts scanned pages first (`BriefCitations.tsx`). I did not open a browser, so what is "visible" comes from that code.
+
+### Findings
+
+1. **D50's added chips open records that share only a date or an amount with the sentence. In 3 of 9 sentences a visible chip is wrong, and in one both are.**
+   - Where: `services/chat_view.py:107` (`_chips`) and `services/brief_check.py:116` (`check_sentence`). The ordering is `components/firm/BriefCitations.tsx`.
+   - **T1 S6:**
+     - The model cited one note (fact 288). That note states the claim, and its date is the one the sentence gives.
+     - The server added 10 chips: a deposition subpoena (772) and nine facts from a defense expert's report (1806 and others). They share only that day.
+     - Scanned pages go first, so both visible chips open those records. The right note comes 11th, behind "+9 more".
+   - **T2 S2:**
+     - The model cited one note (2089). It holds the sentence and carries the stated date.
+     - The server added 451 and 453, an unrelated email sent the same day. The second visible chip opens it.
+   - **T1 S4:**
+     - The server added 1729 for one provider's line.
+     - 1729 is a different provider's bill line for a different service, which happens to have the same amount. The right provider's bill (lines 1746 and 1747) adds up to the figure but was passed over: `figures_stated_by` prefers a single fact holding the value.
+     - As a scanned page, 1729 is the **first** visible chip.
+   - **Cause, part 1:** the model learns a note's or email's date from its source label (`brief.source_label`). `check_sentence` does not count that date as stated by the cited fact. So the date is matched against every fact in the file.
+   - **Cause, part 2:** `_chips` then adds every fact with an equal value, whatever the record.
+   - Before D50, T1 S6 and T2 S2 cited only the right note. D50 (3) made them worse.
+   - Expected:
+     - a cited fact's source date counts as its own, which fixes T1 S6 and T2 S2 outright;
+     - added chips for amounts only, and only from the cited sources or the same provider, never for a date;
+     - the model's own citations drawn first.
+   - Owner: backend (`brief_check`, `chat_view`); ui-builder (order the model's citations before added ones). Needs decision 1.
+
+2. **T2 S1 states the stage's date. That date is the Clio matter record's last edit, and the model (and any reader) took it as the day the case moved to litigation.**
+   - Where: `digest/matter_fields.py:103`. The stage fact's `event_date` is `matter.raw_json["updated_at"]`. `digest/brief.py:194` (`fact_row`) sends it as a plain `date`.
+   - Saw:
+     - The question is what moved the case to this stage. The first sentence answers with that date, and its check is `supported`, since the cited fact 1929 carries it.
+     - The raw reply in `llm_calls` 779 had a fourth sentence. It was `not_in_file`, and said that no single event moved the stage on that date. The code check rightly dropped it, since it stated a date. That leaves the misleading date with no caveat.
+     - The day suit was filed is in the clerk's stamp (fact 2022, high confidence). It was in the context (`chat_turns.context_fact_ids_json`), and it is not in the answer.
+   - Expected: the stage fact carries no event date, or a field labelled as the record's update date, which `chat_row` names so. This is code only, with no model call.
+   - Owner: pipeline. Needs decision 2.
+
+3. **The stage item holds one fact, the Clio stage field, yet its starter asks what moved the case there.**
+   - Where: `services/chat_attachments.py`, the `AskStageRef` case of `_resolve`; the starter is at `lib/askStarters.ts:50`.
+   - Saw:
+     - Turn 2's item resolved to fact 1929 alone.
+     - The answer then leans on retrieval. Two sentences are right:
+       - S2, a note's narrative;
+       - S3, the dismissal and the renewal, both read on the page images.
+     - It never gives the filing date (#2).
+   - Expected: a stage item resolves to the stage fact, then the status changes and court events, dated first, in the story's pin order (B16).
+   - Owner: backend.
+
+4. **A date check passes if any record in the file has that day, so "supported" proves little for a sentence whose cited facts are undated.**
+   - Where: `brief_check.py:42` (`file_values`), with `_held_to_citations` at line 139. The latter applies only when a cited fact has an `event_date`.
+   - Saw:
+     - Both note dates above (T1 S6, T2 S2) were `supported` by unrelated records.
+     - They are right here, because the notes really are dated so. A wrong date would have passed the same way.
+     - Most facts read from notes and emails carry no `event_date`.
+     - The brief (D12) has the same weakness.
+   - Expected: a date is checked against the cited facts and their source dates first. A match only elsewhere in the file reads "not in the cited records", not supported.
+   - Owner: backend, together with #1.
+
+5. **T1 is right and complete about the firm's tally, but it never says how Clarity reached the tile's figure. The tile's basis is a match with the sum of every bill line.**
+   - Where: `chat_attachments._kpi`. The item's label is the tile's name only. The basis string never reaches the model.
+   - Saw:
+     - Every per-provider figure in S2 and S4 equals that provider's `billed_cents` on `GET /providers`.
+     - The nine billing providers sum to the tile.
+   - Expected: the KPI item carries the tile's basis, so the answer can say Clarity's sum agrees.
+   - Owner: backend. Minor.
+
+6. **Cost: the rows, the footer and the budget agree. Turn 1 was very likely two attempts. $2 a day is sensible per matter, but nothing caps the firm.**
+   - Saw:
+     - **Turn 1:** `llm_calls` 778 costs 148,018 µ$, which is exactly 68,974 tokens in at $2/M plus 1,007 out at $10/M.
+     - **Turn 2:** `llm_calls` 779 costs 30,198 µ$, which is 13,279 at $2/M plus 364 at $10/M.
+     - **The footer:** it shows $0.15 and $0.03, read from the same rows (`chat_view._cost`).
+     - **The budget:** `GET chat/budget` reports 178,216 µ$ spent today, the sum of the two rows. The local-midnight bound is converted to UTC (`UTCDateTime`), so the day is right.
+     - **Two attempts:** turn 2 sent about 30k characters as 13,279 tokens, about 2.26 characters a token. At that rate turn 1's 76k characters is about 34k tokens, and 68,974 is about twice that. The row has no attempt count, and the D50 log line came after this call, so this cannot be confirmed.
+   - **The cap:**
+
+     | Case | Cost per question | Questions per $2 |
+     |---|---|---|
+     | Trimmed, as measured | $0.03–0.04 | 50–66 |
+     | Worst case: two attempts, each to the 16k output cap | about $0.40 at Sonnet's rates, about $1 at the fallback's | 2–5 |
+
+     That is ample for one matter. The cap is per matter, so the firm's exposure grows with its active matters.
+   - Expected: an `attempts` count on the `llm_calls` row (pipeline); a firm-wide daily cap (Needs decision 3).
+
+7. **Minor.**
+   - T2 S2 runs to 33 words against the prompt's limit of 30, and nothing checks the limit in code (pipeline).
+   - `digest/chat.py:198` runs `key_figures` over every fact in the matter, not only the renderable ones. Every fact here is renderable (0 are not), so nothing changes today. On another matter a total could include a fact the page cannot show (pipeline).
+   - 18 of the 31 chips added under D50 are facts the model never saw as rows (`context_fact_ids_json`). That is inherent in D50 (3), and fine only when the fact is the same item (#1).
+
+### On the lead's question: a total that is the sum of a note's nine lines
+
+The total is written down. Fact 165's note states it in its subject line, which the drawer shows above the body (`SourceBody` → `SourceTitle`). Three later notes and the Clio field also state it in their text.
+
+I added the nine lines by hand, and they make the total exactly.
+
+So T1 S1's chip holds its figure, and a trial attorney can see where it came from. The quote highlights the note's opening line, not the subject, which is a small gap.
+
+If the total had appeared nowhere, one chip on the parts would not be enough. The sentence would have to say that the lines add up to it, and code would check the sum against the line facts. That check is easy here (facts 166 and 168–175).
+
+### Verified correct
+
+- **Every chip the model chose holds its sentence.**
+
+  | Sentence | Chips | What the source holds |
+  |---|---|---|
+  | T1 S1 | 165 | See above |
+  | T1 S2 | 165 | The note's line |
+  | T1 S3 | 1757, 1758 | Both amounts and the service date, on the bill's page |
+  | T1 S4 | 165 | All eight lines |
+  | T1 S5 | 165, 265 | Both say the ledgers are unreconciled. 265 is the latest note, so the sentence is current. |
+  | T1 S6 | 288 | Interim, not to be quoted as final, and dated as stated |
+  | T2 S1 | 1929 | The stage |
+  | T2 S2 | 2089 | The note holds the claim and is dated as stated |
+  | T2 S3 | 2138 (page 7), 2031 (page 2) | Both read on the page images. They are medium-confidence scans with no text layer. |
+
+  Of the chips D50 added, 166 and 1944 on S2, and 168–175 and the ledger lines on S4, are the right items. #1 lists the ones that are not.
+- **No interim figure is called final.** T1 S6 says interim. Neither answer gives legal advice. No two events are merged.
+- **The provider boundary holds.**
+  - OpenAPI lists three routes under `/api/p`, and none is chat or search. `GET /api/p/x/chat/threads` returns 404.
+  - A thread asked for under another matter returns 404.
+  - `ProviderPage` mounts no `AskProvider`. `AskBar`, `ChatPanel`, `AskHandle` and `api/chat` are imported only under `MatterPage`.
+  - `useAskTarget` returns `{}` outside the provider. The share components use only that hook.
+- **Rule 5 holds.**
+  - `answer_question` is reached only through `run_turn` ← `start` ← `ask` or `retry`, which are the two POSTs.
+  - The GET routes (threads, a thread, the budget, search) call `chat_view`, `cost` and `chat_context.search_facts`. None of these imports `llm`.
+  - The startup sweep only marks turns failed.
+- **Spend by purpose:** `GET /ops/cost` reports chat apart from the digest (2 calls), as the contract asks.
+
+### Needs decision
+
+1. **D50 (3).** Narrow it: a cited fact's source date counts as its own, added chips for amounts only and only from the cited sources or the same provider, and the model's citations first. Or revert it, so a figure stated by an uncited record gets a mark rather than a chip. I recommend narrowing it.
+2. **The stage fact's date.** Drop it, or relabel it as the record's update date. This is code only, and the next digest rebuilds the code facts with no model call.
+3. **The spending cap.** Add a firm-wide daily chat cap alongside the per-matter one.
+
 ## Pass 5 (D41–D42), 2026-10-08 20:17 PDT
 
 C5, on the real matter after D40, the P14 re-read of the pleadings and the P15 re-read of 14 notes and emails, with the brief rewritten. I used the running API on port 8000 and the code at `e49b743`. `c82cd68` landed during the pass and touches only docs. `data/app.db` was opened read-only. I sent only GETs, plus the in-memory `POST .../shares/preview`; the `shares` table held 0 rows before and after. I made no model call.
