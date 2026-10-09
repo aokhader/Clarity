@@ -51,6 +51,8 @@ export type FactKind =
   | 'recovery_cap'
   /** A note from a call's transcript. Internal by default-deny. */
   | 'call_note'
+  /** D41: something that happened in the lawsuit, dated by when it happened. Internal. */
+  | 'litigation_event'
   | 'other'
 
 export type Visibility = 'internal' | 'shareable'
@@ -160,6 +162,20 @@ export type CallNotePayload = PayloadBase & {
   amounts_cents: number[]
   dates: { on: IsoDate; precision: 'day' | 'month' }[]
 }
+export type LitigationEventType =
+  | 'filed'
+  | 'served'
+  | 'answered'
+  | 'dismissed'
+  | 'renewed'
+  | 'motion'
+  | 'order'
+  | 'hearing'
+  | 'deposition'
+  | 'trial'
+  | 'other'
+/** A hearing or deposition here is one that took place, not one set. */
+export type LitigationEventPayload = PayloadBase & { event: LitigationEventType; detail: string | null }
 export type OtherPayload = PayloadBase & { detail: string | null }
 
 /** PAYLOAD_BY_KIND in schemas.py. */
@@ -190,6 +206,7 @@ export type FactPayloads = {
   economic_damages: EconomicDamagesPayload
   recovery_cap: RecoveryCapPayload
   call_note: CallNotePayload
+  litigation_event: LitigationEventPayload
   other: OtherPayload
 }
 

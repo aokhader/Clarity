@@ -212,6 +212,39 @@ def test_only_past_dated_events_are_listed(session: Session) -> None:
     assert {row.kind for row in rows} <= {*KEY_EVENT_KINDS, FactKind.INCIDENT}
 
 
+def test_a_litigation_event_that_happened_is_a_key_event(session: Session) -> None:
+    _incident(session)
+    filed = _add(
+        session,
+        FactKind.LITIGATION_EVENT,
+        "Complaint filed",
+        _days_ago(90),
+        value={"event": "filed"},
+    )
+    set_for_later = _add(
+        session,
+        FactKind.LITIGATION_EVENT,
+        "Trial",
+        TODAY + timedelta(days=30),
+        100,
+        value={"event": "trial"},
+    )
+    undated = _add(
+        session,
+        FactKind.LITIGATION_EVENT,
+        "Answer",
+        None,
+        100,
+        value={"event": "answered"},
+    )
+
+    ids = _ids(_events(session))
+
+    assert FactKind.LITIGATION_EVENT in KEY_EVENT_KINDS
+    assert filed.id in ids
+    assert not {set_for_later.id, undated.id} & ids
+
+
 def test_a_deadline_is_never_a_key_event(session: Session) -> None:
     """A date set for a hearing does not say the hearing took place (D40)."""
     _incident(session)

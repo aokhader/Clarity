@@ -1,7 +1,8 @@
 """upgrade_schema rebuilds a table whose enum CHECK constraint is out of date (D24).
 
 The test database is built as the real one was before D21: the synthetic matter, with
-`facts.kind` allowing only the kinds the code had then.
+`facts.kind` allowing only the kinds the code had then. The kinds added since (D21,
+D41) are all checked.
 """
 
 import sqlite3
@@ -14,7 +15,11 @@ from app.db import get_engine, upgrade_schema
 from app.models import FactKind
 from tests.fixtures.synthetic_matter import load_synthetic_matter
 
-NEW_KINDS = (FactKind.ECONOMIC_DAMAGES, FactKind.RECOVERY_CAP)
+NEW_KINDS = (
+    FactKind.ECONOMIC_DAMAGES,
+    FactKind.RECOVERY_CAP,
+    FactKind.LITIGATION_EVENT,
+)
 
 
 def _connect() -> sqlite3.Connection:
@@ -48,14 +53,16 @@ def _indexes(connection: sqlite3.Connection) -> set[str]:
     }
 
 
-def _insert_new_kind(connection: sqlite3.Connection) -> None:
+def _insert_new_kind(
+    connection: sqlite3.Connection, kind: FactKind = FactKind.ECONOMIC_DAMAGES
+) -> None:
     source_id = connection.execute("SELECT min(id) FROM sources").fetchone()[0]
     connection.execute(
         "INSERT INTO facts (matter_id, kind, title, value_json, source_id,"
         " mentions_strategy, visibility, significance, confidence, verified, origin,"
-        " created_at) VALUES (1, ?, 'Damages', '{}', ?, 0, 'internal', 50, 'high', 1,"
+        " created_at) VALUES (1, ?, 'New kind', '{}', ?, 0, 'internal', 50, 'high', 1,"
         " 'model', '2031-07-14 00:00:00')",
-        (FactKind.ECONOMIC_DAMAGES.value, source_id),
+        (kind.value, source_id),
     )
 
 
@@ -66,8 +73,9 @@ def old_database(session: Session) -> Path:
     session.commit()
     session.close()
     connection = _connect()
+    marks = ", ".join("?" for _ in NEW_KINDS)
     connection.execute(
-        "DELETE FROM facts WHERE kind IN (?, ?)", tuple(k.value for k in NEW_KINDS)
+        f"DELETE FROM facts WHERE kind IN ({marks})", tuple(k.value for k in NEW_KINDS)
     )
     old_sql = _facts_sql(connection)
     for kind in NEW_KINDS:
@@ -96,10 +104,13 @@ def old_database(session: Session) -> Path:
     return Path(get_engine().url.database or "")
 
 
-def test_the_old_constraint_refuses_the_new_kinds(old_database: Path) -> None:
+@pytest.mark.parametrize("kind", NEW_KINDS)
+def test_the_old_constraint_refuses_the_new_kinds(
+    old_database: Path, kind: FactKind
+) -> None:
     connection = _connect()
     with pytest.raises(sqlite3.IntegrityError):
-        _insert_new_kind(connection)
+        _insert_new_kind(connection, kind)
     connection.close()
 
 
@@ -121,7 +132,8 @@ def test_the_upgrade_keeps_every_row_and_accepts_the_new_kinds(
     ] == fact_ids
     assert _indexes(connection) == indexes
     assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    _insert_new_kind(connection)
+    for kind in NEW_KINDS:
+        _insert_new_kind(connection, kind)
     connection.close()
 
 

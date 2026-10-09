@@ -211,6 +211,18 @@ def _sources(today: date) -> dict[str, _SourceSpec]:
             198,
         ),
         (
+            "note_court",
+            SourceType.NOTE,
+            502,
+            {"id": 502, "subject": "Complaint filed"}
+            | {
+                "detail": "Complaint filed with the court and served on the defendant.",
+                "date": on(-100),
+                "author": {"name": "Sample Attorney"},
+            },
+            100,
+        ),
+        (
             "email_therapy",
             SourceType.COMMUNICATION,
             601,
@@ -423,6 +435,15 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             65,
             on(-210),
             page_no=1,
+        ),
+        "filed": f(
+            FactKind.LITIGATION_EVENT,
+            "Complaint filed",
+            "note_court",
+            {"event": "filed", "detail": "Filed with the court"},
+            "Complaint filed with the court",
+            70,
+            on(-100),
         ),
         # A read that only restates the date, which the account leaves out.
         "incident_date_only": f(

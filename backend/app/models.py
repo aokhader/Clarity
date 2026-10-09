@@ -111,6 +111,10 @@ class FactKind(StrEnum):
     RECOVERY_CAP = "recovery_cap"
     # A note taken from a call's transcript (Calls, D8). Internal by default-deny.
     CALL_NOTE = "call_note"
+    # D41: something that happened in the lawsuit (a filing, service, an answer, a
+    # dismissal, an order, a deposition held), dated by when it happened. Internal by
+    # default-deny.
+    LITIGATION_EVENT = "litigation_event"
     OTHER = "other"
 
 

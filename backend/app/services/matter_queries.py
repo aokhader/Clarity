@@ -53,6 +53,7 @@ KEY_EVENT_KINDS = (
     FactKind.OFFER,
     FactKind.SETTLEMENT,
     FactKind.RECORDS_RECEIVED,
+    FactKind.LITIGATION_EVENT,
 )
 
 

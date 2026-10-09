@@ -308,6 +308,40 @@ def test_call_notes_never_reach_a_provider(seeded: Session) -> None:
     assert note not in _visible(seeded, _share(provider=ORTHO_ID))
 
 
+# --- D41: litigation events are internal (default-deny) -----------------------------
+
+
+_EVERY_SETTING_COMBINATION = [
+    ShareSettings.model_validate(
+        {setting: bool(mask >> n & 1) for n, setting in enumerate(KINDS_BY_SETTING)}
+    )
+    for mask in range(2 ** len(KINDS_BY_SETTING))
+]
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID, None])
+def test_a_litigation_event_never_reaches_a_provider(
+    seeded: Session, provider: int | None
+) -> None:
+    kind = FactKind.LITIGATION_EVENT
+    assert kind not in SETTING_BY_KIND
+    assert all(kind not in kinds for kinds in KINDS_BY_SETTING.values())
+    assert fact_visibility(kind, mentions_strategy=False) is Visibility.INTERNAL
+    filed = _fact(seeded, kind, None)
+    # Even mis-tagged shareable and about a share's own provider, its kind keeps it in.
+    event = _new_fact(seeded, kind, {"event": "dismissed"}, provider)
+    for fact in (filed, event):
+        fact.visibility = Visibility.SHAREABLE
+    seeded.flush()
+
+    for share_provider in (ORTHO_ID, THERAPY_ID):
+        for settings in _EVERY_SETTING_COMBINATION:
+            visible = _visible(
+                seeded, _share(provider=share_provider, settings=settings)
+            )
+            assert filed not in visible and event not in visible
+
+
 # --- D35: an item's kind names only a bill or lien the link already shows ------------
 
 

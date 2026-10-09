@@ -213,6 +213,30 @@ class CallNotePayload(FactPayload):
     dates: list[CallNoteDate] = Field(default_factory=list)
 
 
+LitigationEventType = Literal[
+    "filed",
+    "served",
+    "answered",
+    "dismissed",
+    "renewed",
+    "motion",
+    "order",
+    "hearing",
+    "deposition",
+    "trial",
+    "other",
+]
+
+
+class LitigationEventPayload(FactPayload):
+    """Something that happened in the lawsuit (D41), dated by the filing, service or
+    decision date. A hearing or deposition is one that took place, not one set."""
+
+    # "other" when the record does not say which, so a dated filing is still kept.
+    event: LitigationEventType = "other"
+    detail: str | None = None
+
+
 class OtherPayload(FactPayload):
     detail: str | None = None
 
@@ -244,6 +268,7 @@ PAYLOAD_BY_KIND: dict[FactKind, type[FactPayload]] = {
     FactKind.ECONOMIC_DAMAGES: EconomicDamagesPayload,
     FactKind.RECOVERY_CAP: RecoveryCapPayload,
     FactKind.CALL_NOTE: CallNotePayload,
+    FactKind.LITIGATION_EVENT: LitigationEventPayload,
     FactKind.OTHER: OtherPayload,
 }
 
