@@ -28,7 +28,7 @@ Define colors, type sizes, and spacing as Tailwind theme tokens in one place bef
 
 ## Firm view: `/matters/:id`
 
-Every view shares the identity header and the rail. The Overview is the 90-second read; For Attorney is the working view.
+Every view shares the identity header and the rail. The Overview is the 90-second read; For Attorney is the working view. On the Overview each block is its own card on the paper, 12px apart, so one is told from the next; the cards sit side by side in the page, never inside one another (D46).
 
 ```
 +----------+------------------------------------------------------------------+
