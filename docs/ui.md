@@ -42,8 +42,8 @@ Every view shares the identity header and the rail. The Overview is the 90-secon
 | Calls    |   Injuries       up to three                         | [src]     |
 |          |   Liability      the leading liability fact          | [src]     |
 |          | DEADLINES AND FOLLOW-UPS  Next step | Statute | Contact | counts |
-| Viewing  | MONEY Case value | Coverage | Medical specials | Firm spend      |
-| as       +----------------------------------------------- end of screen ----+
+|          | MONEY Case value | Coverage | Medical specials | Firm spend      |
+|          +----------------------------------------------- end of screen ----+
 |          | THE STORY SO FAR  key events, newest first, numbered | [src]     |
 |          |   Also in the file, without a date: Filed [src] - Served [src]   |
 |          | SINCE YOU LAST OPENED  at most five rows (hidden if none)        |

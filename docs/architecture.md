@@ -190,7 +190,7 @@ Source access follows the same rule: a provider may open the source of a fact on
 Firm routes take the stub user from an `X-User-Id` header.
 
 ```
-GET   /api/users                                 stub accounts for the user switcher
+GET   /api/users                                 stub accounts; the page acts as the first
 GET   /api/matters                               list matters from sources
 GET   /api/matters/{id}                          header: client, stage, KPIs, last client contact
 GET   /api/matters/{id}/brief                    narrative with fact ids per sentence
@@ -261,7 +261,7 @@ Request and response models for every route are in `backend/app/schemas.py`, mir
 
 There is no real authentication, and the submission form must say so.
 
-- Firm users are seeded stub accounts with generic names and roles. A user switcher in the header sets `X-User-Id`. Seeded `last_opened_at` values differ per user so the "since you last opened" block has something to show. Log this in the stubs section of `docs/progress.md`.
+- Firm users are seeded stub accounts with generic names and roles. The firm view acts as the first of them and sends its id as `X-User-Id`; the user switcher was removed (D48). Seeded `last_opened_at` values give the "since you last opened" block something to show. Log this in the stubs section of `docs/progress.md`.
 - Provider access is a random URL-safe token of at least 32 bytes, checked for expiry and revocation on every request.
 
 ## Configuration

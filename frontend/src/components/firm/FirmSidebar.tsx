@@ -2,7 +2,6 @@ import { Briefcase, FolderOpen, Gavel, LayoutGrid, Menu, Phone, ShieldAlert, X, 
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 
-import { UserSwitcher } from '@/components/firm/UserSwitcher'
 import { MATTER_VIEWS, type MatterViewId } from '@/lib/matterViews'
 import { cn } from '@/lib/utils'
 
@@ -77,9 +76,6 @@ export function FirmSidebar({ view }: { view: MatterViewId }) {
               )
             })}
           </nav>
-          <div className="lg:mt-auto">
-            <UserSwitcher />
-          </div>
         </div>
       </aside>
     </div>
