@@ -922,7 +922,9 @@ class ChatThreadOut(BaseModel):
     title: str  # the first question, cut to 80 characters
     created_at: datetime
     updated_at: datetime
-    turns: list[ChatTurnOut]  # oldest first
+    turns: list[ChatTurnOut]  # oldest first; a closed thread's as frozen when it closed (D52)
+    closed_at: datetime | None = None  # D52: set once the thread is closed; no more questions
+    closed_by: str | None = None  # the stub user who closed it
 
 
 class ChatThreadSummaryOut(BaseModel):
@@ -932,6 +934,7 @@ class ChatThreadSummaryOut(BaseModel):
     turn_count: int
     last_status: ChatTurnStatus
     asked_by: str | None  # who started the thread
+    closed_at: datetime | None = None  # D52: the list holds open threads first, then closed ones
 
 
 class ChatBudgetOut(BaseModel):

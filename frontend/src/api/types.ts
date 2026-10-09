@@ -784,8 +784,16 @@ export type ChatThreadOut = {
   title: string
   created_at: IsoDateTime
   updated_at: IsoDateTime
-  /** Oldest first. */
+  /** Oldest first; a closed thread's turns as frozen when it closed (D52). */
   turns: ChatTurnOut[]
+  /**
+   * D52: set once the thread is closed; it takes no more questions. The server always
+   * sends both fields. They are optional only until `storeTurn` in api/chat.ts seeds a
+   * new thread with them (ui-builder), so test with `!= null`, not `!== null`.
+   */
+  closed_at?: IsoDateTime | null
+  /** The stub user who closed it. */
+  closed_by?: string | null
 }
 
 export type ChatThreadSummaryOut = {
@@ -796,6 +804,8 @@ export type ChatThreadSummaryOut = {
   last_status: ChatTurnStatus
   /** Who started the thread. */
   asked_by: string | null
+  /** D52: the list holds open threads first, by updated_at, then closed ones by closed_at, newest first. */
+  closed_at: IsoDateTime | null
 }
 
 export type ChatBudgetOut = {
