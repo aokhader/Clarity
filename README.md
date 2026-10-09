@@ -144,7 +144,7 @@ Each step prints ok, FAIL or SKIPPED, and SKIPPED means the step verified nothin
 
 ### The views
 
-The firm side has six views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents, Calls and Ask. Every view but Ask carries the Ask bar above it (see [Ask](#ask-point-at-something-and-ask-d49-d50)). The reviewer re-read this section against the code under `frontend/src/components/` and `frontend/src/pages/firm/` at `d8cc936`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), the court events (D41 to D43), the reading and layout fixes of D44 to D48, and the chatbot (D49, D50). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
+The firm side has six views in the rail: Case Overview, For Attorney, For Service Provider (the firm's preview of a provider's link), Documents, Calls and Ask. Every view but Ask carries the Ask bar above it (see [Ask](#ask-point-at-something-and-ask-d49-to-d51)). The reviewer re-read this section against the code under `frontend/src/components/` and `frontend/src/pages/firm/` at `d8cc936`. That is after the Overview pass (D38, D39), the fixes from the critic's fourth pass (D40), the court events (D41 to D43), the reading and layout fixes of D44 to D48, and the chatbot (D49, D50). What has been seen running is under [Verified](#verified) and [Built, lightly tested](#built-lightly-tested).
 
 **On every view, the identity header:**
 - a breadcrumb (Cases, the client, the view);
@@ -183,7 +183,7 @@ In What happened, The story so far and Where it stands, each line's source chips
 - closing the source drawer returns focus to the chip that opened it;
 - under each scanned page in the drawer, a "Page text" disclosure holds the page's text as its text alternative.
 
-#### Ask: point at something and ask (D49, D50)
+#### Ask: point at something and ask (D49 to D51)
 
 Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and the provider's own page renders no handle, bar or panel. The design and the rules are in `docs/chat-contract.md`.
 
@@ -198,7 +198,7 @@ Firm-only. No route under `/api/p` reaches a thread, a turn or the search, and t
 - **When a turn is served,** with no model call:
   - a sentence citing a fact that can no longer be shown is withdrawn, and counted;
   - each sentence's amounts and dates are checked against today's file, as the brief's are (D12), so an answer given before a correction says so;
-  - a figure supported only by records the sentence does not cite gets those records' chips after its own (D50), so every supported figure has a chip whose source states it.
+  - a sentence's chips are the facts the model cited, in its order. A figure other records state keeps its `supported` verdict but adds no chips (D51, undoing D50 (3), whose added chips opened records sharing only a date or an amount with the sentence).
 - **Spend:** a cap of `CHAT_DAILY_BUDGET_USD` a day per matter, $2 by default, from local midnight. Past it, Ask answers 429 and stores nothing. With no chat model set, the bar says what to set, and a question asked anyway is stored as "no model", with a retry.
 
 ### Verified
@@ -338,8 +338,8 @@ Unit tests pass. None of these has been seen in the browser on the real matter s
     - the Ask view renders; at 320 px nothing scrolls sideways;
     - the provider route has no handle and makes no chat request;
     - a page load makes one chat request, the budget GET, and no model call.
-  - **On the first answer,** one sentence's chip did not hold the figure the sentence states. D50 (3) adds the chips of the records that do, and the lead's H6 entry in `PLAN.md` says the stored answer's figures now carry them. The reviewer has not checked this chip by chip.
-  - **After D50:** ui-builder tested the one-line bar headless, with chat mocked, at 36 px tall at rest at 1440 and 320 px wide. The critic's pass on the answers (H5) has not run.
+  - **On the first answer,** the lead first read one sentence's chip as not holding its total; the critic's Pass 6 found the cited note's subject states it, and its nine lines add up to it. D50 (3) added chips for figures other records state; the critic found those added chips wrong in 3 of 9 sentences, and D51 removed them. Every chip the model chose holds its sentence (critic, Pass 6, `docs/reviews/critic.md`).
+  - **After D50:** ui-builder tested the one-line bar headless, with chat mocked, at 36 px tall at rest at 1440 and 320 px wide; the lead measured 36 px at 1440×900 in the browser. The critic's Pass 6 (H5) read both answers chip by chip, with GETs only.
 
 - **The D37 screens:** the types check, and the reviewer has read the code but not seen these rendered.
   - **The brief's chips (`8d4b1fa`):** a sentence draws its document-page chips first, so a scanned page is among the two visible chips whenever the sentence cites one (`frontend/src/components/firm/BriefCitations.tsx`).
@@ -414,7 +414,7 @@ From the stubs list in `STATUS.md`, the track files in `docs/tracks/`, `docs/pro
     - a chat call of which any attempt was answered by the refusal fallback is priced wholly at the fallback's rates, an upper bound;
     - a response that names the chat model plus an 8-digit date counts as the chat model, not the fallback (both `backend/app/digest/llm.py`).
   - **Chat on `openai` or `gemini`** sends its own output limit, but no effort setting and no fallback. The two answers so far came through Anthropic (D49) (`backend/app/digest/llm.py`).
-  - **The brief does not add chips for figures it does not cite,** as an answer does since D50 (3). Backend reports that none of today's brief figures needs one (`backend/app/services/brief_view.py`).
+  - **The figure check passes a date that any record of that day states,** and a stage fact is dated by the Clio record's last edit, so an answer can name that edit as the day the case changed stage (critic, Pass 6; left to the Manager under D51).
 - **The source drawer** steps through at most 1,000 sources of one item. A longer list stops at the 1,000th, and its count reads 1,000 (`frontend/src/lib/useSourceDrawer.ts`, D47).
 - **Page and link details:**
   - The provider page does not show the firm's name; no synced record carries it.
@@ -598,7 +598,7 @@ backend/app/
     matter_queries.py        the header, the action board, the feed, the key events, the timeline and the injuries
     chat.py                  Ask: threads and turns, the daily cap, the answer run in the background
     chat_context.py, chat_attachments.py, chat_pages.py   what a question sends: the overview, ranked facts, attached items resolved in the matter, page excerpts; and search
-    chat_view.py             a turn as served: withdrawn sentences, figures checked against today's file, chips added for supported figures (D50)
+    chat_view.py             a turn as served: withdrawn sentences, figures checked against today's file, the model's own chips (D51)
     cost.py                  what the model calls cost, the chatbot apart from the digest
     kpis.py, providers.py, calls.py, ...
   api/                       thin routes: matters, facts, shares, provider, calls, chat, ops
@@ -629,7 +629,7 @@ After the hackathon, Clarity was finished on the `kit-trial` branch by a team of
 The shared memory is plain files:
 - **`PLAN.md`:** backlog with owners, milestones, cut order and the trial's measures.
 - **`STATUS.md`:** one row per role, plus the stubs list.
-- **`DECISIONS.md`:** D1 to D50, each with its time and reason.
+- **`DECISIONS.md`:** D1 to D51, each with its time and reason.
 - **`docs/briefs/`:** the researcher's briefs.
 - **`docs/reviews/critic.md`:** the critic's ranked findings.
 

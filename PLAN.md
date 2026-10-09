@@ -27,7 +27,7 @@ Decided (details in DECISIONS.md):
 
 - **D49 (2026-10-09, past the freeze, Manager):** the "point and ask" chatbot. Details under "Chat (D49)"; the contract is `docs/chat-contract.md`.
 
-Waiting for the Manager: the go-ahead for a second live question after D50 (about $0.05–0.08), and whether to run the critic and reviewer passes (H5).
+Waiting for the Manager: the critic's Pass 6 follow-ups under D51 (the stage fact dated by the Clio record's last edit; a date check that passes on any record of that day; a firm-wide chat cap).
 
 ## Overview pass (D38, D39)
 
@@ -163,7 +163,7 @@ The items, in order. Workers build in parallel against the contract; the lead ru
   - **In the browser:** search with Enter attaches an item; pick mode by click; drag attaches when the pointer moves (the browser tool's one-jump drag does not); the Ask view renders; 320px has no sideways scroll; the provider route has no handle and no chat requests.
   - **The live question** (a specials tile and a starter, 2026-10-09): 6 sentences, all cited, every figure supported; 5 of 6 sentences' chips hold their figures. Cost $0.148 for 68,974 tokens in and 1,007 out, three times the estimate. Fixed under D50.
 - [x] H6 D50 (55a564e, 6c6c601, 6cf0a08; 530 tests, check.sh with no FAIL): input 76k to 37k characters with a tile attached, 58k to 30k without; the overview 49 facts to 20; the bar 102px to 36px at rest, so the first screen at 1440×900 shows the bottom line, what happened and the deadlines; the stored answer's figures now carry the chips of the records that state them. Left: one more live question to confirm the cost and see whether a second attempt is logged, with the Manager's go-ahead. pipeline trims the chat input and logs second attempts; backend adds chips for figures supported elsewhere and caps the overview; ui-builder makes the Ask bar one line. Then the lead re-measures (sizes only), and one more live question with the Manager's go-ahead.
-- [ ] H5 critic: on the real matter, every answer chip opens a source holding its sentence's text; figure marks are right; nothing reaches a provider page. Reviewer: README views, cost and "outside the machine" sections; `check.sh` with no FAIL.
+- [x] H5 (critic 13b1ce9: the D50 (3) chips were wrong in 3 of 9 sentences, undone under D51 in da14f92; reviewer 3a77e77, bf1675c) critic: on the real matter, every answer chip opens a source holding its sentence's text; figure marks are right; nothing reaches a provider page. Reviewer: README views, cost and "outside the machine" sections; `check.sh` with no FAIL.
 
 **Cut order for chat:**
 1. drag (pick mode keeps "point and ask");
