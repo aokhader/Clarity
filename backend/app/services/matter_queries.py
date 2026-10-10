@@ -1,4 +1,5 @@
-"""Read queries behind the firm view: matter list, header, action board, feed, timeline."""
+"""Read queries behind the firm view: matter list, header, action board, feed, timeline.
+Key events are in `key_events.py`."""
 
 import re
 from datetime import date
@@ -14,17 +15,30 @@ from app.schemas import (
     DatedFactOut,
     DeadlinePayload,
     FactOut,
+    IncidentAccountOut,
     MatterHeaderOut,
     MatterSummaryOut,
-    RecordRequestPayload,
     RunOut,
     StageOut,
     TaskPayload,
 )
 from app.services import brief_view
 from app.services.clio_records import RawContact, RawMatter
-from app.services.fact_views import fact_out, fact_ref, renderable_facts
+from app.services.fact_views import (
+    deadline_status,
+    fact_out,
+    fact_ref,
+    renderable_facts,
+    with_restatements,
+)
+from app.services.incident import incident_account, incident_fact
 from app.services.kpis import kpi_tiles
+from app.services.record_requests import outstanding_record_requests
+from app.services.restatements import group_restatements, one_per_record
+from app.services.shares import medical_provider_ids
+
+# How many candidates the feed reads per row it returns, to find restatements.
+FEED_CANDIDATES_PER_ROW = 10
 
 
 class MatterNotFound(LookupError):
@@ -41,6 +55,12 @@ def _matter_source(session: Session, matter_id: int) -> Source | None:
 
 def matter_exists(session: Session, matter_id: int) -> bool:
     return _matter_source(session, matter_id) is not None
+
+
+def matter_display_number(session: Session, matter_id: int) -> str | None:
+    """The matter's number as Clio shows it, or None before a sync."""
+    source = _matter_source(session, matter_id)
+    return RawMatter.model_validate(source.raw_json).display_number if source else None
 
 
 def list_matters(session: Session) -> list[MatterSummaryOut]:
@@ -117,6 +137,17 @@ def _dated(fact: Fact | None) -> DatedFactOut | None:
     return DatedFactOut(on=fact.event_date, fact=fact_ref(fact))
 
 
+def _account(group: list[Fact]) -> IncidentAccountOut | None:
+    if not group:
+        return None
+    group = one_per_record(group)
+    return IncidentAccountOut(
+        text=group[0].title,
+        fact=fact_ref(group[0]),
+        restated_by=[fact_ref(f) for f in group[1:]],
+    )
+
+
 def _stage(session: Session, matter_id: int, facts: list[Fact]) -> StageOut:
     """The stage from Clio's own stage fact, else the brief's, labelled as inferred.
 
@@ -142,6 +173,14 @@ def _stage(session: Session, matter_id: int, facts: list[Fact]) -> StageOut:
     )
 
 
+def matter_stage(session: Session, matter_id: int) -> StageOut:
+    """The header's stage and the facts it cites."""
+    stages = session.scalars(
+        renderable_facts(matter_id).where(Fact.kind == FactKind.CASE_STAGE)
+    ).all()
+    return _stage(session, matter_id, list(stages))
+
+
 def matter_header(session: Session, matter_id: int) -> MatterHeaderOut:
     source = _matter_source(session, matter_id)
     if source is None:
@@ -161,7 +200,8 @@ def matter_header(session: Session, matter_id: int) -> MatterHeaderOut:
         else None,
         opened_on=raw.open_date,
         stage=_stage(session, matter_id, by_kind[FactKind.CASE_STAGE]),
-        incident=_dated(_best(by_kind[FactKind.INCIDENT])),
+        incident=_dated(incident_fact(by_kind[FactKind.INCIDENT])),
+        incident_account=_account(incident_account(by_kind[FactKind.INCIDENT])),
         last_client_contact=_dated(_best(by_kind[FactKind.CLIENT_CONTACT])),
         kpis=kpi_tiles(by_kind),
         digested=bool(facts),
@@ -189,26 +229,37 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
     """Split open work into overdue, upcoming, and waiting on others.
 
     The groups do not overlap: overdue wins, then waiting, then upcoming. A record
-    request raised by a task already on the board is not listed twice. Past calendar
-    entries are not overdue; they happened.
+    request raised by a task already on the board is not listed twice, and a request
+    the provider has answered is not listed (`record_requests.py`). Past calendar
+    entries are not overdue; they happened. A deadline whose Clio task is complete
+    has been met, so it is not upcoming either.
     """
-    kinds = (FactKind.TASK, FactKind.DEADLINE, FactKind.RECORD_REQUEST)
-    facts = session.scalars(
-        renderable_facts(matter_id).where(Fact.kind.in_(kinds))
-    ).all()
+    kinds = (
+        FactKind.TASK,
+        FactKind.DEADLINE,
+        FactKind.RECORD_REQUEST,
+        FactKind.RECORDS_RECEIVED,  # to tell which requests are answered
+    )
+    facts = list(
+        session.scalars(renderable_facts(matter_id).where(Fact.kind.in_(kinds)))
+    )
     task_sources = {f.source_id for f in facts if f.kind is FactKind.TASK}
+    outstanding = {f.id for f in outstanding_record_requests(facts)}
     overdue: list[Fact] = []
     upcoming: list[Fact] = []
     waiting: list[Fact] = []
     for fact in facts:
+        if fact.kind is FactKind.RECORDS_RECEIVED:
+            continue
         if fact.kind is FactKind.RECORD_REQUEST:
-            request = RecordRequestPayload.model_validate(fact.value_json)
-            if request.status == "open" and fact.source_id not in task_sources:
+            if fact.id in outstanding and fact.source_id not in task_sources:
                 waiting.append(fact)
             continue
         due = _due_date(fact)
         if fact.kind is FactKind.DEADLINE:
-            if due is not None and due >= today:
+            # A deadline whose Clio task is complete has been met: nothing is due.
+            met = deadline_status(fact) == "complete"
+            if due is not None and due >= today and not met:
                 upcoming.append(fact)
             continue
         task = TaskPayload.model_validate(fact.value_json)
@@ -228,14 +279,21 @@ def matter_actions(session: Session, matter_id: int, today: date) -> ActionsOut:
 
 
 def matter_feed(session: Session, matter_id: int, limit: int) -> list[FactOut]:
-    facts = session.scalars(
-        renderable_facts(matter_id)
-        .order_by(
-            Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
+    """The most significant facts, each once, citing the records that restate it.
+
+    Restatements are looked for among the leading candidates only, which is where a
+    fact restated across many records lands.
+    """
+    candidates = list(
+        session.scalars(
+            renderable_facts(matter_id)
+            .order_by(
+                Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
+            )
+            .limit(limit * FEED_CANDIDATES_PER_ROW)
         )
-        .limit(limit)
     )
-    return [fact_out(f) for f in facts]
+    return [with_restatements(g) for g in group_restatements(candidates)[:limit]]
 
 
 def matter_timeline(
@@ -263,7 +321,14 @@ def matter_timeline(
 
 
 def matter_injuries(session: Session, matter_id: int) -> list[FactOut]:
-    """Injuries and diagnoses, most significant first."""
+    """Injuries and diagnoses: those the client's treating providers recorded first,
+    then the rest (defense exams, expert reviews, notes, pleadings), each part most
+    significant first.
+
+    No synced field marks a defense exam; what the data does say is which facts come
+    from one of the matter's treating providers (the field mapping's roles).
+    """
+    treating = medical_provider_ids(session, matter_id)
     facts = session.scalars(
         renderable_facts(matter_id)
         .where(Fact.kind.in_((FactKind.INJURY, FactKind.DIAGNOSIS)))
@@ -271,4 +336,5 @@ def matter_injuries(session: Session, matter_id: int) -> list[FactOut]:
             Fact.significance.desc(), Fact.event_date.desc().nulls_last(), Fact.id
         )
     )
-    return [fact_out(f) for f in facts]
+    ordered = sorted(facts, key=lambda f: f.provider_contact_id not in treating)
+    return [fact_out(f) for f in ordered]

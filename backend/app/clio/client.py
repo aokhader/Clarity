@@ -17,10 +17,6 @@ from app.config import get_settings
 
 log = logging.getLogger(__name__)
 
-MAX_ATTEMPTS = 6
-# Clio caps list pages at 200 records.
-PAGE_LIMIT = 200
-
 
 class ClioError(Exception):
     """A Clio request failed after retries."""
@@ -71,20 +67,25 @@ class ClioClient:
         self._get_token = get_token
         self._refresh_token = refresh_token
         self._sleep = sleep
+        self._max_attempts = settings.clio_max_attempts
+        self._page_limit = settings.clio_page_limit
         self.request_count = 0
-        inner = transport or httpx.HTTPTransport(retries=2)
+        retries = settings.clio_transport_retries
+        inner = transport or httpx.HTTPTransport(retries=retries)
         self._http = httpx.Client(
             base_url=settings.clio_api_url,
             transport=_GetOnlyTransport(inner),
             headers={"X-API-VERSION": settings.clio_api_version},
-            timeout=60,
+            timeout=settings.clio_timeout_seconds,
             follow_redirects=False,
         )
         # Signed download URLs must not receive the Clio bearer token, so they go
         # through a separate client with no default headers. Still GET-only.
         self._files = httpx.Client(
-            transport=_GetOnlyTransport(transport or httpx.HTTPTransport(retries=2)),
-            timeout=120,
+            transport=_GetOnlyTransport(
+                transport or httpx.HTTPTransport(retries=retries)
+            ),
+            timeout=settings.clio_download_timeout_seconds,
             follow_redirects=True,
         )
 
@@ -107,7 +108,7 @@ class ClioClient:
         return list(self.iter_all(path, params))
 
     def iter_all(self, path: str, params: dict[str, Any]) -> Iterator[dict[str, Any]]:
-        payload = self.get(path, {"limit": PAGE_LIMIT, **params})
+        payload = self.get(path, {"limit": self._page_limit, **params})
         while True:
             data = payload.get("data") or []
             yield from data if isinstance(data, list) else [data]
@@ -144,13 +145,13 @@ class ClioClient:
     ) -> httpx.Response:
         refreshed = False
         response: httpx.Response | None = None
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(self._max_attempts):
             headers = {"Authorization": f"Bearer {self._get_token()}"}
             try:
                 response = self._http.get(url, params=params, headers=headers)
             except httpx.TransportError as error:
                 # A dropped connection or timeout is retried like a 5xx.
-                if attempt + 1 == MAX_ATTEMPTS:
+                if attempt + 1 == self._max_attempts:
                     raise ClioError(0, str(url), str(error)) from error
                 self._sleep(min(2**attempt, 30))
                 continue

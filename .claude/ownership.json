@@ -1,0 +1,71 @@
+{
+  "about": "Which paths each role may edit during the kit trial, as globs relative to the repository root. '**' matches any depth, '*' one path segment. The lead (no role) may edit anything, and owns everything listed nowhere (PLAN.md, DECISIONS.md, CLAUDE.md, docs/*.md, .claude/). STATUS.md is shared: each role edits only its own row. A new file outside these globs needs the lead to add it here first.",
+  "shared": [
+    "STATUS.md"
+  ],
+  "roles": {
+    "pipeline": [
+      "backend/app/clio/**",
+      "backend/app/digest/**",
+      "backend/app/cli.py",
+      "backend/app/config.py",
+      "backend/tests/test_clio_client.py",
+      "backend/tests/test_llm.py",
+      "backend/tests/test_merge.py",
+      "backend/tests/test_verify.py",
+      "backend/tests/test_pipeline_*.py"
+    ],
+    "backend": [
+      "backend/app/api/**",
+      "backend/app/services/**",
+      "backend/app/schemas.py",
+      "backend/app/models.py",
+      "backend/app/main.py",
+      "backend/app/db.py",
+      "backend/tests/conftest.py",
+      "backend/tests/fixtures/**",
+      "backend/tests/test_*_api.py",
+      "backend/tests/test_backend_*.py",
+      "backend/tests/test_bills.py",
+      "backend/tests/test_visibility.py",
+      "backend/tests/test_schemas.py",
+      "backend/tests/test_source_sections.py",
+      "backend/tests/test_health.py",
+      "backend/tests/test_synthetic_matter.py",
+      "frontend/src/api/types.ts"
+    ],
+    "ui-builder": [
+      "frontend/src/components/**",
+      "frontend/src/pages/**",
+      "frontend/src/lib/**",
+      "frontend/src/api/client.ts",
+      "frontend/src/api/facts.ts",
+      "frontend/src/api/matters.ts",
+      "frontend/src/api/ops.ts",
+      "frontend/src/api/provider.ts",
+      "frontend/src/api/shares.ts",
+      "frontend/src/api/users.ts",
+      "frontend/src/api/visits.ts",
+      "frontend/src/App.tsx",
+      "frontend/src/main.tsx",
+      "frontend/src/index.css",
+      "frontend/src/api/calls.ts",
+      "frontend/src/api/chat.ts"
+    ],
+    "researcher": [
+      "docs/briefs/**"
+    ],
+    "critic": [
+      "docs/reviews/critic.md"
+    ],
+    "reviewer": [
+      "README.md",
+      "docs/reviews/reviewer.md",
+      "docs/submission.md",
+      "docs/form-answers.md",
+      "docs/screenshots/**",
+      "scripts/**",
+      "tests/*.test.mjs"
+    ]
+  }
+}

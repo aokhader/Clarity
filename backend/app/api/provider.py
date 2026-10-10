@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 
 from app.db import SessionDep
 from app.schemas import ProviderPayload, ProviderSourceOut
-from app.services import provider_view, shares, source_views
+from app.services import provider_sources, provider_view, shares, source_views
 
 router = APIRouter(prefix="/api/p", tags=["provider"])
 
@@ -44,11 +44,13 @@ def provider_source(
 ) -> ProviderSourceOut:
     response.headers.update(_NO_STORE)
     try:
-        return provider_view.provider_source(session, token, fact_id, datetime.now(UTC))
+        return provider_sources.provider_source(
+            session, token, fact_id, datetime.now(UTC)
+        )
     except (
         shares.ShareNotFound,
         provider_view.ShareGone,
-        provider_view.NotVisible,
+        provider_sources.NotVisible,
     ) as error:
         raise _http_error(error) from error
 
@@ -56,13 +58,13 @@ def provider_source(
 @router.get("/{token}/pages/{page_id}/image", response_class=FileResponse)
 def provider_page_image(token: str, page_id: int, session: SessionDep) -> FileResponse:
     try:
-        path = provider_view.provider_page_image(
+        path = provider_sources.provider_page_image(
             session, token, page_id, datetime.now(UTC)
         )
     except (
         shares.ShareNotFound,
         provider_view.ShareGone,
-        provider_view.NotVisible,
+        provider_sources.NotVisible,
         source_views.PageNotFound,
     ) as error:
         raise _http_error(error) from error

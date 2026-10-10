@@ -1,16 +1,12 @@
-import { CalendarDays, CalendarX, Hourglass, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
-import { useMatterActions, useMatterTimeline } from '@/api/matters'
+import { useMatterActions } from '@/api/matters'
 import type { FactOut } from '@/api/types'
-import { ActionCountTile } from '@/components/firm/ActionCountTile'
-import { ACTION_COLUMNS, ActionRow, type ActionStatus } from '@/components/firm/ActionRow'
+import { ActionRow, type ActionStatus } from '@/components/firm/ActionRow'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
-import { statuteDeadline } from '@/lib/facts'
-import { daysFromToday } from '@/lib/format'
-import { cn } from '@/lib/utils'
 
 /** Tasks still to do are upcoming; calendar entries and deadlines are scheduled. */
 function upcomingStatus(fact: FactOut): ActionStatus {
@@ -20,92 +16,72 @@ function upcomingStatus(fact: FactOut): ActionStatus {
 /** Rows shown before the table is expanded; a long tail of old record requests would bury the rest. */
 const COLLAPSED_ROWS = 8
 
-/** Counts for the three action groups and the statute, over one table of everything open. */
+/** One table of everything open. The counts and the statute are on the Overview's Now strip. */
 export function ActionBoard({ matterId }: { matterId: number }) {
   const actions = useMatterActions(matterId)
   const [expanded, setExpanded] = useState(false)
-  const deadlines = useMatterTimeline(matterId, 'deadline', '')
-  const statute = deadlines.data ? statuteDeadline(deadlines.data) : null
-  const statuteDays = statute ? daysFromToday(statute.due) : null
+  const rowsId = useId()
   // Overdue first, then what others owe the firm, then what is coming up.
   const rows: { fact: FactOut; status: ActionStatus }[] = actions.data
     ? [
         ...actions.data.overdue.map((fact) => ({ fact, status: 'Overdue' as const })),
-        ...actions.data.waiting_on_others.map((fact) => ({ fact, status: 'Waiting' as const })),
+        ...actions.data.waiting_on_others.map((fact) => ({ fact, status: 'Open request' as const })),
         ...actions.data.upcoming.map((fact) => ({ fact, status: upcomingStatus(fact) })),
       ]
     : []
   const shown = expanded ? rows : rows.slice(0, COLLAPSED_ROWS)
 
   return (
-    <Panel title="Action board" icon={<CalendarDays />} className="overflow-hidden">
+    <Panel title="Action board">
       {actions.isPending && (
-        <div className="space-y-3 pb-2" aria-label="Loading the action board">
-          <Skeleton className="h-24" />
+        <Loading label="Loading the action board" className="space-y-3 pb-2">
           <Skeleton className="h-12" />
           <Skeleton className="h-12" />
-        </div>
+        </Loading>
       )}
       {actions.isError && (
         <LoadError what="the action board" error={actions.error} onRetry={() => void actions.refetch()} />
       )}
       {actions.isSuccess && (
-        <>
-          <div className="grid grid-cols-4 gap-4 pt-1">
-            <ActionCountTile
-              Icon={CalendarX}
-              value={String(actions.data.overdue.length)}
-              label="Overdue"
-              tone="danger"
-            />
-            <ActionCountTile
-              Icon={CalendarDays}
-              value={String(actions.data.upcoming.length)}
-              label="Upcoming"
-              tone="info"
-            />
-            <ActionCountTile
-              Icon={Users}
-              value={String(actions.data.waiting_on_others.length)}
-              label="Waiting on others"
-              tone="warning"
-            />
-            <ActionCountTile
-              Icon={Hourglass}
-              value={statuteDays === null ? '—' : statuteDays < 0 ? 'Passed' : String(statuteDays)}
-              label="Days to SOL"
-              tone="neutral"
-            />
-          </div>
-          <div className="-mx-6 mt-6 -mb-4">
-            <div
-              className={cn(
-                ACTION_COLUMNS,
-                'border-y border-slate-100 bg-slate-50 px-6 py-3.5 text-sm font-semibold text-slate-700',
-              )}
-            >
-              <span>Task</span>
-              <span>Due date</span>
-              <span>Owner</span>
-              <span>Status</span>
-            </div>
-            <ul>
+        // A data table may scroll sideways on a narrow screen rather than reflow (WCAG 1.4.10).
+        <div className="-mx-6 -my-4 overflow-x-auto">
+          <table className="w-full min-w-[40rem] border-collapse text-left">
+            <caption className="sr-only">Open tasks, deadlines and record requests, overdue first</caption>
+            <thead>
+              <tr className="border-b bg-muted text-sm text-muted-foreground">
+                <th scope="col" className="w-[42%] px-6 py-3 font-semibold">
+                  Task
+                </th>
+                <th scope="col" className="w-[22%] px-3 py-3 font-semibold">
+                  Due date
+                </th>
+                <th scope="col" className="w-[16%] px-3 py-3 font-semibold">
+                  Owner
+                </th>
+                <th scope="col" className="py-3 pr-6 pl-3 font-semibold">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody id={rowsId}>
               {shown.map(({ fact, status }) => (
                 <ActionRow key={fact.id} fact={fact} status={status} />
               ))}
-            </ul>
-            {rows.length === 0 && <p className="px-6 py-4 text-sm text-muted-foreground">Nothing open on this matter.</p>}
-            {rows.length > COLLAPSED_ROWS && (
-              <button
-                type="button"
-                onClick={() => setExpanded((open) => !open)}
-                className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-slate-50"
-              >
-                {expanded ? 'Show fewer' : `Show all ${rows.length}`}
-              </button>
-            )}
-          </div>
-        </>
+            </tbody>
+          </table>
+          {rows.length === 0 && <p className="px-6 py-4 text-sm text-muted-foreground">Nothing open on this matter.</p>}
+          {rows.length > COLLAPSED_ROWS && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={rowsId}
+              onClick={() => setExpanded((open) => !open)}
+              className="w-full px-6 py-3.5 text-left text-sm font-medium text-primary hover:bg-muted focus-visible:-outline-offset-2"
+            >
+              {expanded ? 'Show fewer' : `Show all ${rows.length}`}
+            </button>
+          )}
+        </div>
       )}
     </Panel>
   )

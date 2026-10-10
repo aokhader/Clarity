@@ -74,6 +74,8 @@ class SourceType(StrEnum):
     CALENDAR_ENTRY = "calendar_entry"
     ACTIVITY = "activity"
     DOCUMENT = "document"
+    # Not a Clio record: a call placed from Clarity, whose transcript its notes cite.
+    CALL = "call"
 
 
 class FactKind(StrEnum):
@@ -102,6 +104,17 @@ class FactKind(StrEnum):
     # the KPI strip's medical specials total. No other kind can carry them.
     INCIDENT = "incident"
     MEDICAL_SPECIALS = "medical_specials"
+    # D20, D21: kept apart from medical specials and case value, which they used to
+    # be filed as. Economic damages are specials plus other losses (wages, for
+    # example); a recovery cap is a ceiling on what the case can collect.
+    ECONOMIC_DAMAGES = "economic_damages"
+    RECOVERY_CAP = "recovery_cap"
+    # A note taken from a call's transcript (Calls, D8). Internal by default-deny.
+    CALL_NOTE = "call_note"
+    # D41: something that happened in the lawsuit (a filing, service, an answer, a
+    # dismissal, an order, a deposition held), dated by when it happened. Internal by
+    # default-deny.
+    LITIGATION_EVENT = "litigation_event"
     OTHER = "other"
 
 
@@ -334,3 +347,160 @@ class OAuthToken(Base):
     access_token: Mapped[str]
     refresh_token: Mapped[str]
     expires_at: Mapped[datetime]
+
+
+class NotesStatus(StrEnum):
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    NO_MODEL = "no_model"  # the model settings are missing; the transcript stands alone
+
+
+class CallNumber(Base):
+    """A name and number typed into Clarity to call (D15). Stored here, never in Clio."""
+
+    __tablename__ = "call_numbers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    name: Mapped[str]
+    phone: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class Call(Base):
+    """A call placed from Clarity: whom, the consent wording confirmed, the transcript.
+
+    Lives only in Clarity's database (rule 1). When its notes are written, the
+    transcript becomes a `call` source, so each note cites it like any other record.
+    """
+
+    __tablename__ = "calls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    # The target as it stood when the call started (schemas.CallTargetOut).
+    target_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    consent_text: Mapped[str] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    ended_at: Mapped[datetime | None]
+    transcript: Mapped[str] = mapped_column(Text, default="")
+    transcript_final: Mapped[bool] = mapped_column(default=False)
+    notes_status: Mapped[NotesStatus] = mapped_column(
+        _enum_column(NotesStatus), default=NotesStatus.NOT_STARTED
+    )
+    notes_error: Mapped[str | None] = mapped_column(Text)
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"))
+
+
+class ChatStatus(StrEnum):
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    NO_MODEL = (
+        "no_model"  # the chat settings are missing; the question stands unanswered
+    )
+
+
+class ChatThread(Base):
+    """A conversation about one matter (D49), visible to the whole firm, never in Clio."""
+
+    __tablename__ = "chat_threads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    matter_id: Mapped[int] = mapped_column(index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+    # D52: when the thread was closed. The column keeps its D49 name, `archived_at`,
+    # because `upgrade_schema` rebuilds constraints but cannot rename a column. A
+    # thread is closed when it has a transcript: one archived before D52 has a time
+    # here but nothing frozen, so it counts as open until it is closed.
+    closed_at: Mapped[datetime | None] = mapped_column("archived_at")
+
+    turns: Mapped[list["ChatTurn"]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        order_by="ChatTurn.id",
+    )
+    transcript: Mapped["ChatTranscript | None"] = relationship(
+        back_populates="thread", cascade="all, delete-orphan"
+    )
+
+
+class ChatTurn(Base):
+    """One question and its checked answer.
+
+    `items_json` holds the item refs as the client sent them, ids only; the server
+    resolves them again each time the turn is served. `answer_json` holds the
+    sentences and the fact ids each cites, never a verdict: verdicts are computed
+    against today's file when the turn is served (D12).
+    """
+
+    __tablename__ = "chat_turns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True
+    )
+    matter_id: Mapped[int] = mapped_column(index=True)
+    asked_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    question: Mapped[str] = mapped_column(Text)
+    items_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    status: Mapped[ChatStatus] = mapped_column(
+        _enum_column(ChatStatus), default=ChatStatus.RUNNING
+    )
+    # {sentences: [{text, fact_ids, not_in_file}], no_answer, dropped}
+    answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Every fact id the model was shown, so a later reader can audit the answer.
+    context_fact_ids_json: Mapped[list[int] | None] = mapped_column(JSON)
+    llm_call_id: Mapped[int | None] = mapped_column(
+        ForeignKey("llm_calls.id", ondelete="SET NULL")
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[datetime | None]
+
+    thread: Mapped[ChatThread] = relationship(back_populates="turns")
+
+
+class ChatTranscript(Base):
+    """A closed thread, frozen (D52): the record of what was said, kept by the firm.
+
+    `turns_json` holds the thread's turns exactly as they were served when it closed
+    (`ChatTurnOut`, with verdicts, mentions, chips and the withdrawn count), so a closed
+    thread is never checked again against a later file. `text` is the same record as a
+    plain-text transcript, written in code (`services/chat_transcript.py`).
+    """
+
+    __tablename__ = "chat_transcripts"
+
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), primary_key=True
+    )
+    closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    closed_at: Mapped[datetime]
+    turns_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    text: Mapped[str] = mapped_column(Text)
+
+    thread: Mapped[ChatThread] = relationship(back_populates="transcript")
+
+
+class ChatFrozenSource(Base):
+    """A source a closed thread cites, as the drawer served it when the thread closed
+    (D54): a `FactSourceOut` with `source.pages` cut to the cited page.
+
+    A re-read replaces fact ids, so a closed thread's chips open this copy rather than
+    today's fact. `fact_id` has no foreign key for that reason: the copy must outlive
+    the fact it was taken from.
+    """
+
+    __tablename__ = "chat_frozen_sources"
+
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("chat_threads.id", ondelete="CASCADE"), primary_key=True
+    )
+    fact_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    source_json: Mapped[dict[str, Any]] = mapped_column(JSON)

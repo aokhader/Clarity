@@ -119,10 +119,8 @@ def draft_share(
     )
 
 
-def create_share(
-    session: Session, matter_id: int, body: ShareCreate, user: User, now: datetime
-) -> Share:
-    share = draft_share(session, matter_id, body, now)
+def save_share(session: Session, share: Share, user: User) -> Share:
+    """Store a share built by `draft_share`, as created by `user`."""
     share.created_by = user.id
     session.add(share)
     session.commit()
@@ -153,8 +151,8 @@ def list_shares(session: Session, matter_id: int) -> list[Share]:
     )
 
 
-def update_share(session: Session, share: Share, body: ShareUpdate) -> Share:
-    """Change only the fields present in the request body."""
+def apply_update(share: Share, body: ShareUpdate) -> Share:
+    """Change only the fields present in the request body; the caller commits."""
     if share.revoked_at is not None:
         raise ShareRevoked(f"share {share.id} is revoked; create a new one")
     fields = body.model_fields_set
@@ -168,7 +166,6 @@ def update_share(session: Session, share: Share, body: ShareUpdate) -> Share:
         if body.expires_at is not None and body.expires_at.tzinfo is None:
             raise InvalidShareUpdate("expires_at needs a time zone offset")
         share.expires_at = body.expires_at
-    session.commit()
     return share
 
 

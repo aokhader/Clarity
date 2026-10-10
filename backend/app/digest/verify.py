@@ -23,6 +23,7 @@ SECOND_READ_KINDS = {
     FactKind.OFFER,
     FactKind.SETTLEMENT,
     FactKind.DEADLINE,
+    FactKind.LITIGATION_EVENT,
 }
 # Kinds that describe something that has already happened, so a future date is wrong.
 PAST_TENSE_KINDS = {
@@ -37,6 +38,8 @@ PAST_TENSE_KINDS = {
     FactKind.EXPENSE,
     FactKind.CLIENT_CONTACT,
     FactKind.STATUS_CHANGE,
+    # A hearing or deposition still to come is a deadline, not a litigation event.
+    FactKind.LITIGATION_EVENT,
 }
 _QUOTE_CHARS = str.maketrans(
     {"‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-", " ": " "}
@@ -68,6 +71,38 @@ def quote_in_text(quote: str | None, text: str) -> bool:
     if not quote or not quote.strip():
         return False
     return normalize(quote) in normalize(text)
+
+
+def find_quote(quote: str | None, text: str) -> tuple[int, int] | None:
+    """Where a quote sits in the text, matched as `quote_in_text` matches it.
+
+    Returns (start, end) offsets into the original text, so a reader can be shown the
+    words as written, or None when the quote is not there.
+    """
+    if not quote or not quote.strip():
+        return None
+    # The text normalized one character at a time, remembering where each came from.
+    flat: list[str] = []
+    origin: list[int] = []
+    gap = False
+    for index, char in enumerate(text):
+        for piece in (
+            unicodedata.normalize("NFKC", char).translate(_QUOTE_CHARS).lower()
+        ):
+            if piece.isspace():
+                gap = bool(flat)
+                continue
+            if gap:
+                flat.append(" ")
+                origin.append(index)
+                gap = False
+            flat.append(piece)
+            origin.append(index)
+    target = normalize(quote)
+    at = "".join(flat).find(target)
+    if at < 0:
+        return None
+    return origin[at], origin[at + len(target) - 1] + 1
 
 
 @dataclass

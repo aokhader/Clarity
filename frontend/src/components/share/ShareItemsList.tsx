@@ -3,7 +3,9 @@ import { Eye, EyeOff } from 'lucide-react'
 import type { ShareItemOut } from '@/api/types'
 import { SETTING_LABELS } from '@/components/share/shareSettings'
 import { Button } from '@/components/ui/button'
+import { factsRef } from '@/lib/askItems'
 import { formatDate } from '@/lib/format'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 type ShareItemsListProps = {
@@ -13,6 +15,7 @@ type ShareItemsListProps = {
 
 /** Every fact the enabled sections release, each with a control to hold it back. */
 export function ShareItemsList({ items, onToggle }: ShareItemsListProps) {
+  const askTarget = useAskTargetProps()
   return (
     <section aria-labelledby="share-items-heading">
       <h3 id="share-items-heading" className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -23,7 +26,7 @@ export function ShareItemsList({ items, onToggle }: ShareItemsListProps) {
       ) : (
         <ul className="divide-y rounded-md border">
           {items.map((item) => (
-            <li key={item.fact_id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
+            <li key={item.fact_id} {...askTarget(factsRef([{ id: item.fact_id }]), 'fact')} className="flex items-center gap-2 px-2 py-1.5 text-sm">
               <div className={cn('min-w-0 flex-1', item.hidden && 'text-muted-foreground line-through')}>
                 <p className="truncate">{item.title}</p>
                 <p className="text-xs text-muted-foreground no-underline">

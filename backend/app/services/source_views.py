@@ -13,7 +13,7 @@ from app.models import Fact, Page, Source, SourceType
 from app.schemas import (
     PAYLOAD_BY_KIND,
     FactSourceOut,
-    PageRef,
+    FirmPageOut,
     SourceFieldOut,
     SourceOut,
     SourceSectionOut,
@@ -132,6 +132,8 @@ def _matter(raw: RawMatter) -> _Readable:
             _field("Client", _name(raw.client)),
             _field("Practice area", _name(raw.practice_area)),
             _field("Stage", stage),
+            # The time a dated stage chip gives, so its drawer shows it (D53).
+            _date_field("Stage last changed in Clio", raw.matter_stage_updated_at),
             _field("Status", raw.status),
             _field("Responsible attorney", _name(raw.responsible_attorney)),
             _date_field("Opened", raw.open_date),
@@ -189,6 +191,11 @@ def _readable(source: Source) -> _Readable:
         case SourceType.DOCUMENT:
             document = RawDocument.model_validate(raw)
             return _Readable(document.name or document.filename, None, None, None)
+        case SourceType.CALL:
+            # A call placed from Clarity: its notes quote this transcript.
+            name = raw.get("name") or "a contact"
+            started = source.clio_created_at.date() if source.clio_created_at else None
+            return _Readable(f"Call with {name}", started, None, raw.get("transcript"))
         case SourceType.RELATIONSHIP:
             relationship = RawRelationship.model_validate(raw)
             contact = _name(relationship.contact)
@@ -198,9 +205,74 @@ def _readable(source: Source) -> _Readable:
             return _Readable(RawContact.model_validate(raw).name, None, None, None)
 
 
+# Each record type as the drawer labels it (the frontend's `SOURCE_LABELS`).
+SOURCE_WORDS: dict[SourceType, str] = {
+    SourceType.MATTER: "Matter",
+    SourceType.CUSTOM_FIELD: "Field",
+    SourceType.CONTACT: "Contact",
+    SourceType.RELATIONSHIP: "Contact",
+    SourceType.NOTE: "Note",
+    SourceType.COMMUNICATION: "Email",
+    SourceType.TASK: "Task",
+    SourceType.CALENDAR_ENTRY: "Calendar",
+    SourceType.ACTIVITY: "Expense",
+    SourceType.DOCUMENT: "Doc",
+    SourceType.CALL: "Call",
+}
+
+
+def source_name(source: Source, page_no: int | None = None) -> str:
+    """A record as the drawer names it: its type, its title when it has one, and the
+    cited page, e.g. "Doc: <title>, p. 2". Used where a chip cannot be clicked, such
+    as a downloaded transcript (D52)."""
+    word = SOURCE_WORDS.get(source.clio_type, "Record")
+    title = _readable(source).title
+    name = f"{word}: {' '.join(title.split())}" if title and title.strip() else word
+    return f"{name}, p. {page_no}" if page_no is not None else name
+
+
+def source_text(source: Source) -> str | None:
+    """A record's readable text (a note's, an email's, a call's transcript), or None for
+    a document, whose text is on its pages."""
+    return _readable(source).text
+
+
+def source_date(source: Source) -> date | None:
+    """The day a record is about (a document's own date), else the day it was created
+    in Clio."""
+    return record_date(source) or _readable(source).occurred_on or _created(source)
+
+
+# Records whose drawer date is the record's own: a note's or an email's date, a
+# calendar entry's start, a ledger entry's day, the day a call was placed.
+_DATED_BY_ITSELF = {
+    SourceType.NOTE,
+    SourceType.COMMUNICATION,
+    SourceType.CALENDAR_ENTRY,
+    SourceType.ACTIVITY,
+    SourceType.CALL,
+}
+
+
+def record_date(source: Source) -> date | None:
+    """The date a record carries as its own, as the drawer shows it, or None.
+
+    A document's is its own date in Clio, never the upload. A matter's opening and a
+    task's due date are not the record's date: they are what its facts state."""
+    if source.clio_type is SourceType.DOCUMENT:
+        return _day(RawDocument.model_validate(source.raw_json).received_at)
+    if source.clio_type in _DATED_BY_ITSELF:
+        return _readable(source).occurred_on
+    return None
+
+
+def _created(source: Source) -> date | None:
+    return source.clio_created_at.date() if source.clio_created_at else None
+
+
 def source_out(session: Session, source: Source) -> SourceOut:
     readable = _readable(source)
-    pages: list[PageRef] = []
+    pages: list[FirmPageOut] = []
     if source.clio_type is SourceType.DOCUMENT:
         rendered = session.scalars(
             select(Page)
@@ -208,12 +280,18 @@ def source_out(session: Session, source: Source) -> SourceOut:
             .order_by(Page.page_no)
         )
         pages = [
-            PageRef(
-                page_id=p.id, page_no=p.page_no, image_url=f"/api/pages/{p.id}/image"
+            FirmPageOut(
+                page_id=p.id,
+                page_no=p.page_no,
+                image_url=f"/api/pages/{p.id}/image",
+                text=p.text if p.text and p.text.strip() else None,
             )
             for p in rendered
         ]
     created = source.clio_created_at.date() if source.clio_created_at else None
+    document_date = None
+    if source.clio_type is SourceType.DOCUMENT:
+        document_date = _day(RawDocument.model_validate(source.raw_json).received_at)
     return SourceOut(
         source_id=source.id,
         source_type=source.clio_type,
@@ -223,6 +301,7 @@ def source_out(session: Session, source: Source) -> SourceOut:
         text=readable.text,
         pages=pages,
         sections=list(readable.sections),
+        document_date=document_date,
     )
 
 

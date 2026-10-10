@@ -1,38 +1,37 @@
-import { useId, type ReactNode } from 'react'
+import { useId, type ReactNode, type Ref } from 'react'
 
 import { cn } from '@/lib/utils'
 
 type PanelProps = {
   title: string
-  /** A lucide icon shown before the title. */
-  icon?: ReactNode
+  /** h2 under a page's h1; h3 where the panel sits inside a section that has its own h2. */
+  level?: 2 | 3
   /** Shown beside the title, for example an item count. */
   aside?: ReactNode
   /** Controls on the right of the heading row. */
   actions?: ReactNode
   className?: string
+  /** Given when focus is sent to the heading, for example after an action replaces the panel's content. */
+  headingRef?: Ref<HTMLHeadingElement>
   children: ReactNode
 }
 
-/** A titled section: a white card with an icon heading over a hairline rule. */
-export function Panel({ title, icon, aside, actions, className, children }: PanelProps) {
+/** A titled section: an ivory surface with a hairline border, its heading over a hairline rule. */
+export function Panel({ title, level = 2, aside, actions, className, headingRef, children }: PanelProps) {
   const headingId = useId()
+  const Heading = level === 2 ? 'h2' : 'h3'
   return (
-    <section aria-labelledby={headingId} className={cn('rounded-2xl border bg-card shadow-xs', className)}>
+    <section aria-labelledby={headingId} className={cn('rounded-xl border bg-card', className)}>
       <header className="mx-6 flex items-center justify-between gap-3 border-b pt-5 pb-3.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {icon !== undefined && (
-            <span aria-hidden className="flex text-primary [&_svg]:size-[1.15rem]">
-              {icon}
-            </span>
-          )}
-          <h2 id={headingId} className="text-lg font-bold text-foreground">
-            {title}
-            {aside !== undefined && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">{aside}</span>
-            )}
-          </h2>
-        </div>
+        <Heading
+          id={headingId}
+          ref={headingRef}
+          tabIndex={headingRef ? -1 : undefined}
+          className="min-w-0 text-lg font-semibold text-foreground focus:outline-none"
+        >
+          {title}
+          {aside !== undefined && <span className="ml-2 text-sm font-normal text-muted-foreground">{aside}</span>}
+        </Heading>
         {actions}
       </header>
       <div className="px-6 py-4">{children}</div>

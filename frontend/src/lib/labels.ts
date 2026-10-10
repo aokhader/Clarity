@@ -1,4 +1,4 @@
-import type { CaseStage, FactKind, SourceType, WaitingOn } from '@/api/types'
+import type { CaseStage, FactKind, LitigationEventType, SourceType, WaitingOn } from '@/api/types'
 
 export const KIND_LABELS: Record<FactKind, string> = {
   case_stage: 'Stage',
@@ -24,6 +24,10 @@ export const KIND_LABELS: Record<FactKind, string> = {
   party: 'Party',
   incident: 'Incident',
   medical_specials: 'Specials',
+  economic_damages: 'Economic damages',
+  recovery_cap: 'Recovery cap',
+  call_note: 'Call note',
+  litigation_event: 'Litigation',
   other: 'Other',
 }
 
@@ -38,6 +42,7 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
   calendar_entry: 'Calendar',
   activity: 'Expense',
   document: 'Doc',
+  call: 'Call',
 }
 
 export const STAGE_LABELS: Record<CaseStage, string> = {
@@ -49,6 +54,68 @@ export const STAGE_LABELS: Record<CaseStage, string> = {
   litigation: 'Litigation',
   settled: 'Settled',
   closed: 'Closed',
+}
+
+/** The stage track's five steps, in order; each is named by its STAGE_LABELS entry. */
+export const STAGE_STEPS = ['intake', 'treating', 'demand', 'negotiation', 'litigation'] as const satisfies readonly CaseStage[]
+
+/**
+ * Where each stage sits on the track, from 1 to STAGE_STEPS.length. A finished treatment
+ * is still the treating step. Settled and closed are past the last step: the whole
+ * track is done, and they are named by their own label, not by a step number.
+ */
+export const STEP_OF_STAGE: Record<CaseStage, number | 'past_end'> = {
+  intake: 1,
+  treating: 2,
+  treatment_complete: 2,
+  demand: 3,
+  negotiation: 4,
+  litigation: 5,
+  settled: 'past_end',
+  closed: 'past_end',
+}
+
+/** The three lanes a key event belongs to; the word carries the meaning, the dot only echoes it. */
+export type Lane = 'case' | 'treatment' | 'negotiation'
+
+export const LANE_LABELS: Record<Lane, string> = {
+  case: 'Case',
+  treatment: 'Treatment',
+  negotiation: 'Negotiation',
+}
+
+const KIND_LANE: Partial<Record<FactKind, Lane>> = {
+  incident: 'case',
+  status_change: 'case',
+  coverage: 'case',
+  deadline: 'case',
+  records_received: 'case',
+  litigation_event: 'case',
+  diagnosis: 'treatment',
+  treatment_visit: 'treatment',
+  demand: 'negotiation',
+  offer: 'negotiation',
+  settlement: 'negotiation',
+}
+
+/** A fact's lane on the story so far; a kind with no lane of its own is the case's. */
+export function laneOf(kind: FactKind): Lane {
+  return KIND_LANE[kind] ?? 'case'
+}
+
+/** A court event named by its type alone: short and neutral, unlike the model's title. */
+export const LITIGATION_EVENT_LABELS: Record<LitigationEventType, string> = {
+  filed: 'Filed',
+  served: 'Served',
+  answered: 'Answered',
+  dismissed: 'Dismissed',
+  renewed: 'Renewed',
+  motion: 'Motion',
+  order: 'Order',
+  hearing: 'Hearing',
+  deposition: 'Deposition',
+  trial: 'Trial',
+  other: 'Court event',
 }
 
 export const WAITING_ON_LABELS: Record<WaitingOn, string> = {

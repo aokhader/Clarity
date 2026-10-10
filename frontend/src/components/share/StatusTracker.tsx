@@ -8,19 +8,19 @@ import { cn } from '@/lib/utils'
 
 /** The canonical stages in order, with the current one marked. Earlier stages are not
  * ticked off: a case can skip one, and a tick would claim it happened. */
-export function StatusTracker({ status }: { status: ProviderStatusOut }) {
+export function StatusTracker({ status, level }: { status: ProviderStatusOut; level: 2 | 3 }) {
   return (
-    <Panel title="Case status">
+    <Panel title="Case status" level={level}>
       <ol aria-label="Case stages" className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
         {status.stages.map((stage, index) => {
           const current = stage === status.current
           return (
             <li key={stage} className="flex items-center gap-1" aria-current={current ? 'step' : undefined}>
-              {index > 0 && <ChevronRight aria-hidden className="size-3.5 text-muted-foreground/60" />}
+              {index > 0 && <ChevronRight aria-hidden className="size-3.5 text-muted-foreground" />}
               <span
                 className={cn(
                   'rounded-md px-2 py-1',
-                  current ? 'border border-foreground/30 bg-card font-semibold' : 'text-muted-foreground',
+                  current ? 'border border-input bg-card font-semibold' : 'text-muted-foreground',
                 )}
               >
                 {STAGE_LABELS[stage]}

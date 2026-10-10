@@ -7,12 +7,14 @@ no changes makes zero model calls: every request is answered from the cache.
 
 import logging
 from collections import Counter
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.digest import llm
 from app.digest.extract import extract_all
 from app.digest.llm import ModelsNotConfigured
 from app.digest.mapping import build_mapping
@@ -39,7 +41,18 @@ def synced_matter_id(session: Session, matter_id: int | None = None) -> int:
     return int(ids[0])
 
 
-def run_digest(session: Session, matter_id: int) -> DigestRun:
+def run_digest(
+    session: Session,
+    matter_id: int,
+    retry_failed: bool = False,
+    *,
+    write_brief: bool = True,
+) -> DigestRun:
+    """Digest one matter. Calls that failed before are asked again only on request.
+
+    `write_brief=False` keeps the stored brief, for a re-read of a few pages whose facts
+    the brief does not cite; the next full digest writes it again.
+    """
     run = DigestRun(matter_id=matter_id)
     session.add(run)
     session.commit()
@@ -47,20 +60,25 @@ def run_digest(session: Session, matter_id: int) -> DigestRun:
     stats: dict[str, Any] = {}
     errors: list[str] = []
     try:
-        stats["structured"] = dict(build_structured_facts(session, matter_id))
-        stats["pages"] = dict(build_pages(session, matter_id))
-        mapping = build_mapping(session, matter_id)
-        stats["extract"] = dict(extract_all(session, matter_id, mapping))
-        stats["merge"] = dict(merge(session, matter_id))
+        with llm.retrying_failed_calls() if retry_failed else nullcontext():
+            stats["structured"] = dict(build_structured_facts(session, matter_id))
+            stats["pages"] = dict(build_pages(session, matter_id))
+            mapping = build_mapping(session, matter_id)
+            # The previous mapping stood in for a failed call; the run says so.
+            errors.extend(mapping.errors)
+            stats["extract"] = dict(extract_all(session, matter_id, mapping))
+            stats["merge"] = dict(merge(session, matter_id, brief=write_brief))
     except ModelsNotConfigured as error:
         session.rollback()
         errors.append(str(error))
     except Exception as error:
         # Record the failure so the run does not look unfinished forever, then raise.
         session.rollback()
-        _finish(session, run, stats, first_call_id, f"{type(error).__name__}: {error}")
+        _finish(
+            session, run, stats, first_call_id, [f"{type(error).__name__}: {error}"]
+        )
         raise
-    _finish(session, run, stats, first_call_id, "; ".join(errors) or None)
+    _finish(session, run, stats, first_call_id, errors)
     log.info("Digest finished: %s", stats["model_calls"])
     return run
 
@@ -70,12 +88,22 @@ def _finish(
     run: DigestRun,
     stats: dict[str, Any],
     first_call_id: int,
-    error: str | None,
+    errors: list[str],
 ) -> None:
-    stats["model_calls"] = _call_counts(session, first_call_id)
+    calls = _call_counts(session, first_call_id)
+    stats["model_calls"] = calls
+    if calls.get("errors"):
+        # A failed call's input was skipped, and stays skipped until it is retried.
+        errors = [
+            *errors,
+            (
+                f"{calls['errors']} model calls failed, so their inputs were skipped; "
+                "run `cli digest --retry-failed` to ask again"
+            ),
+        ]
     run.finished_at = datetime.now(UTC)
     run.stats_json = stats
-    run.error = error[:2000] if error else None
+    run.error = "; ".join(errors)[:2000] or None
     session.commit()
 
 

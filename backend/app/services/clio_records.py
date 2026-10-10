@@ -35,12 +35,22 @@ class RawMatter(BaseModel):
     responsible_attorney: Named | None = None
     practice_area: Named | None = None
     matter_stage: Named | None = None
+    # When Clio last set the stage. It equals `created_at` on a record whose stage was
+    # never moved, so only the digest decides whether it dates a stage move (D53).
+    matter_stage_updated_at: dt.datetime | None = None
     custom_field_values: list[CustomFieldValue] = []
+
+
+class RawPhoneNumber(BaseModel):
+    number: str | None = None
+    name: str | None = None  # Work, Personal or Other
 
 
 class RawContact(BaseModel):
     name: str | None = None
     avatar: Url | None = None
+    # Absent when the sync fell back to its short field list.
+    phone_numbers: list[RawPhoneNumber] = []
 
 
 class RawNote(BaseModel):
@@ -84,6 +94,9 @@ class RawActivity(BaseModel):
 class RawDocument(BaseModel):
     name: str | None = None
     filename: str | None = None
+    # The document's own date in Clio, as against `created_at`, the upload. Synced only
+    # once DOCUMENT_FIELDS asks for it.
+    received_at: dt.datetime | None = None
 
 
 class RawRelationship(BaseModel):

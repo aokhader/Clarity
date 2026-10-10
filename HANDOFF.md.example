@@ -1,0 +1,9 @@
+# Handoff: {{role}}, {{HH:MM}}
+
+Copy to HANDOFF.md (gitignored) before clearing a session's context or ending it. The next session for this role reads it in /kickoff.
+
+- **Done:** {{what works now, with commit hashes}}
+- **In progress:** {{what is half-done, which files, what state they are in}}
+- **Next:** {{the next concrete step}}
+- **Gotchas:** {{what surprised you; commands that must be run first}}
+- **Waiting on:** {{role and what}}

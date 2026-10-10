@@ -4,11 +4,11 @@ These rules exist because the build window is six hours, the repository is read 
 
 ## Each session
 
-1. Read `docs/progress.md` and your track file in `docs/tracks/` first. They say what is done, what is next, and what is blocked.
-2. Take the next unchecked item in your track unless told otherwise. Finish and verify it before starting another.
+1. Start with `/kickoff <role>`, which reads your role file, `PLAN.md`, `STATUS.md` and `DECISIONS.md`. They say what is done, what is next, and what is blocked.
+2. Take the next open item in `PLAN.md` that your role owns, unless told otherwise. Finish and verify it before starting another.
 3. Before working in an area, read its context file (the table is in `CLAUDE.md`).
-4. When an item is done, update your track file in the same commit: check the box, move the "Now" line, and record any shortcut. `docs/progress.md` holds shared state and changes only at sync points.
-5. Keep the track file current enough that the conversation can be cleared at any point without losing state.
+4. When an item is done, tick it in `PLAN.md` if you are the lead, or say so in your STATUS row, and record any shortcut in the STATUS stubs list. Use `/status`.
+5. Before your context is cleared, write `HANDOFF.md` from `HANDOFF.md.example`, so the next session for your role loses nothing.
 
 ## How to build
 
@@ -20,9 +20,9 @@ These rules exist because the build window is six hours, the repository is read 
 
 ## Time discipline
 
-- Each item has a budget in its track file. If an item is taking twice its budget, stop and report the options: simplify, cut, or continue.
-- Scope cuts follow the tiers in `docs/project.md`, bottom first.
-- After 3:15 PM PT make no new features. Only fixes, the README, and submission material.
+- Each item has a budget in `PLAN.md`. If an item is taking twice its budget, stop and report the options: simplify, cut, or continue.
+- Scope cuts follow the cut order in `PLAN.md`.
+- After the freeze time in `PLAN.md` make no new features. Only fixes, the README, and checks.
 
 ## Decide or ask
 
@@ -30,8 +30,8 @@ Proceed without asking when the choice is local and reversible: naming, file pla
 
 Stop and ask before:
 
-- changing any contract file after M0 (the list is in `docs/parallel.md`)
-- editing a path another track owns
+- changing or removing a field in the contract (`schemas.py` and `types.ts`); adding one is backend's call
+- editing a path another role owns (`.claude/ownership.json`)
 - adding a dependency that is not in the stack list
 - changing a visibility rule or the provider payload
 - cutting or adding a feature
@@ -55,9 +55,9 @@ Never make a feature appear to work by writing its expected output into the code
 
 ## Parallel work
 
-Three people work three tracks at once after M0. The rules that keep that safe are in `docs/parallel.md`. In short:
+Several agent roles work at once in one checkout, on the `kit-trial` branch. The hackathon's track rules are history (`docs/parallel.md`). Now:
 
-- Edit only the paths your track owns.
-- Contract files are frozen after M0. A change needs the team's agreement and one commit that updates every mirror.
-- Work on `main`, commit small, and run `git pull --rebase` before every push.
-- Tracks B and C run on the synthetic seed until Track A publishes a snapshot, then on the snapshot. Snapshots hold real case data and are never committed.
+- Edit only the paths your role owns in `.claude/ownership.json`, plus your row in `STATUS.md`.
+- Commit only your own paths with `git commit -m "..." -- <paths>`. Never `git add -A`. If git reports `index.lock`, wait a few seconds and retry.
+- The contract is versioned by backend, not frozen: a change updates `schemas.py` and `types.ts` in one commit and is announced in STATUS.
+- Everyone works on the real matter in `data/app.db`, which is gitignored and never committed. Re-syncing or re-digesting needs the Manager's go-ahead, since it costs money.

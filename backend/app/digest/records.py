@@ -13,7 +13,15 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, Origin, Source, SourceType, Visibility
+from app.models import (
+    Confidence,
+    Fact,
+    FactKind,
+    Origin,
+    Source,
+    SourceType,
+    Visibility,
+)
 
 # Kinds a share setting can ever release (docs/architecture.md). Anything else is
 # internal. The provider filter in services/visibility.py is the real boundary; this
@@ -85,6 +93,32 @@ def mark_processed(source: Source) -> None:
     source.content_hash = record_hash(source)
 
 
+# Quotes are capped at the length the extraction prompts ask for.
+QUOTE_LIMIT = 300
+
+MONTHS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def display_date(day: date | None) -> str | None:
+    """Mar 4, 2021: the way the app writes a date, so text from code matches the page."""
+    if day is None:
+        return None
+    return f"{MONTHS[day.month - 1]} {day.day}, {day.year}"
+
+
 def parse_date(value: Any) -> date | None:
     if not value:
         return None
@@ -99,26 +133,11 @@ def parse_date(value: Any) -> date | None:
         return None
 
 
-def custom_field_value(raw: dict[str, Any]) -> str:
-    option = raw.get("picklist_option")
-    if isinstance(option, dict) and option.get("option"):
-        return str(option["option"])
-    value = raw.get("value")
-    if isinstance(value, dict):
-        return name_of(value) or json.dumps(value)
-    return "" if value is None else str(value)
-
-
-def custom_field_name(raw: dict[str, Any]) -> str:
-    return str(
-        raw.get("field_name")
-        or name_of(raw.get("custom_field"))
-        or f"Field {raw.get('id')}"
-    )
-
-
 def record_text(source: Source) -> str:
-    """The text a model reads for one note, communication, or custom field."""
+    """The text a model reads for one note or communication.
+
+    Custom fields are read as one record that the mapping builds (`mapping.py`).
+    """
     raw = source.raw_json
     if source.clio_type is SourceType.NOTE:
         return "\n".join(
@@ -146,15 +165,20 @@ def record_text(source: Source) -> str:
                 clean_text(raw.get("body")),
             ]
         )
-    if source.clio_type is SourceType.CUSTOM_FIELD:
-        return "\n".join(
-            [
-                "Type: matter custom field",
-                f"Field: {custom_field_name(raw)}",
-                f"Value: {custom_field_value(raw)}",
-            ]
-        )
     return clean_text(json.dumps(raw, default=str))
+
+
+def code_fact(kind: FactKind, title: str, quote: str, **values: Any) -> Fact:
+    return Fact(
+        kind=kind,
+        title=title[:120],
+        quote=quote[:QUOTE_LIMIT],
+        confidence=Confidence.HIGH,
+        verified=True,
+        significance=0,
+        mentions_strategy=values.pop("mentions_strategy", False),
+        **values,
+    )
 
 
 def visibility_for(kind: FactKind, mentions_strategy: bool) -> Visibility:

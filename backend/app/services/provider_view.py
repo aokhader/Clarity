@@ -2,31 +2,30 @@
 
 The firm's preview and the provider's own link both call `provider_payload`, so the
 preview cannot drift from what the provider gets. Case-level sections carry labels
-written here or by the pipeline as neutral wording (`status_change.label`), never a
-case-level fact's title, which may paraphrase an internal note. A provider may open
-only the cited document page of their own bill or record.
+written here in code: never a case-level fact's title, which may paraphrase an
+internal note, and never a status change's own wording, which may tell what the firm
+keeps (D41). A provider may open only the cited document page of their own bill or
+record.
 """
 
 from collections import defaultdict
 from datetime import date, datetime
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, Page, Share, Source, SourceType
+from app.models import Fact, FactKind, Share, Source, SourceType
 from app.schemas import (
     BillPayload,
     CaseStage,
     CaseStagePayload,
     CoveragePayload,
-    PageRef,
     PolicyLimitPayload,
     ProviderBillsTotalOut,
     ProviderCoverageOut,
+    ProviderItemKind,
     ProviderItemOut,
     ProviderPayload,
-    ProviderSourceOut,
     ProviderStatusOut,
     ProviderTreatmentOut,
     ProviderUpdateOut,
@@ -39,28 +38,44 @@ from app.schemas import (
 from app.services import shares
 from app.services.bills import CountedBills, count_bills
 from app.services.clio_records import RawMatter
+from app.services.draft_check import check_text
 from app.services.providers import distinct_requests
-from app.services.source_views import page_image_path
+from app.services.share_values import shown_values, withheld_values
 from app.services.visibility import (
-    SOURCE_SETTINGS,
     released_facts,
     share_is_live,
     visible_facts_for_share,
 )
 
 _ENDED_STAGES = {CaseStage.SETTLED, CaseStage.CLOSED}
-_LIMIT_LABELS = {
-    "person": "Policy limit per person",
-    "occurrence": "Policy limit per occurrence",
+# D35: a bills-and-liens item names its kind, read only from the two kinds that
+# setting releases. Any other kind gets no name, so an internal fact never lends one.
+ITEM_KIND_BY_FACT_KIND: dict[FactKind, ProviderItemKind] = {
+    FactKind.MEDICAL_BILL: "bill",
+    FactKind.LIEN: "lien",
 }
+# A case update names only the stage the case moved to (D41), in these words.
+_STAGE_MOVES: dict[CaseStage, str] = {
+    CaseStage.INTAKE: "Case opened",
+    CaseStage.TREATING: "Moved to treatment",
+    CaseStage.TREATMENT_COMPLETE: "Treatment complete",
+    CaseStage.DEMAND: "Moved to demand",
+    CaseStage.NEGOTIATION: "Moved to negotiation",
+    CaseStage.LITIGATION: "Moved to litigation",
+    CaseStage.SETTLED: "Case settled",
+    CaseStage.CLOSED: "Case closed",
+}
+# The only limits a link releases are the defendant's liability limits (D37).
+_LIMIT_LABELS: dict[str | None, str] = {
+    "person": "Liability limit per person",
+    "occurrence": "Liability limit per occurrence",
+    None: "Liability limit",
+}
+_LIMIT_ORDER = list(_LIMIT_LABELS)
 
 
 class ShareGone(Exception):
     """The share is expired or revoked: the provider gets a plain message and no data."""
-
-
-class NotVisible(LookupError):
-    """The share does not release this fact or page."""
 
 
 def _chronological(facts: list[Fact]) -> list[Fact]:
@@ -75,7 +90,7 @@ def _latest(facts: list[Fact]) -> Fact | None:
     )
 
 
-def _has_cited_page(fact: Fact) -> bool:
+def has_cited_page(fact: Fact) -> bool:
     return fact.source.clio_type is SourceType.DOCUMENT and fact.page_no is not None
 
 
@@ -103,21 +118,60 @@ def _status(facts: list[Fact], matter: RawMatter | None) -> ProviderStatusOut:
         stages=list(CaseStage),
         current=current,
         active=active,
-        last_movement_on=max(
-            (f.event_date for f in facts if f.event_date), default=None
-        ),
+        last_movement_on=_last_movement(facts, current),
+    )
+
+
+def _last_movement(facts: list[Fact], current: CaseStage | None) -> date | None:
+    """When the case last moved, from the case events this link shows, or None.
+
+    A dated move into the current stage answers it. Failing that, the latest dated
+    event answers it only when every status change is dated: an undated change may be
+    the latest, and dating the case from an older event would say nothing has happened
+    since (critic Pass 2, finding 4).
+    """
+    events = [f for f in facts if _is_case_event(f)]
+    into_current = [
+        f.event_date for f in events if f.event_date and _stage_of(f) == current
+    ]
+    if current is not None and into_current:
+        return max(into_current)
+    changes = [f for f in events if f.kind is FactKind.STATUS_CHANGE]
+    if any(f.event_date is None for f in changes):
+        return None
+    return max((f.event_date for f in events if f.event_date), default=None)
+
+
+def _stage_of(fact: Fact) -> CaseStage | None:
+    """The stage a case event moved the case to, when it says."""
+    if fact.kind is FactKind.STATUS_CHANGE:
+        return StatusChangePayload.model_validate(fact.value_json).to_stage
+    return CaseStagePayload.model_validate(fact.value_json).stage
+
+
+def _is_case_event(fact: Fact) -> bool:
+    """A stage mapped from Clio's matter record is dated by the record's last edit,
+    which is not something that happened in the case."""
+    return not (
+        fact.kind is FactKind.CASE_STAGE and fact.source.clio_type is SourceType.MATTER
     )
 
 
 def _updates(facts: list[Fact]) -> list[ProviderUpdateOut]:
-    changes = [f for f in facts if f.kind is FactKind.STATUS_CHANGE]
-    return [
-        ProviderUpdateOut(
-            on=f.event_date,
-            label=StatusChangePayload.model_validate(f.value_json).label,
-        )
-        for f in reversed(_chronological(changes))
-    ]
+    """Each move to a stage, latest first, in words written here from the stage.
+
+    The boundary releases only status changes that name a stage (`is_stage_move`); the
+    check here keeps an update from ever being built from anything else."""
+    updates = []
+    for fact in reversed(_chronological(facts)):
+        if fact.kind is not FactKind.STATUS_CHANGE:
+            continue
+        stage = StatusChangePayload.model_validate(fact.value_json).to_stage
+        if stage is not None:
+            updates.append(
+                ProviderUpdateOut(on=fact.event_date, label=_STAGE_MOVES[stage])
+            )
+    return updates
 
 
 def _coverage(
@@ -133,23 +187,49 @@ def _coverage(
         )
     limits = None
     if settings.coverage_limits:
-        limits = []
-        for fact in _chronological(by_setting["coverage_limits"]):
-            payload = PolicyLimitPayload.model_validate(fact.value_json)
-            limits.append(
-                ProviderItemOut(
-                    fact_id=fact.id,
-                    on=fact.event_date,
-                    label=_LIMIT_LABELS.get(payload.per or "", "Policy limit"),
-                    amount_cents=payload.amount_cents,
-                    has_source=False,
-                )
-            )
+        limits = _limits(by_setting["coverage_limits"])
     return ProviderCoverageOut(confirmed=confirmed, limits=limits)
 
 
+def _limits(facts: list[Fact]) -> list[ProviderItemOut]:
+    """The defendant's liability limits, the only ones a link releases (D37), each once
+    and labelled by its basis, per person first.
+
+    A limit several records restate is one line, citing its first statement. A limit
+    with no basis is listed only when none states one: beside limits that do, it is a
+    restatement, or a stray figure the firm's Coverage tile warns about.
+    """
+    stated = [
+        (fact, PolicyLimitPayload.model_validate(fact.value_json))
+        for fact in _chronological(facts)
+    ]
+    based = any(payload.per for _, payload in stated)
+    stated.sort(key=lambda s: _LIMIT_ORDER.index(s[1].per))  # stable: dates kept
+    limits = []
+    listed: set[tuple[int | None, str | None]] = set()
+    for fact, payload in stated:
+        limit = (payload.amount_cents, payload.per)
+        if limit in listed or (based and payload.per is None):
+            continue
+        listed.add(limit)
+        limits.append(
+            ProviderItemOut(
+                fact_id=fact.id,
+                on=fact.event_date,
+                label=_LIMIT_LABELS[payload.per],
+                amount_cents=payload.amount_cents,
+                has_source=False,
+            )
+        )
+    return limits
+
+
 def _own_item(
-    fact: Fact, *, amount_cents: int | None = None, has_source: bool = False
+    fact: Fact,
+    *,
+    amount_cents: int | None = None,
+    has_source: bool = False,
+    kind: ProviderItemKind | None = None,
 ) -> ProviderItemOut:
     """A bill, record, or request concerning the share's own provider, so its title may show."""
     return ProviderItemOut(
@@ -158,11 +238,14 @@ def _own_item(
         label=fact.title,
         amount_cents=amount_cents,
         has_source=has_source,
+        kind=kind,
     )
 
 
-def _requests(facts: list[Fact]) -> list[ProviderItemOut]:
-    return [_own_item(f) for f in _chronological(distinct_requests(facts))]
+def _requests(asks: list[Fact], received: list[Fact]) -> list[ProviderItemOut]:
+    """What the firm still needs. Only records this link releases can answer a request,
+    so the payload is still built from visible facts alone."""
+    return [_own_item(f) for f in _chronological(distinct_requests([*asks, *received]))]
 
 
 def _counted_bills(facts: list[Fact]) -> CountedBills | None:
@@ -180,7 +263,8 @@ def _bills(facts: list[Fact]) -> list[ProviderItemOut]:
         _own_item(
             f,
             amount_cents=BillPayload.model_validate(f.value_json).amount_cents,
-            has_source=_has_cited_page(f),
+            has_source=has_cited_page(f),
+            kind=ITEM_KIND_BY_FACT_KIND.get(f.kind),
         )
         for f in _chronological(listed)
     ]
@@ -196,7 +280,7 @@ def _bills_total(facts: list[Fact]) -> ProviderBillsTotalOut | None:
 
 
 def _records(facts: list[Fact]) -> list[ProviderItemOut]:
-    return [_own_item(f, has_source=_has_cited_page(f)) for f in _chronological(facts)]
+    return [_own_item(f, has_source=has_cited_page(f)) for f in _chronological(facts)]
 
 
 def _treatment(facts: list[Fact]) -> ProviderTreatmentOut | None:
@@ -216,7 +300,7 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         by_setting[released.setting].append(released.fact)
     matter = _matter(session, share.matter_id)
     stage_facts = by_setting["case_stage"]
-    return ProviderPayload(
+    payload = ProviderPayload(
         provider_name=shares.contact_name(
             session, share.matter_id, share.provider_contact_id
         )
@@ -229,7 +313,9 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         status=_status(stage_facts, matter) if settings.case_stage else None,
         updates=_updates(stage_facts) if settings.case_stage else None,
         coverage=_coverage(by_setting, settings),
-        requests=_requests(by_setting["requests"]) if settings.requests else None,
+        requests=_requests(by_setting["requests"], by_setting["own_records"])
+        if settings.requests
+        else None,
         bills=_bills(by_setting["own_bills"]) if settings.own_bills else None,
         bills_total=_bills_total(by_setting["own_bills"])
         if settings.own_bills
@@ -239,6 +325,32 @@ def provider_payload(session: Session, share: Share, now: datetime) -> ProviderP
         if settings.treatment_activity
         else None,
     )
+    released = {f.id: f for facts in by_setting.values() for f in facts}
+    if payload.note and _note_locked(session, share, payload, released, now):
+        # Rule 4: a note that states what this link withholds is never served, even
+        # on a share stored before the note was checked (D25).
+        payload = payload.model_copy(update={"note": None})
+    return payload
+
+
+def visible_by_id(session: Session, share: Share, now: datetime) -> dict[int, Fact]:
+    """The facts the link releases, by id."""
+    return {r.fact.id: r.fact for r in visible_facts_for_share(session, share, now)}
+
+
+def _note_locked(
+    session: Session,
+    share: Share,
+    payload: ProviderPayload,
+    released: dict[int, Fact],
+    now: datetime,
+) -> bool:
+    checked = check_text(
+        payload.note or "",
+        shown_values(payload, released),
+        withheld_values(session, share, now),
+    )
+    return checked.verdict == "do_not_send"
 
 
 def share_preview(session: Session, share: Share, now: datetime) -> SharePreviewOut:
@@ -264,54 +376,3 @@ def open_link(session: Session, token: str, now: datetime) -> ProviderPayload:
     payload = provider_payload(session, share, now)
     shares.record_opened(session, share, now)
     return payload
-
-
-def _sourced_facts(session: Session, share: Share, now: datetime) -> list[Fact]:
-    """Visible own bills and records that cite a document page the provider may open."""
-    if not share_is_live(share, now):
-        raise ShareGone(f"share {share.id} is expired or revoked")
-    return [
-        r.fact
-        for r in visible_facts_for_share(session, share, now)
-        if r.setting in SOURCE_SETTINGS and _has_cited_page(r.fact)
-    ]
-
-
-def provider_source(
-    session: Session, token: str, fact_id: int, now: datetime
-) -> ProviderSourceOut:
-    share = shares.share_for_token(session, token)
-    fact = next(
-        (f for f in _sourced_facts(session, share, now) if f.id == fact_id), None
-    )
-    if fact is None:
-        raise NotVisible(f"fact {fact_id} has no source this link can open")
-    page = session.scalars(
-        select(Page).where(
-            Page.source_id == fact.source_id,
-            Page.page_no == fact.page_no,
-            Page.image_path.is_not(None),
-        )
-    ).first()
-    page_ref = None
-    if page is not None:
-        page_ref = PageRef(
-            page_id=page.id,
-            page_no=page.page_no,
-            image_url=f"/api/p/{token}/pages/{page.id}/image",
-        )
-    return ProviderSourceOut(
-        fact_id=fact.id, title=fact.title, quote=fact.quote, page=page_ref
-    )
-
-
-def provider_page_image(
-    session: Session, token: str, page_id: int, now: datetime
-) -> Path:
-    """The image of a page only if it is the cited page of a visible own bill or record."""
-    share = shares.share_for_token(session, token)
-    cited = {(f.source_id, f.page_no) for f in _sourced_facts(session, share, now)}
-    page = session.get(Page, page_id)
-    if page is None or (page.source_id, page.page_no) not in cited:
-        raise NotVisible(f"page {page_id} is not open to this link")
-    return page_image_path(session, page_id)

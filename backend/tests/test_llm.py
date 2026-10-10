@@ -1,10 +1,11 @@
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
 import pytest
 from pydantic import BaseModel
 
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.digest import llm
 
 
@@ -36,14 +37,17 @@ def test_a_model_call_without_prices_is_refused(
 def test_a_missing_tool_call_is_asked_again_and_its_tokens_are_counted(
     data_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    for name, value in {
-        "LLM_API_KEY": "test-key",
-        "EXTRACT_MODEL": "test-model",
-        "EXTRACT_PRICE_IN": "1",
-        "EXTRACT_PRICE_OUT": "5",
-    }.items():
-        monkeypatch.setenv(name, value)
-    get_settings.cache_clear()
+    # Built without the .env file: the provider under test is anthropic, whatever
+    # the developer's own settings say.
+    settings = Settings(
+        _env_file=None,  # type: ignore[call-arg]
+        llm_provider="anthropic",
+        llm_api_key="test-key",
+        extract_model="test-model",
+        extract_price_in=Decimal(1),
+        extract_price_out=Decimal(5),
+    )
+    monkeypatch.setattr(llm, "get_settings", lambda: settings)
     bodies: list[dict[str, object]] = []
     replies = [
         {"stop_reason": "end_turn", "content": [{"type": "text", "text": "Done."}]},
@@ -98,5 +102,8 @@ def test_rate_limits_and_dropped_connections_are_retried(
 
     monkeypatch.setattr(llm.httpx, "post", fake_post)
     monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    # The default retry count, not whatever the developer's .env sets.
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    monkeypatch.setattr(llm, "get_settings", lambda: settings)
     assert llm._post("https://example.invalid/messages").status_code == 200
     assert sleeps == [1, 2.0]

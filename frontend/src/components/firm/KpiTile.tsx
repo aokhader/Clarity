@@ -1,9 +1,13 @@
-import { PiggyBank, ShieldCheck, Stethoscope, TrendingDown, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
+import { useId } from 'react'
 
-import type { KpiOut, KpiValueOut } from '@/api/types'
-import { RevealOnHover } from '@/components/firm/RevealOnHover'
+import type { KpiOut } from '@/api/types'
+import { KpiAlsoOnFile } from '@/components/firm/KpiAlsoOnFile'
+import { KpiLeadFigure } from '@/components/firm/KpiLeadFigure'
+import { KpiValueRow } from '@/components/firm/KpiValueRow'
 import { SourceChipList } from '@/components/shared/SourceChipList'
-import { formatMoney, formatMoneyRange } from '@/lib/format'
+import { foldIntoLead } from '@/lib/kpis'
+import { useAskTarget } from '@/lib/useAskTarget'
 import { cn } from '@/lib/utils'
 
 const KPI_LABELS: Record<KpiOut['name'], string> = {
@@ -13,68 +17,79 @@ const KPI_LABELS: Record<KpiOut['name'], string> = {
   firm_spend: 'Firm spend',
 }
 
-/** Each tile keeps one tint so the four figures can be told apart at a glance on a projector. */
-const KPI_TONES: Record<KpiOut['name'], { tile: string; label: string; Icon: LucideIcon }> = {
-  case_value: { tile: 'border-emerald-100 bg-emerald-50 text-emerald-950', label: 'text-emerald-700', Icon: PiggyBank },
-  coverage: { tile: 'border-blue-100 bg-blue-50 text-blue-950', label: 'text-blue-700', Icon: ShieldCheck },
-  medical_specials: { tile: 'border-orange-100 bg-orange-50 text-orange-950', label: 'text-orange-700', Icon: Stethoscope },
-  firm_spend: { tile: 'border-slate-200 bg-slate-100 text-slate-900', label: 'text-slate-700', Icon: TrendingDown },
+const ENTRY_NOUNS: Record<KpiOut['name'], { one: string; many: string }> = {
+  case_value: { one: 'value', many: 'values' },
+  coverage: { one: 'limit', many: 'limits' },
+  medical_specials: { one: 'figure', many: 'figures' },
+  firm_spend: { one: 'figure', many: 'figures' },
 }
 
-function amountText(value: KpiValueOut): string {
-  if (value.amount_cents !== null) return formatMoney(value.amount_cents)
-  return formatMoneyRange(value.low_cents, value.high_cents) ?? 'Amount not stated'
+/** Whether two lines say the same thing, so the line under a figure does not repeat itself. */
+function sameText(a: string, b: string | null): boolean {
+  return b !== null && a.trim().toLowerCase() === b.trim().toLowerCase()
 }
 
-/** One KPI: a sourced value, every value when sources disagree, or "Not found in file". */
+/**
+ * One KPI. With no values: "Not found in file". When the values are figures for the same
+ * thing that disagree, all are listed as equals under a warning. Otherwise the first leads,
+ * and the rest are separate entries beneath it, labelled: on the Coverage tile, the
+ * server puts the defendant's liability limit first and the client's own policies after (D19).
+ *
+ * Coverage keeps its lead even when sources disagree: its values are different policies,
+ * not rival figures for one, so a conflict among some of them is a note under the
+ * defendant's limit rather than a reason to list every limit as an equal (D37).
+ *
+ * An entry that only restates the lead is cited by the lead's chips rather than listed
+ * again (foldIntoLead), and past the first entry the rest wait behind a disclosure.
+ */
 export function KpiTile({ kpi }: { kpi: KpiOut }) {
-  const [only] = kpi.values
-  const tone = KPI_TONES[kpi.name]
+  const [first, ...rest] = kpi.values
+  const leads = first !== undefined && (!kpi.sources_disagree || kpi.name === 'coverage')
+  const folded = leads ? foldIntoLead(kpi.name, first, rest) : null
+  const labelId = useId()
+  const figureId = useId()
+  const askTarget = useAskTarget({ kind: 'kpi', name: kpi.name }, 'kpi')
+  // Under a lead figure the warning is a note beneath it; with no lead it closes the tile.
+  const disagreement = kpi.sources_disagree && (
+    <p className={cn('flex items-center gap-1 text-xs font-medium text-warning', leads && 'mt-1')}>
+      <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+      {leads ? 'Sources disagree on some limits' : 'Sources disagree'}
+    </p>
+  )
   return (
-    <div className={cn('group/src relative flex min-w-0 flex-col overflow-hidden rounded-xl border px-4 py-4', tone.tile)}>
-      <tone.Icon aria-hidden className={cn('absolute -right-1.5 -bottom-3 size-18 opacity-10', tone.label)} />
-      <h3 className={cn('text-xs font-semibold uppercase tracking-wider', tone.label)}>{KPI_LABELS[kpi.name]}</h3>
-      {/* A single value's chips sit in the corner, so however many there are, every figure starts on the same line. */}
-      {kpi.values.length === 1 && only && (
-        <div className="absolute top-3 right-3 whitespace-nowrap">
-          <RevealOnHover>
-            <SourceChipList facts={only.facts} max={2} />
-          </RevealOnHover>
-        </div>
-      )}
-      {kpi.values.length === 0 && <p className="mt-2 flex h-10 items-center text-lg text-muted-foreground">Not found in file</p>}
-      {kpi.values.length === 1 && only && (
-        <p
-          className={cn(
-            'mt-2 flex h-10 items-center whitespace-nowrap font-semibold tabular-nums',
-            // A range is twice as long as an amount, so it steps down a size to stay on one line.
-            only.amount_cents === null ? 'text-2xl' : 'text-kpi',
-          )}
-        >
-          {amountText(only)}
-        </p>
-      )}
-      {kpi.values.length > 1 && (
-        <ul className="mt-2 space-y-1">
-          {kpi.values.map((value) => (
-            <li key={value.facts[0]?.id ?? amountText(value)} className="flex items-center justify-between gap-2">
-              <span className="whitespace-nowrap text-xl font-semibold tabular-nums">{amountText(value)}</span>
-              <RevealOnHover>
-                <SourceChipList facts={value.facts} max={1} />
-              </RevealOnHover>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-auto space-y-0.5 pt-3">
-        {kpi.values.length > 1 && (
-          <p className="flex items-center gap-1 text-xs font-medium text-warning">
-            <TriangleAlert className="size-3.5" aria-hidden />
-            Sources disagree
+    // One neutral surface for all four tiles; colour marks only the disagreement note.
+    <div {...askTarget} className="flex min-w-0 flex-col @min-[60rem]:px-5 @min-[60rem]:first:pl-0 @min-[60rem]:last:pr-0">
+      {/* The label has its line to itself, so it never wraps to make room for chips. */}
+      <h3 id={labelId} className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        {KPI_LABELS[kpi.name]}
+      </h3>
+      {first === undefined && <p className="mt-1 flex h-8 items-center text-base text-muted-foreground">Not found in file</p>}
+      {folded && (
+        <>
+          <KpiLeadFigure value={folded.lead} id={figureId} />
+          {/* What the figure is and how it was reached, then its sources, on one line under it. */}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {folded.lead.label && <span>{folded.lead.label}</span>}
+            {kpi.basis && !sameText(kpi.basis, folded.lead.label) && <span>{kpi.basis}</span>}
+            <SourceChipList facts={folded.lead.facts} max={2} describedBy={`${labelId} ${figureId}`} />
           </p>
-        )}
-        {kpi.basis && <p className={cn('text-xs', tone.label)}>{kpi.basis}</p>}
-      </div>
+          {disagreement}
+          {folded.others.length > 0 && <KpiAlsoOnFile values={folded.others} noun={ENTRY_NOUNS[kpi.name]} />}
+        </>
+      )}
+      {first !== undefined && !leads && (
+        <>
+          <ul className="mt-2 space-y-1">
+            {kpi.values.map((value, index) => (
+              <KpiValueRow key={value.facts[0]?.id ?? index} value={value} size="large" />
+            ))}
+          </ul>
+          <div className="mt-auto space-y-0.5 pt-2">
+            {disagreement}
+            {kpi.basis && <p className="text-xs text-muted-foreground">{kpi.basis}</p>}
+          </div>
+        </>
+      )}
     </div>
   )
 }

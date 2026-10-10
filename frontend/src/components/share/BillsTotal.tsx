@@ -7,10 +7,10 @@ import { formatMoney } from '@/lib/format'
  */
 export function BillsTotal({ total }: { total: ProviderBillsTotalOut }) {
   return (
-    <div className="rounded-xl border border-orange-100 bg-orange-50 px-5 py-4">
-      <p className="text-xs font-semibold tracking-[0.08em] text-orange-700 uppercase">Total billed by your office</p>
-      <p className="mt-1 text-3xl font-extrabold tabular-nums text-orange-950">{formatMoney(total.amount_cents)}</p>
-      <p className="mt-1 text-[13px] text-orange-700">
+    <div className="rounded-lg bg-muted px-5 py-4">
+      <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Total billed by your office</p>
+      <p className="mt-1 text-3xl font-semibold tabular-nums text-foreground">{formatMoney(total.amount_cents)}</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">
         Across {total.bill_count} {total.bill_count === 1 ? 'bill' : 'bills'} on file
       </p>
     </div>

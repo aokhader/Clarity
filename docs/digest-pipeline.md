@@ -61,6 +61,8 @@ ExtractedFact
   detail: object                       -- kind-specific, for example body_part and severity
 ```
 
+One prompt per kind of input: `extract_page.txt` for document pages, `extract_note.txt` for notes and emails, and `extract_record.txt` for the matter's custom-field record. The custom-field record has a prompt of its own so that a change to the note prompt can never re-read the fields behind the money tiles (D42). Court and litigation events are filed as `litigation_event`, dated by the filing, service or decision date the source gives, never by the date a note was written; `status_change` is only a move between stages with `to_stage` set (D41, D42).
+
 Prompt rules, kept in `digest/prompts/` as text files:
 
 - State the document context first: this is one page of a personal-injury case file.
@@ -87,14 +89,14 @@ Uses the merge model. Each step is one cached call whose input is the stored fac
 2. **Deduplication.** Group facts with the same kind, date, and provider. Keep the one with the best confidence and link the rest as corroborating sources in `value_json`.
 3. **Significance.** Score each fact from 0 to 100 using the rubric below. Batch facts in groups of about 50.
 4. **Cross-checks.** Compare the sum of `medical_bill` facts with the mapped `medical_specials` field, and extracted policy limits with the mapped `policy_limit` field. Store disagreements so the UI can show both numbers.
-5. **Brief.** Input: the top facts by significance, the KPIs, the stage, and open actions. Output schema below.
+5. **Brief.** Input: the top facts by significance (`brief_fact_limit`, 40), the stage's facts, the open tasks, the key figures with the fact ids behind them, and what the court papers say about fault and defenses. A court paper is a document a `litigation_event` was read from, and up to `brief_court_fact_limit` (8) of its liability and other facts are always included. A pleaded defense ranks below a medical record's many facts, so without them the brief could not say where the suit stands (D43). Output schema below.
 
 Significance rubric:
 
 | Score | Meaning | Examples |
 |---|---|---|
 | 90 to 100 | Changes the value or the outcome | Offers, demands, policy limits, coverage decisions, surgery recommendations, liability findings, limitation deadlines |
-| 70 to 89 | Changes the plan | New diagnoses, imaging findings, treatment gaps, lien notices, client decisions |
+| 70 to 89 | Changes the plan | New diagnoses, imaging findings, treatment gaps, lien notices, client decisions, a suit filed or answered |
 | 40 to 69 | Routine but relevant | Treatment visits, records received, bills |
 | 0 to 39 | Administrative | Scheduling, acknowledgments, cover letters |
 
@@ -106,11 +108,13 @@ Brief
   stage: intake | treating | treatment_complete | demand | negotiation |
          litigation | settled | closed
   stage_fact_ids: list[int]
-  sentences: list[{text: str, fact_ids: list[int]}]     -- 5 to 8 sentences
+  sentences: list[{text: str, fact_ids: list[int]}]     -- 3 or 4 sentences (digest/prompts/brief.txt)
   open_questions: list[str]                             -- things the file does not answer
 ```
 
-Every sentence must cite at least one fact ID. After generation, drop any sentence whose fact IDs do not exist. If the stage is inferred because Clio has none, the UI labels it as inferred.
+The sentences cover what an attorney must know today: the injuries and where treatment stands, value against coverage, the biggest open problem or risk, and the next step. When the stage is litigation, one of them says where the suit stands: any defense pleaded, and any earlier dismissal or refiling the facts record, citing those facts (prompt version 5, D43).
+
+Every sentence must cite at least one fact ID. After generation, drop any sentence whose fact IDs do not exist. If the stage is inferred because Clio has none, the UI labels it as inferred. When the brief is served, each sentence's amounts and dates are checked against today's facts, and a sentence that disagrees is marked "differs from the file" with today's figure (D12).
 
 ## Cost and caching (`llm.py`)
 

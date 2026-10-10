@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import { useMatters } from '@/api/matters'
 import { LoadError } from '@/components/shared/LoadError'
+import { Loading } from '@/components/shared/Loading'
 import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTime } from '@/lib/format'
@@ -10,7 +11,7 @@ export function MatterList() {
   const matters = useMatters()
   return (
     <Panel title="Matters">
-      {matters.isPending && <Skeleton className="h-10" aria-label="Loading matters" />}
+      {matters.isPending && <Loading label="Loading matters"><Skeleton className="h-10" /></Loading>}
       {matters.isError && (
         <LoadError what="the matters" error={matters.error} onRetry={() => void matters.refetch()} />
       )}

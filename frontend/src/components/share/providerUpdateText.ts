@@ -1,4 +1,4 @@
-import type { ProviderItemOut, ProviderPayload } from '@/api/types'
+import type { ProviderBillsTotalOut, ProviderItemOut, ProviderPayload } from '@/api/types'
 import { formatDate, formatMoney, formatMonth } from '@/lib/format'
 import { STAGE_LABELS } from '@/lib/labels'
 
@@ -25,8 +25,28 @@ function itemLine(item: ProviderItemOut): string {
   return `- ${on}${item.label}${amount}`
 }
 
-function totalCents(items: ProviderItemOut[]): number {
-  return items.reduce((sum, item) => sum + (item.amount_cents ?? 0), 0)
+/**
+ * The bills section: the bills under the server's count and total, each charge counted
+ * once so it matches the provider page, then any lien under a heading of its own. The
+ * total leaves liens out, so a lien is never listed or counted as a bill.
+ */
+function billsLines(items: ProviderItemOut[], total: ProviderBillsTotalOut | null): string[] {
+  const bills = items.filter((item) => item.kind !== 'lien')
+  const liens = items.filter((item) => item.kind === 'lien')
+  const lines =
+    bills.length === 0
+      ? ['No bills from your office on file.']
+      : [
+          total
+            ? `Your bills on file: ${plural(total.bill_count, 'bill')}, ${formatMoney(total.amount_cents)} in total`
+            : 'Your bills on file:',
+          ...bills.map(itemLine),
+        ]
+  if (liens.length > 0) {
+    const noun = liens.length === 1 ? 'lien' : 'liens'
+    lines.push(`Your ${noun} on file${total ? ', not included in the bills total' : ''}:`, ...liens.map(itemLine))
+  }
+  return lines
 }
 
 /**
@@ -75,13 +95,7 @@ export function providerUpdateText(payload: ProviderPayload, url: string): Provi
     )
   }
 
-  if (bills) {
-    sections.push(
-      bills.length === 0
-        ? ['No bills from your office on file.']
-        : [`Your bills on file: ${plural(bills.length, 'bill')}, ${formatMoney(totalCents(bills))} in total`, ...bills.map(itemLine)],
-    )
-  }
+  if (bills) sections.push(billsLines(bills, payload.bills_total))
 
   if (records) {
     sections.push(

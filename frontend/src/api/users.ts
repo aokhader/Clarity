@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { useSelectedFirmUserId } from '@/lib/firmUser'
-
 import { apiGet } from './client'
 import type { UserOut } from './types'
 
@@ -13,10 +11,12 @@ export function useUsers() {
   })
 }
 
-/** The firm user chosen in the switcher, or the first stub user until one is chosen. */
+/**
+ * The firm user the page acts as: the first seeded stub user. There is no login and no
+ * switcher (D48); the user still dates "since you last opened", logs who placed a call and
+ * who made a provider link.
+ */
 export function useFirmUser(): UserOut | null {
   const users = useUsers()
-  const selectedId = useSelectedFirmUserId()
-  const all = users.data ?? []
-  return all.find((user) => user.id === selectedId) ?? all[0] ?? null
+  return users.data?.[0] ?? null
 }

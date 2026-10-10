@@ -35,14 +35,18 @@ _VALUE_FIELDS = (
     "custom_field_values{id,field_name,field_type,value,custom_field,picklist_option}"
 )
 MATTER_SEARCH_FIELDS = "id,display_number,description,updated_at"
+_MATTER_FULL = (
+    "id,etag,display_number,description,status,open_date,close_date",
+    "practice_area{name},matter_stage{name},client{id,name}",
+    "responsible_attorney{name}",
+    _VALUE_FIELDS,
+    "created_at,updated_at",
+)
+# `matter_stage_updated_at` dates the stage fact. Should Clio refuse it, the next list
+# is the same without it, so the custom fields and the stage still come back.
 MATTER_FIELDS = (
-    _fields(
-        "id,etag,display_number,description,status,open_date,close_date",
-        "practice_area{name},matter_stage{name},client{id,name}",
-        "responsible_attorney{name}",
-        _VALUE_FIELDS,
-        "created_at,updated_at",
-    ),
+    _fields(*_MATTER_FULL, "matter_stage_updated_at"),
+    _fields(*_MATTER_FULL),
     "id,etag,display_number,description,status,created_at,updated_at,client{id,name}",
 )
 CUSTOM_FIELD_FIELDS = (
@@ -93,7 +97,7 @@ ACTIVITY_FIELDS = (
 )
 DOCUMENT_FIELDS = (
     _fields(
-        "id,etag,name,filename,content_type,size,created_at,updated_at",
+        "id,etag,name,filename,content_type,size,received_at,created_at,updated_at",
         "latest_document_version{id,size,content_type,filename,fully_uploaded}",
     ),
     "id,etag,name,content_type,size,created_at,updated_at",
@@ -164,8 +168,29 @@ def sync_matter(session: Session, client: ClioClient, matter_id: int) -> SyncRun
     try:
         _sync(session, client, matter_id, since, stats)
     except ClioError as error:
-        stats.errors.append(str(error))
-        run.error = str(error)[:2000]
+        # Clio refused or failed a request: the run ends with what it pulled so far.
+        _close_run(session, client, run, stats, str(error))
+        return run
+    except BaseException as error:
+        # Anything else (an auth failure, a full disk, Ctrl-C) still closes the run,
+        # so it never reads as in progress, and then goes up to the caller.
+        session.rollback()
+        _close_run(session, client, run, stats, _describe(error))
+        raise
+    _close_run(session, client, run, stats, None)
+    return run
+
+
+def _close_run(
+    session: Session,
+    client: ClioClient,
+    run: SyncRun,
+    stats: SyncStats,
+    error: str | None,
+) -> None:
+    if error is not None:
+        stats.errors.append(error)
+        run.error = error[:2000]
         log.error("Sync stopped: %s", error)
     run.finished_at = datetime.now(UTC)
     run.stats_json = stats.as_json()
@@ -176,7 +201,11 @@ def sync_matter(session: Session, client: ClioClient, matter_id: int) -> SyncRun
         len(stats.errors),
         client.request_count,
     )
-    return run
+
+
+def _describe(error: BaseException) -> str:
+    name = type(error).__name__
+    return f"{name}: {error}" if str(error) else name
 
 
 def _sync(
@@ -248,8 +277,11 @@ def _sync(
     for document in documents:
         changed = _upsert(session, matter_id, SourceType.DOCUMENT, document, stats)
         source = _find(session, matter_id, SourceType.DOCUMENT, str(document["id"]))
-        if source is not None and (changed or not _file_present(source)):
-            _download(client, source, document, stats)
+        if source is None:
+            continue
+        wanted = changed or not _file_present(source)
+        if wanted and _download(client, source, document, stats):
+            source.etag = document.get("etag")
         session.commit()
 
 
@@ -265,6 +297,13 @@ def _upsert(
     etag = record.get("etag")
     source = _find(session, matter_id, source_type, clio_id)
     if source is not None and etag and source.etag == etag:
+        added = record.keys() - source.raw_json.keys()
+        if added:
+            # The field list grew since this record was stored. Keep the new fields;
+            # the record itself is unchanged, so nothing is downloaded again. A note's
+            # or email's processed hash covers its raw JSON, so it is read again.
+            source.raw_json = {**source.raw_json, **record}
+            stats.counts[f"{source_type.value}_fields_added"] += 1
         stats.counts[f"{source_type.value}_unchanged"] += 1
         return False
     if source is None:
@@ -273,21 +312,22 @@ def _upsert(
         stats.counts[f"{source_type.value}_new"] += 1
     else:
         stats.counts[f"{source_type.value}_updated"] += 1
-    source.etag = etag
     source.raw_json = record
     source.clio_created_at = _parse_datetime(record.get("created_at"))
     source.clio_updated_at = _parse_datetime(record.get("updated_at"))
     source.synced_at = datetime.now(UTC)
     if source_type is not SourceType.DOCUMENT:
-        # Documents are hashed over the file bytes once downloaded.
+        source.etag = etag
         source.content_hash = None
+    # A document's ETag is stored once its file is down, and its hash is taken over
+    # the file bytes, so a failed download is retried on the next sync.
     session.flush()
     return True
 
 
 def _download(
     client: ClioClient, source: Source, record: dict[str, Any], stats: SyncStats
-) -> None:
+) -> bool:
     settings = get_settings()
     relative = Path("files") / f"{source.clio_id}{_extension(record)}"
     destination = settings.data_dir / relative
@@ -295,11 +335,12 @@ def _download(
         client.download(f"documents/{source.clio_id}/download.json", destination)
     except ClioError as error:
         stats.errors.append(f"document {source.clio_id} download: {error.status}")
-        return
+        return False
     # Relative to DATA_DIR, so a zipped data/ snapshot works on another machine.
     source.file_path = relative.as_posix()
     source.content_hash = hashlib.sha256(destination.read_bytes()).hexdigest()
     stats.counts["document_downloaded"] += 1
+    return True
 
 
 def _list_with_fallback(
@@ -357,7 +398,12 @@ def _find(
 
 
 def _last_successful_sync(session: Session, matter_id: int) -> datetime | None:
-    run = session.scalars(
+    """Start of the last run that pulled everything, the baseline for `updated_since`.
+
+    A run that recorded per-item errors missed something, so it is no baseline: the
+    next run reaches back to the last clean one and pulls what was missed again.
+    """
+    runs = session.scalars(
         select(SyncRun)
         .where(
             SyncRun.matter_id == matter_id,
@@ -365,8 +411,11 @@ def _last_successful_sync(session: Session, matter_id: int) -> datetime | None:
             SyncRun.error.is_(None),
         )
         .order_by(SyncRun.id.desc())
-    ).first()
-    return run.started_at if run else None
+    )
+    for run in runs:
+        if not (run.stats_json or {}).get("errors"):
+            return run.started_at
+    return None
 
 
 def _file_present(source: Source) -> bool:

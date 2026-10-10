@@ -32,10 +32,21 @@ class Settings(BaseSettings):
     clio_client_secret: SecretStr | None = None
     clio_redirect_uri: str = "http://127.0.0.1:8000/oauth/callback"
     clio_matter_query: str | None = None
+    # Tries per Clio request; rate limits, 5xx and dropped connections are retried.
+    clio_max_attempts: int = Field(default=6, ge=1)
+    # Clio caps list pages at 200 records.
+    clio_page_limit: int = Field(default=200, ge=1, le=200)
+    clio_timeout_seconds: float = Field(default=60, gt=0)
+    clio_download_timeout_seconds: float = Field(default=120, gt=0)
+    # Connection-level retries inside httpx, below the request retries above.
+    clio_transport_retries: int = Field(default=2, ge=0)
+    clio_token_timeout_seconds: float = Field(default=30, gt=0)
+    clio_oauth_callback_seconds: int = Field(default=300, ge=1)
 
     # Models. Prices are USD per million tokens.
-    # Wire format of the model API: "anthropic" (Messages API) or "openai" (Chat Completions).
-    llm_provider: Literal["anthropic", "openai"] = "anthropic"
+    # Wire format of the model API: "anthropic" (Messages API), "openai" (Chat
+    # Completions), or "gemini" (Google's generateContent, D30).
+    llm_provider: Literal["anthropic", "openai", "gemini"] = "anthropic"
     # Leave unset for the provider's public endpoint.
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
@@ -47,6 +58,51 @@ class Settings(BaseSettings):
     merge_price_in: Decimal | None = None
     merge_price_out: Decimal | None = None
     extract_concurrency: int = Field(default=8, ge=1)
+    llm_timeout_seconds: float = Field(default=180, gt=0)
+    # Most HTTP attempts per minute to each role's model, retries included; 0 is no
+    # limit. Enforced per process, so only one process may call models during a run.
+    extract_rpm: int = Field(default=0, ge=0)
+    merge_rpm: int = Field(default=0, ge=0)
+    # Added to the 60/rpm seconds between attempts, for clock skew at the API's end.
+    llm_rate_margin_seconds: float = Field(default=1.0, ge=0)
+    # The longest wait a 429 or 503 may ask for; a longer one fails the call at once.
+    llm_max_retry_wait_seconds: float = Field(default=120, gt=0)
+    # Tries per model call on rate limits, overload and dropped connections.
+    llm_max_attempts: int = Field(default=5, ge=1)
+    # Inputs extracted, and facts scored, per committed batch.
+    extract_batch_size: int = Field(default=40, ge=1)
+    score_batch_size: int = Field(default=50, ge=1)
+    # Rounds of asking again about facts the scorer leaves out of a batch.
+    score_passes: int = Field(default=2, ge=1)
+    # Facts, by significance, the brief model sees besides the ones always included.
+    brief_fact_limit: int = Field(default=40, ge=1)
+    # Of what the court papers say about fault and defenses (a pleaded defense), the
+    # most significant facts the brief model always sees, whatever their rank.
+    brief_court_fact_limit: int = Field(default=8, ge=0)
+
+    # Chat (D49): the Ask panel's answers, through the provider and key above.
+    # No model means chat is off. Prices are USD per million tokens.
+    chat_model: str | None = None
+    chat_price_in: Decimal | None = None
+    chat_price_out: Decimal | None = None
+    # What an answer costs when the server-side refusal fallback gave it with
+    # another model.
+    chat_fallback_price_in: Decimal = Decimal(5)
+    chat_fallback_price_out: Decimal = Decimal(25)
+    # The model thinks before answering, and thinking counts against this.
+    chat_max_output_tokens: int = Field(default=16000, ge=256)
+    chat_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    # 0 is no pacing of chat's own; on the merge model it shares merge's (D36).
+    chat_rpm: int = Field(default=0, ge=0)
+    # Per matter, summed from local midnight.
+    chat_daily_budget_usd: Decimal = Field(default=Decimal(2), ge=0)
+    # Retrieved facts per question, and an attached item's facts the model is shown,
+    # its most significant (D50: the input was three times the plan's estimate).
+    chat_context_facts: int = Field(default=40, ge=1)
+    chat_item_facts: int = Field(default=25, ge=1)
+    chat_context_pages: int = Field(default=6, ge=0)
+    chat_page_chars: int = Field(default=3000, ge=1)
+    chat_history_turns: int = Field(default=4, ge=0)
 
     # Storage
     data_dir: Path = Path("data")
@@ -83,11 +139,17 @@ class Settings(BaseSettings):
         return self.data_dir / "pages"
 
     @property
+    def backups_dir(self) -> Path:
+        return self.data_dir / "backups"
+
+    @property
     def llm_endpoint(self) -> str:
         if self.llm_base_url:
             return self.llm_base_url.rstrip("/")
         if self.llm_provider == "openai":
             return "https://api.openai.com/v1"
+        if self.llm_provider == "gemini":
+            return "https://generativelanguage.googleapis.com/v1beta"
         return "https://api.anthropic.com/v1"
 
     @property
@@ -97,6 +159,17 @@ class Settings(BaseSettings):
     @property
     def models_configured(self) -> bool:
         return bool(self.llm_api_key and self.extract_model and self.merge_model)
+
+    @property
+    def chat_configured(self) -> bool:
+        # Prices are required too: an answer with no price would count as $0 against
+        # the daily cap.
+        return bool(
+            self.llm_api_key
+            and self.chat_model
+            and self.chat_price_in is not None
+            and self.chat_price_out is not None
+        )
 
 
 @lru_cache

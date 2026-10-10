@@ -1,7 +1,8 @@
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, RotateCcw } from 'lucide-react'
+import { useId } from 'react'
 
-import { useDigestCost, useResync, type ResyncPhase } from '@/api/ops'
-import type { MatterHeaderOut, RunOut } from '@/api/types'
+import { useDigestCost, useJobStatus, useResync, useRetryFailedCalls, type ResyncPhase } from '@/api/ops'
+import type { MatterHeaderOut, RunOut, RunStatusOut } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { formatDateTime, formatMicroDollars } from '@/lib/format'
 
@@ -30,29 +31,47 @@ function failureText(label: string, run: RunOut | null): string | null {
   return `The last ${label} skipped ${items}: ${skipped[0]}${skipped.length > 1 ? '; …' : ''}`
 }
 
+/** A failure before the job's run began, which no run row records. */
+function startFailureText(label: string, status: RunStatusOut | undefined): string | null {
+  const failure = status?.start_failure
+  return failure ? `The last ${label} could not start: ${failure.error}` : null
+}
+
 /** Proof the page is a live read of Clio: when it was synced, what the digest cost, and a re-sync. */
 export function MatterFooter({ header }: { header: MatterHeaderOut }) {
   const cost = useDigestCost(header.matter_id)
+  const syncStatus = useJobStatus('sync')
+  const digestStatus = useJobStatus('digest')
   const resync = useResync()
+  const retry = useRetryFailedCalls()
+  const costNoteId = useId()
+  // The server counts the calls a digest would answer from the cache as failed (D29).
+  const failedCalls = digestStatus.data?.cached_failed_calls ?? 0
+  const busy = resync.isPending || retry.isPending
   const sync = header.last_sync
   const failures = [
+    { text: startFailureText('sync', syncStatus.data), detail: [] },
     { text: failureText('sync', header.last_sync), detail: itemErrors(header.last_sync) },
+    { text: startFailureText('digest', digestStatus.data), detail: [] },
     { text: failureText('digest', header.last_digest), detail: itemErrors(header.last_digest) },
   ].filter((failure) => failure.text !== null)
 
   return (
     <footer className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4 text-sm text-muted-foreground">
-      <span className="tabular-nums">
-        {sync?.finished_at
-          ? `Synced from Clio ${formatDateTime(sync.finished_at)}`
-          : sync
-            ? 'A sync has started but not finished'
-            : 'Not synced from Clio yet'}
-      </span>
-      <span className="tabular-nums">
-        {cost.isSuccess &&
-          `Digest cost ${formatMicroDollars(cost.data.cost_micro_usd)} (${cost.data.model_calls} model calls, ${cost.data.cache_hits} answered from cache)`}
-        {cost.isError && 'Digest cost unavailable'}
+      {/* Announced when a re-sync or digest finishes and the line changes. */}
+      <span role="status" className="flex flex-wrap gap-x-6 gap-y-2">
+        <span className="tabular-nums">
+          {sync?.finished_at
+            ? `Synced from Clio ${formatDateTime(sync.finished_at)}`
+            : sync
+              ? 'A sync has started but not finished'
+              : 'Not synced from Clio yet'}
+        </span>
+        <span className="tabular-nums">
+          {cost.isSuccess &&
+            `Digest cost ${formatMicroDollars(cost.data.cost_micro_usd)} (${cost.data.model_calls} model calls, ${cost.data.cache_hits} answered from cache)`}
+          {cost.isError && 'Digest cost unavailable'}
+        </span>
       </span>
       {failures.map((failure) => (
         <span
@@ -64,13 +83,38 @@ export function MatterFooter({ header }: { header: MatterHeaderOut }) {
           {failure.text}
         </span>
       ))}
-      <div className="ml-auto flex items-center gap-3">
+      {/* Wraps on a narrow screen, so its buttons never push the page wider than the viewport. */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
         {resync.isError && (
           <span role="alert" className="text-danger">
             {resync.error.message}
           </span>
         )}
-        <Button variant="outline" size="sm" onClick={() => resync.mutate()} disabled={resync.isPending}>
+        {retry.isError && (
+          <span role="alert" className="text-danger">
+            {retry.error.message}
+          </span>
+        )}
+        {(failedCalls > 0 || retry.isPending) && (
+          <>
+            <span id={costNoteId} className="text-xs">
+              Retrying asks the model again, which costs money.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => retry.mutate()}
+              disabled={busy}
+              aria-describedby={costNoteId}
+            >
+              <RotateCcw aria-hidden />
+              {retry.isPending
+                ? BUTTON_TEXT.digesting
+                : `Retry ${failedCalls} failed ${failedCalls === 1 ? 'call' : 'calls'}`}
+            </Button>
+          </>
+        )}
+        <Button variant="outline" size="sm" onClick={() => resync.mutate()} disabled={busy}>
           <RefreshCw aria-hidden />
           {BUTTON_TEXT[resync.phase]}
         </Button>

@@ -14,15 +14,20 @@ export function formatMoney(cents: number): string {
   return (cents % 100 === 0 ? wholeDollars : dollarsAndCents).format(cents / 100)
 }
 
-/** $75,000 – $150,000, or a single amount when only one end is known. */
+/**
+ * A two-ended range as its ends, the dash kept with the first: "$75,000 –" and "$150,000".
+ * A figure too wide for its box breaks between them, never inside an amount.
+ */
+export function formatMoneyRangeEnds(lowCents: number, highCents: number): string[] {
+  return lowCents === highCents ? [formatMoney(lowCents)] : [`${formatMoney(lowCents)} –`, formatMoney(highCents)]
+}
+
+/** $75,000 – $150,000; "at least $75,000" or "up to $150,000" when only one end is known. */
 export function formatMoneyRange(lowCents: number | null, highCents: number | null): string | null {
-  if (lowCents !== null && highCents !== null) {
-    return lowCents === highCents
-      ? formatMoney(lowCents)
-      : `${formatMoney(lowCents)} – ${formatMoney(highCents)}`
-  }
-  const single = lowCents ?? highCents
-  return single === null ? null : formatMoney(single)
+  if (lowCents !== null && highCents !== null) return formatMoneyRangeEnds(lowCents, highCents).join(' ')
+  if (lowCents !== null) return `at least ${formatMoney(lowCents)}`
+  if (highCents !== null) return `up to ${formatMoney(highCents)}`
+  return null
 }
 
 /**
@@ -75,6 +80,27 @@ export function formatDaysAgo(iso: IsoDate | IsoDateTime): string {
   if (days <= 0) return 'today'
   if (days === 1) return 'yesterday'
   return `${days} days ago`
+}
+
+/** 3 days overdue, due today, tomorrow, in 5 days: when an action falls due, from whole days ahead. */
+export function formatDueIn(days: number): string {
+  if (days < -1) return `${-days} days overdue`
+  if (days === -1) return '1 day overdue'
+  if (days === 0) return 'due today'
+  if (days === 1) return 'tomorrow'
+  return `in ${days} days`
+}
+
+/** today, in 40 days, passed 3 days ago: a deadline's countdown, from whole days ahead. */
+export function formatDaysUntil(days: number): string {
+  if (days === 0) return 'today'
+  if (days > 0) return `in ${days} day${days === 1 ? '' : 's'}`
+  return `passed ${-days} day${days === -1 ? '' : 's'} ago`
+}
+
+/** 1 record, 3 records: a count with its noun, plural unless it is one. */
+export function formatCount(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
 /** 12 days, 7 months, 2 years: the time elapsed since a day. */

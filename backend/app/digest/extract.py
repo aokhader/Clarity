@@ -20,8 +20,9 @@ from app.config import get_settings
 from app.digest import llm
 from app.digest.mapping import MatterMapping
 from app.digest.pages import mark_extracted
-from app.digest.payloads import build_payload
+from app.digest.payloads import model_payload
 from app.digest.records import (
+    QUOTE_LIMIT,
     is_processed,
     mark_processed,
     parse_date,
@@ -40,12 +41,16 @@ from app.models import Confidence, Fact, FactKind, Origin, Page, Source, SourceT
 
 log = logging.getLogger(__name__)
 
-BATCH_SIZE = 40
-QUOTE_LIMIT = 300
 _DIGITS = re.compile(r"\d")
 # Structured records produce these kinds in code; the extractor never does.
 CODE_ONLY_KINDS = {FactKind.CASE_STAGE, FactKind.TASK}
 ExtractKind = Literal[tuple(k.value for k in FactKind if k not in CODE_ONLY_KINDS)]  # type: ignore[valid-type]
+# Notes and emails are marked read by a hash of their own content, the custom-field
+# record by its request's cache key, which holds its prompt's name and version. Each has
+# a prompt of its own, so a new note prompt never sends the custom fields, and the
+# money tiles' facts with them, back to the model (D42).
+NOTE_PROMPT = "extract_note"
+FIELDS_PROMPT = "extract_record"
 DocumentType = Literal[
     "medical_record",
     "bill",
@@ -99,8 +104,9 @@ def extract_all(
     providers = mapping.providers()
     units = _record_units(session, matter_id, mapping, providers, counts)
     units += _page_units(session, matter_id, providers)
-    for start in range(0, len(units), BATCH_SIZE):
-        chunk = units[start : start + BATCH_SIZE]
+    batch_size = get_settings().extract_batch_size
+    for start in range(0, len(units), batch_size):
+        chunk = units[start : start + batch_size]
         results = llm.run_batch(session, [u.request for u in chunk])
         second_reads: list[tuple[Fact, Unit, float | None]] = []
         for unit, result in zip(chunk, results, strict=True):
@@ -112,14 +118,16 @@ def extract_all(
             replace_facts(session, unit.source, facts, Origin.MODEL, page_no=page_no)
             if unit.page is not None:
                 mark_extracted(unit.page)
-            elif unit.source.clio_type is not SourceType.MATTER:
+            elif unit.source.clio_type is SourceType.MATTER:
+                unit.source.content_hash = unit.request.cache_key
+            else:
                 mark_processed(unit.source)
             counts["facts"] += len(facts)
         _second_reads(session, matter_id, second_reads, counts)
         session.commit()
         log.info(
             "Extraction progress: %d of %d inputs",
-            min(start + BATCH_SIZE, len(units)),
+            min(start + batch_size, len(units)),
             len(units),
         )
     log.info("Extraction: %s", dict(counts))
@@ -142,19 +150,31 @@ def _record_units(
             counts["unchanged"] += 1
             continue
         text = record_text(source)
-        units.append(_record_unit(source, text, providers, matter_id))
+        units.append(_record_unit(source, text, providers, matter_id, NOTE_PROMPT))
     # The custom fields code cannot read go in as one record, sourced to the matter.
-    # It is not marked processed: the mapping decides its content, and the model
-    # cache makes an unchanged repeat free.
+    # The mapping decides its content, so its marker is the request's cache key. An
+    # unchanged one is not applied again, so dedup's removals among its facts stand.
     if mapping.matter is not None and mapping.extraction_text:
-        units.append(
-            _record_unit(mapping.matter, mapping.extraction_text, providers, matter_id)
+        unit = _record_unit(
+            mapping.matter,
+            mapping.extraction_text,
+            providers,
+            matter_id,
+            FIELDS_PROMPT,
         )
+        if mapping.matter.content_hash == unit.request.cache_key:
+            counts["unchanged"] += 1
+        else:
+            units.append(unit)
     return units
 
 
 def _record_unit(
-    source: Source, text: str, providers: dict[int, str], matter_id: int
+    source: Source,
+    text: str,
+    providers: dict[int, str],
+    matter_id: int,
+    prompt: str,
 ) -> Unit:
     return Unit(
         source=source,
@@ -162,7 +182,7 @@ def _record_unit(
         request=llm.ModelRequest(
             purpose="extract_record",
             role="extract",
-            prompt=llm.load_prompt("extract_record"),
+            prompt=llm.load_prompt(prompt),
             user_text=_with_providers(text, providers),
             output=Extraction,
             matter_id=matter_id,
@@ -246,7 +266,14 @@ def _to_facts(
             counts["dropped_quote"] += 1
             continue
         try:
-            payload = build_payload(kind, item.amount, item.detail, item.title)
+            payload = model_payload(kind, item.amount, item.detail, item.title)
+            if kind is FactKind.STATUS_CHANGE and not payload.get("to_stage"):
+                # D41: a stage move names its stage. Without one the label is the
+                # model's free text, often a court event, so it is kept as other.
+                kind = FactKind.OTHER
+                label = item.detail.get("label") or item.title
+                payload = model_payload(kind, None, {"description": label})
+                counts["status_change_without_stage"] += 1
         except ValidationError:
             counts["dropped_payload"] += 1
             continue

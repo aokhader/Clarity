@@ -1,4 +1,3 @@
-import { FileText } from 'lucide-react'
 import { useState } from 'react'
 
 import { useMatterTimeline } from '@/api/matters'
@@ -8,6 +7,7 @@ import { Panel } from '@/components/shared/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/format'
 import { SOURCE_LABELS } from '@/lib/labels'
+import { useAskTargetProps } from '@/lib/useAskTarget'
 import { useSourceDrawer } from '@/lib/useSourceDrawer'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +33,7 @@ function firstDate(facts: FactOut[]): string | null {
 export function DocumentsView({ matterId }: { matterId: number }) {
   const timeline = useMatterTimeline(matterId, null, '')
   const drawer = useSourceDrawer()
+  const askTarget = useAskTargetProps()
   const [filter, setFilter] = useState<SourceType | null>(null)
 
   if (timeline.isPending) return <Skeleton className="h-96 w-full" />
@@ -56,12 +57,12 @@ export function DocumentsView({ matterId }: { matterId: number }) {
               aria-pressed={filter === type}
               onClick={() => setFilter(type)}
               className={cn(
-                'flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-                filter === type ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-muted',
+                'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
+                filter === type ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-card hover:bg-muted',
               )}
             >
               {type === null ? 'All' : SOURCE_LABELS[type]}
-              <span className="rounded-full bg-black/5 px-1.5 text-xs font-semibold">{count}</span>
+              <span className="rounded-sm bg-current/10 px-1.5 text-xs font-semibold">{count}</span>
             </button>
           )
         })}
@@ -70,12 +71,15 @@ export function DocumentsView({ matterId }: { matterId: number }) {
       {shownTypes.map((type) => {
         const ofType = sources.filter((source) => source.type === type)
         return (
-          <Panel key={type} title={SOURCE_LABELS[type]} icon={<FileText />} aside={ofType.length}>
+          <Panel key={type} title={SOURCE_LABELS[type]} aside={ofType.length}>
             <ul className="divide-y">
               {ofType.map((source) => {
                 const date = firstDate(source.facts)
                 return (
-                  <li key={source.sourceId} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-4 py-3">
+                  <li
+                    key={source.sourceId}
+                    {...askTarget({ kind: 'source', source_id: source.sourceId }, 'document')}
+                    className="grid grid-cols-1 gap-x-4 gap-y-1 py-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
                     <span className={cn('text-sm tabular-nums', date ? 'text-foreground/80' : 'text-muted-foreground')}>
                       {date ? formatDate(date) : 'Undated'}
                     </span>

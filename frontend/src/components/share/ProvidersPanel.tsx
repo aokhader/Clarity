@@ -54,6 +54,12 @@ export function ProvidersPanel({ matterId, userId }: ProvidersPanelProps) {
   }
   return (
     <Panel title="Providers" aside={providers.data?.length}>
+      {/* Without the shares, live links would show as unshared, so the failure is stated. */}
+      {shares.isError && (
+        <div className="mb-4">
+          <LoadError what="the share links" error={shares.error} onRetry={() => void shares.refetch()} />
+        </div>
+      )}
       {body}
       {userId !== null && (
         <ShareComposer matterId={matterId} userId={userId} provider={composing} onClose={() => setComposing(null)} />

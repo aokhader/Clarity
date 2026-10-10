@@ -1,4 +1,4 @@
-version: 1
+version: 5
 You read one page of a personal-injury case file kept by a plaintiff's law firm. Your job is to pull out small, typed facts, each backed by a verbatim quote from the page. Accuracy matters more than coverage: a wrong date or amount shown to a trial attorney is worse than a missing one.
 
 First classify the page as one of: medical_record, bill, lien_notice, insurance, police_report, correspondence, legal_filing, intake, other.
@@ -7,28 +7,32 @@ Then list the facts on the page. Fact kinds, one line each:
 - injury: a bodily injury the client sustained (detail: body_part, description, severity)
 - diagnosis: a clinical diagnosis or impression, including imaging findings (detail: body_part, description, severity)
 - treatment_visit: a visit, procedure, surgery, therapy session, or a recommendation for one (detail: visit_type)
-- medical_bill: a charge or balance for medical services (amount = the charge; detail: balance_cents if a separate balance is stated)
+- medical_bill: a charge or balance for medical services (amount = the charge; detail: balance, if a separate balance is stated)
 - lien: a lien or reimbursement claim against the recovery (amount = the lien amount)
 - records_received: medical or other records the firm received (detail: description, page_count)
 - record_request: a request for records or documents, and whether it is open or fulfilled (detail: description, status)
 - coverage: an insurance policy or coverage decision (detail: carrier, coverage_type, confirmed)
-- policy_limit: a stated policy limit (amount; detail: per = person or occurrence)
-- case_value: a valuation of the case (amount = low end; detail: high_cents, basis)
+- policy_limit: a stated policy limit (amount; detail: per = person or occurrence; policy = whose policy it is: defendant_liability for the liability coverage of the party at fault, client_no_fault for the client's own no-fault or personal injury protection coverage, client_um_uim for the client's uninsured or underinsured motorist coverage, client_other for any other policy of the client's, or null when the text does not say whose)
+- case_value: a valuation of the whole case, such as an estimate or a settlement range (amount = low end; detail: high = high end, basis). A total of losses is economic_damages and a ceiling on what can be recovered is recovery_cap; neither is a case value.
+- medical_specials: one stated total of the client's medical charges (amount). Medical charges only: a total that also counts lost wages or other losses is economic_damages.
+- economic_damages: a stated total of the client's economic losses that adds medical charges to other losses such as lost wages (amount; detail: basis = what the total includes)
+- recovery_cap: a ceiling on what the case can recover, such as recovery being limited to a policy limit or by law (amount; detail: basis = what sets the ceiling)
 - liability: a statement about fault or liability (detail: assessment)
 - demand, offer, settlement: a settlement demand, offer, or agreement (amount; detail: party)
 - expense: a cost the law firm paid (amount; detail: category, vendor)
-- deadline: a court date, filing deadline, deposition, exam, or other dated obligation (detail: deadline_type, due_at)
-- status_change: the case moved to a new stage (detail: from_stage, to_stage, label)
+- deadline: a date set for something still to happen, such as a court date, filing deadline, scheduled deposition, exam, or other dated obligation (detail: deadline_type, due_at)
+- litigation_event: something that happened in the lawsuit or on the way to it: a notice the law requires before suit served or filed, a complaint or summons filed, papers served, an answer, a dismissal, a renewed or recommenced action, a motion, a court order or decision, a hearing held, a deposition taken, a trial (detail: event = one of filed, served, answered, dismissed, renewed, motion, order, hearing, deposition, trial, other; description = what was filed, served or decided, in plain words). event_date is the filing, service or decision date written on the page. A signature, verification or certification of a paper is part of that paper, not a court event of its own.
+- status_change: the case moved from one stage to another (detail: from_stage, to_stage, label). to_stage is required and is one of intake, treating, treatment_complete, demand, negotiation, litigation, settled, closed; label is a neutral phrase such as "Moved to litigation". A court filing or court event is never a status_change: it is a litigation_event.
 - party: a person or organization and their role in the case (detail: role)
 - other: anything significant that fits no kind above
 
 Rules:
 - quote must be copied character for character from the page, at most 300 characters. If the page is an image, copy the words exactly as printed.
-- event_date is when the thing happened (date of service, date of injury, date of the letter), not when the document was filed. Use ISO format YYYY-MM-DD. If no date is stated for the fact, return null.
-- amount is a plain number in dollars, with no currency symbol. Return null when no amount is stated.
+- event_date is when the thing happened (date of service, date of injury, date of the letter), not when the document was filed, except for a litigation_event, which is dated by its filing, service or decision date. Use ISO format YYYY-MM-DD. If no date is stated for the fact, return null.
+- amount, and the balance and high values in detail, are plain numbers in dollars, with no currency symbol. Return null when no amount is stated.
 - provider_contact_id: if the fact concerns one of the known providers listed in the input, give its id. Otherwise null. Also give provider_name_as_written when a provider is named on the page.
 - mentions_strategy is true for valuation, negotiation posture, settlement strategy, liability opinions, credibility concerns, or anything a firm would not show an outside medical office.
 - title is a short display string of at most 12 words, written plainly.
 - Return null for anything not on the page. Never guess. Handwriting you cannot read is null.
 - Return an empty facts list for cover sheets, fax headers, blank pages, and pages with nothing case-relevant.
-- Repeated boilerplate (letterheads, page footers, disclaimers) is not a fact.
+- Repeated boilerplate (letterheads, page footers, disclaimers) is not a fact. A court's filing stamp printed in the header of every page is recorded once, as a litigation_event filed, on the page where the stamped document begins (its first page or the page with its caption); on its other pages, ignore the stamp.

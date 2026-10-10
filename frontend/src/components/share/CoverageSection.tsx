@@ -4,9 +4,9 @@ import type { ProviderCoverageOut } from '@/api/types'
 import { ProviderItemList } from '@/components/share/ProviderItemList'
 import { Panel } from '@/components/shared/Panel'
 
-export function CoverageSection({ coverage }: { coverage: ProviderCoverageOut }) {
+export function CoverageSection({ coverage, level }: { coverage: ProviderCoverageOut; level: 2 | 3 }) {
   return (
-    <Panel title="Coverage">
+    <Panel title="Coverage" level={level}>
       {coverage.confirmed !== null &&
         (coverage.confirmed ? (
           <p className="flex items-center gap-2 text-sm font-medium">

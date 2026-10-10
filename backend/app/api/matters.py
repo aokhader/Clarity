@@ -1,6 +1,6 @@
-"""Firm-view routes for a matter: header, brief, changes, feed, timeline, actions,
-injuries, and the user list. Owned by Track B; queries live in
-`services/matter_queries.py`."""
+"""Firm-view routes for a matter: header, brief, changes, feed, key events, timeline,
+actions, injuries, and the user list. Owned by Track B; queries live in
+`services/matter_queries.py` and `services/key_events.py`."""
 
 from datetime import UTC, datetime
 from typing import Annotated
@@ -19,7 +19,7 @@ from app.schemas import (
     OpenedOut,
     UserOut,
 )
-from app.services import brief_view, matter_queries, users, visits
+from app.services import brief_view, key_events, matter_queries, users, visits
 
 router = APIRouter(prefix="/api", tags=["matters"])
 
@@ -72,6 +72,23 @@ def matter_feed(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> list[FactOut]:
     return matter_queries.matter_feed(session, matter_id, limit)
+
+
+@router.get("/matters/{matter_id}/key-events")
+def matter_key_events(
+    matter_id: MatterId,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[FactOut]:
+    today = datetime.now(UTC).date()
+    return key_events.matter_key_events(session, matter_id, today, limit)
+
+
+@router.get("/matters/{matter_id}/key-events/undated")
+def matter_undated_court_events(
+    matter_id: MatterId, session: SessionDep
+) -> list[FactOut]:
+    return key_events.matter_undated_court_events(session, matter_id)
 
 
 @router.get("/matters/{matter_id}/timeline")

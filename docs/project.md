@@ -33,7 +33,7 @@ It is equally explicit that existing dashboards fail because they show counts an
 
 ## Non-goals
 
-- A chat interface as the primary surface
+- A chat interface as the primary surface (the Ask panel of D49 is a secondary tool; the Overview stays the first screen)
 - Writing anything back to Clio
 - Real authentication, multi-firm tenancy, or mobile layouts
 - Sending email or push notifications (a status feed on the provider page stands in for "tell me when the case moves")
@@ -41,17 +41,21 @@ It is equally explicit that existing dashboards fail because they show counts an
 
 ## User flows
 
-**1. Get up to speed (firm).** Open the matter. See the client's photo, the case stage, the KPI strip, and a short narrative brief with a source chip on each sentence. Read the injuries list and the ten events that matter most.
+**1. Get up to speed (firm).** Open the matter. The first screen names the client and the case, gives the bottom line, says what happened (the incident, the injuries, liability), and where the case is now (stage, next step, statute, last client contact, money), each line with its sources in the margin. One scroll down: the key events in order, the suit's filings and answer among them, and where it stands in full, including where the litigation stands (D38, D41, D43).
 
 **2. Catch up (firm).** A "Since you last opened" block lists what changed since this user's last visit. Leaving the page records the visit.
 
 **3. Trace a fact (firm).** Click any chip, date, or amount. A drawer opens with the source note, email, or PDF page, with the supporting quote highlighted.
 
-**4. Work the file (firm).** The action board shows overdue, upcoming, and waiting-on-others items, plus days since anyone last spoke to the client.
+**4. Work the file (firm).** The action board on For Attorney is a table of overdue and upcoming items and open requests. The Overview's Deadlines and follow-ups row counts them and gives the days since anyone last spoke to the client.
 
 **5. Share with a provider (firm).** Pick a provider from the providers panel. Preview exactly what they will see. Toggle sections, hide individual items, add a note, set an expiry, and copy a link.
 
-**6. Check the case (provider).** Open the link. See a status tracker, whether the case is active, whether coverage is confirmed, what the firm needs from this office, and this office's bills and records on file.
+**6. Check the case (provider).** Open the link. See a status tracker, whether the case is active, whether coverage is confirmed, what the firm needs from this office, this office's bills and records on file, and the case's moves between stages (D41).
+
+**8. Check a message before sending it (firm).** Write an update to a provider. Each amount and date is checked against the file and the link. A sentence that would disclose an internal figure is locked as "Don't send" (D2).
+
+**9. Call and keep notes (firm).** The Calls view lists who to call next. After the other party's consent is confirmed, the browser transcribes the attorney's side, and the notes that come back each quote the transcript (D8).
 
 **7. Check engagement (firm).** The providers panel shows whether each share was opened and when.
 
@@ -62,7 +66,7 @@ Build in this order. When time runs short, cut from the bottom.
 **Must (the demo fails without these)**
 - Clio sync for the matter by ID
 - Fact store with sources
-- Firm view: header with KPI strip, brief, ranked feed, action board
+- Firm view: identity header, bottom line, what happened, the now strip and money row, the brief, key events, action board
 - Source drawer with click-through to the note, email, or PDF page
 - Scanned-PDF extraction with page-level citations
 - Provider view behind a share link, filtered on the server

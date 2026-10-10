@@ -24,7 +24,6 @@ from app.models import OAuthToken
 
 log = logging.getLogger(__name__)
 
-CALLBACK_TIMEOUT_SECONDS = 300
 # Refresh a little early so a long sync never starts with a nearly dead token.
 EXPIRY_MARGIN = timedelta(minutes=2)
 
@@ -33,7 +32,26 @@ class ClioNotAuthorized(Exception):
     """No stored token, or the stored token could not be refreshed."""
 
 
+def missing_client_settings() -> list[str]:
+    """The `.env` names of the Clio app settings that are not filled in."""
+    settings = get_settings()
+    missing = []
+    if not settings.clio_client_id:
+        missing.append("CLIO_CLIENT_ID")
+    if settings.clio_client_secret is None:
+        missing.append("CLIO_CLIENT_SECRET")
+    return missing
+
+
+def _require_client_settings() -> None:
+    missing = missing_client_settings()
+    if missing:
+        raise ClioNotAuthorized(f"Set {' and '.join(missing)} in .env")
+
+
 def authorize_url(state: str) -> str:
+    # Never a URL with client_id=None in it.
+    _require_client_settings()
     settings = get_settings()
     query = urlencode(
         {
@@ -82,7 +100,8 @@ def wait_for_code(state: str) -> str:
     server = _ExclusiveHTTPServer(
         (redirect.hostname or "127.0.0.1", redirect.port or 80), Handler
     )
-    deadline = time.monotonic() + CALLBACK_TIMEOUT_SECONDS
+    wait_seconds = get_settings().clio_oauth_callback_seconds
+    deadline = time.monotonic() + wait_seconds
     try:
         while not received and time.monotonic() < deadline:
             server.timeout = max(deadline - time.monotonic(), 0.1)
@@ -92,7 +111,7 @@ def wait_for_code(state: str) -> str:
 
     if not received:
         raise ClioNotAuthorized(
-            f"No callback from Clio within {CALLBACK_TIMEOUT_SECONDS}s. Check that the "
+            f"No callback from Clio within {wait_seconds}s. Check that the "
             "redirect URI in the Clio app matches CLIO_REDIRECT_URI exactly, or run "
             "`python -m app.cli auth --manual`."
         )
@@ -171,9 +190,9 @@ class TokenStore:
 
 
 def _token_request(form: dict[str, str]) -> dict[str, object]:
+    _require_client_settings()
     settings = get_settings()
-    if not settings.clio_configured or settings.clio_client_secret is None:
-        raise ClioNotAuthorized("Set CLIO_CLIENT_ID and CLIO_CLIENT_SECRET in .env")
+    assert settings.clio_client_secret is not None
     response = httpx.post(
         f"{settings.clio_base_url}/oauth/token",
         data={
@@ -181,7 +200,7 @@ def _token_request(form: dict[str, str]) -> dict[str, object]:
             "client_id": settings.clio_client_id or "",
             "client_secret": settings.clio_client_secret.get_secret_value(),
         },
-        timeout=30,
+        timeout=settings.clio_token_timeout_seconds,
     )
     if response.status_code >= 400:
         raise ClioNotAuthorized(f"Token request failed ({response.status_code})")

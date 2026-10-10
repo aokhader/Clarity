@@ -6,6 +6,8 @@ fact is released only when all of these hold:
 
 - an enabled setting names its kind,
 - the fact concerns the share's own provider, where the setting requires it,
+- a policy limit is the defendant's liability limit (D37),
+- a status change names the stage it moved the case to (D41),
 - the fact is tagged shareable and not flagged as mentioning strategy,
 - the firm has not hidden it,
 - the share is neither expired nor revoked.
@@ -71,6 +73,20 @@ def _enabled_settings(share: Share) -> list[ShareSetting]:
     return [setting for setting in KINDS_BY_SETTING if getattr(settings, setting)]
 
 
+def is_stage_move(fact: Fact) -> bool:
+    """Whether a status change may reach a provider: only a move to a named stage (D41).
+    A status in the record's own words can say what the firm keeps, such as a past
+    dismissal, so a provider is told only which stage the case moved to."""
+    return fact.value_json.get("to_stage") is not None
+
+
+def is_shared_limit(fact: Fact) -> bool:
+    """Whether a policy limit may reach a provider: only the defendant's liability limit,
+    the policy a lien is paid from (D37). The client's own policies are the client's
+    business, and a limit whose policy the file does not name may be one of them."""
+    return fact.value_json.get("policy") == "defendant_liability"
+
+
 def _releases(fact: Fact, setting: ShareSetting, provider_contact_id: int) -> bool:
     if setting in PROVIDER_SCOPED_SETTINGS and (
         fact.provider_contact_id is None
@@ -80,6 +96,10 @@ def _releases(fact: Fact, setting: ShareSetting, provider_contact_id: int) -> bo
     if setting == "requests":
         # Only what the firm still needs; a fulfilled request or a completed task is history.
         return fact.value_json.get("status") == "open"
+    if setting == "coverage_limits":
+        return is_shared_limit(fact)
+    if fact.kind is FactKind.STATUS_CHANGE:
+        return is_stage_move(fact)
     return True
 
 

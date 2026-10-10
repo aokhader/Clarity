@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.digest.payloads import build_payload, contact_channel
 from app.digest.records import (
+    QUOTE_LIMIT,
     is_processed,
     mark_processed,
     name_of,
@@ -22,8 +23,6 @@ from app.digest.records import (
 from app.models import Confidence, Fact, FactKind, Origin, Source, SourceType
 
 log = logging.getLogger(__name__)
-
-QUOTE_LIMIT = 300
 
 
 def build_structured_facts(session: Session, matter_id: int) -> Counter[str]:

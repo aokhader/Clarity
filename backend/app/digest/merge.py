@@ -3,11 +3,10 @@ a claim without a source.
 
 1. Deduplicate facts that say the same thing about the same date and provider.
 2. Score significance (0 to 100) and who each task is waiting on.
-3. Cross-check money totals against the firm's own figures.
-4. Write the brief, where every sentence cites fact ids that exist.
+3. Cross-check the firm's own figures against the file (`cross_check.py`).
+4. Write the brief, where every sentence cites fact ids that exist (`brief.py`).
 """
 
-import hashlib
 import json
 import logging
 from collections import Counter, defaultdict
@@ -17,15 +16,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.digest import llm
-from app.models import Confidence, Digest, DigestKind, Fact, FactKind, Origin
-from app.schemas import BriefContent
-from app.services.bills import billed_total_cents
+from app.digest.brief import write_brief
+from app.digest.cross_check import cross_check
+from app.models import Confidence, Fact, FactKind, Origin
 
 log = logging.getLogger(__name__)
 
-SCORE_BATCH = 50
-BRIEF_FACT_LIMIT = 40
 # 0 means "not scored yet", so a scored fact is stored with at least 1.
 MIN_SCORED = 1
 DEDUP_KINDS = {
@@ -37,19 +35,11 @@ DEDUP_KINDS = {
     FactKind.POLICY_LIMIT,
     FactKind.RECORDS_RECEIVED,
     FactKind.DEADLINE,
+    # A filing stamp printed on every page can be read as one event per page.
+    FactKind.LITIGATION_EVENT,
 }
 CONFIDENCE_RANK = {Confidence.HIGH: 0, Confidence.MEDIUM: 1, Confidence.LOW: 2}
 WaitingOn = Literal["firm", "client", "provider", "insurer", "court", "other"]
-Stage = Literal[
-    "intake",
-    "treating",
-    "treatment_complete",
-    "demand",
-    "negotiation",
-    "litigation",
-    "settled",
-    "closed",
-]
 
 
 class Score(BaseModel):
@@ -62,25 +52,16 @@ class Scores(BaseModel):
     scores: list[Score]
 
 
-class BriefSentence(BaseModel):
-    text: str
-    fact_ids: list[int]
-
-
-class Brief(BaseModel):
-    headline: str
-    stage: Stage
-    stage_fact_ids: list[int]
-    sentences: list[BriefSentence]
-    open_questions: list[str] = []
-
-
-def merge(session: Session, matter_id: int) -> Counter[str]:
+def merge(session: Session, matter_id: int, *, brief: bool = True) -> Counter[str]:
+    """`brief=False` leaves the stored brief as it is; the next digest writes it."""
     counts: Counter[str] = Counter()
     counts["deduplicated"] = deduplicate(session, matter_id)
-    counts["scored"] = score(session, matter_id)
+    counts.update(score(session, matter_id))
     counts["cross_check_disagreements"] = cross_check(session, matter_id)
-    counts["brief"] = int(write_brief(session, matter_id))
+    if brief:
+        counts["brief"] = int(write_brief(session, matter_id))
+    else:
+        counts["brief_kept"] = 1
     session.commit()
     log.info("Merge: %s", dict(counts))
     return counts
@@ -111,6 +92,8 @@ def deduplicate(session: Session, matter_id: int) -> int:
             who,
             value.get("amount_cents"),
             str(value.get("body_part") or "").lower(),
+            # A paper filed and served on one day is two events.
+            value.get("event"),
         )
         groups[key].append(fact)
     removed = 0
@@ -132,12 +115,35 @@ def deduplicate(session: Session, matter_id: int) -> int:
     return removed
 
 
-def score(session: Session, matter_id: int) -> int:
-    unscored = [f for f in _facts(session, matter_id) if f.significance == 0]
+def score(session: Session, matter_id: int) -> Counter[str]:
+    """Score every unscored fact, in batches.
+
+    A fact the model leaves out of a batch it answered is asked about again in a
+    smaller batch. Left out twice, it gets the lowest score and is counted, so later
+    digests do not ask about it again. A batch whose call failed stays unscored; its
+    failure is cached and the run reports it.
+    """
+    counts: Counter[str] = Counter()
+    pending = [f for f in _facts(session, matter_id) if f.significance == 0]
+    for _attempt in range(get_settings().score_passes):
+        if not pending:
+            break
+        scored, pending = _score_batches(session, matter_id, pending)
+        counts["scored"] += scored
+    for fact in pending:
+        fact.significance = MIN_SCORED
+    counts["score_dropped"] = len(pending)
+    session.flush()
+    return counts
+
+
+def _score_batches(
+    session: Session, matter_id: int, unscored: list[Fact]
+) -> tuple[int, list[Fact]]:
+    """Score in batches; return the count and the facts answered batches left out."""
     requests = []
-    batches = [
-        unscored[i : i + SCORE_BATCH] for i in range(0, len(unscored), SCORE_BATCH)
-    ]
+    size = get_settings().score_batch_size
+    batches = [unscored[i : i + size] for i in range(0, len(unscored), size)]
     for batch in batches:
         rows = [
             {
@@ -160,6 +166,7 @@ def score(session: Session, matter_id: int) -> int:
             )
         )
     scored = 0
+    left_out: list[Fact] = []
     for batch, result in zip(batches, llm.run_batch(session, requests), strict=True):
         if not isinstance(result, Scores):
             continue
@@ -167,152 +174,13 @@ def score(session: Session, matter_id: int) -> int:
         for fact in batch:
             entry = by_id.get(fact.id)
             if entry is None:
+                left_out.append(fact)
                 continue
             fact.significance = max(entry.significance, MIN_SCORED)
             if fact.kind is FactKind.TASK and entry.waiting_on:
                 fact.value_json = {**fact.value_json, "waiting_on": entry.waiting_on}
             scored += 1
-    session.flush()
-    return scored
-
-
-def cross_check(session: Session, matter_id: int) -> int:
-    """Put the billed total beside the firm's own specials figure.
-
-    The billed total counts each provider's charges once (`services/bills.py`): a ledger
-    entry, a note, and the itemized bill for the same charges are one bill, not three.
-
-    A disagreement is stored as an `alt_values` entry on the specials fact, so the KPI
-    tile shows both numbers instead of silently picking one.
-    """
-    facts = _facts(session, matter_id)
-    bills = [f for f in facts if f.kind is FactKind.MEDICAL_BILL]
-    total = billed_total_cents(bills)
-    disagreements = 0
-    for specials in (f for f in facts if f.kind is FactKind.MEDICAL_SPECIALS):
-        value = dict(specials.value_json or {})
-        stated = value.get("amount_cents")
-        if bills and stated is not None and stated != total:
-            value["alt_values"] = [{"amount_cents": total}]
-            disagreements += 1
-        else:
-            value["alt_values"] = []
-        specials.value_json = value
-    session.flush()
-    return disagreements
-
-
-def key_figures(session: Session, matter_id: int) -> dict[str, Any]:
-    """Totals the brief may cite as context. The KPI tiles compute their own."""
-    facts = _facts(session, matter_id)
-
-    def total(kind: FactKind) -> int:
-        return sum(
-            (f.value_json or {}).get("amount_cents") or 0
-            for f in facts
-            if f.kind is kind
-        )
-
-    return {
-        "medical_bills_total_cents": billed_total_cents(facts),
-        "firm_spend_cents": total(FactKind.EXPENSE),
-        "medical_specials_fact_ids": [
-            f.id for f in facts if f.kind is FactKind.MEDICAL_SPECIALS
-        ],
-        "policy_limit_fact_ids": [
-            f.id for f in facts if f.kind is FactKind.POLICY_LIMIT
-        ],
-    }
-
-
-def write_brief(session: Session, matter_id: int) -> bool:
-    facts = _facts(session, matter_id)
-    if not facts:
-        return False
-    top = sorted(facts, key=lambda f: (-f.significance, f.id))[:BRIEF_FACT_LIMIT]
-    stage_facts = [
-        f for f in facts if f.kind in (FactKind.CASE_STAGE, FactKind.STATUS_CHANGE)
-    ]
-    open_tasks = [
-        f
-        for f in facts
-        if f.kind is FactKind.TASK and f.value_json.get("status") != "complete"
-    ]
-    included = {f.id: f for f in top + stage_facts + open_tasks}
-    figures = key_figures(session, matter_id)
-    payload = {
-        "facts": [_brief_row(f) for f in included.values()],
-        "key_figures": figures,
-        "open_task_ids": [f.id for f in open_tasks],
-    }
-    user_text = json.dumps(payload, indent=1, default=str)
-    input_hash = hashlib.sha256(user_text.encode()).hexdigest()
-    existing = session.scalars(
-        select(Digest).where(
-            Digest.matter_id == matter_id, Digest.kind == DigestKind.BRIEF
-        )
-    ).first()
-    if existing is not None and existing.input_hash == input_hash:
-        return False
-    request = llm.ModelRequest(
-        purpose="brief",
-        role="merge",
-        prompt=llm.load_prompt("brief"),
-        user_text=user_text,
-        output=Brief,
-        matter_id=matter_id,
-    )
-    result = llm.call(session, request)
-    if not isinstance(result, Brief):
-        return False
-    cited = _cite_only_known(result, set(included))
-    content = BriefContent.model_validate(cited.model_dump()).model_dump(mode="json")
-    if existing is None:
-        existing = Digest(
-            matter_id=matter_id,
-            kind=DigestKind.BRIEF,
-            content_json=content,
-            input_hash=input_hash,
-            model=request.model,
-        )
-        session.add(existing)
-    existing.content_json = content
-    existing.input_hash = input_hash
-    existing.model = request.model
-    return True
-
-
-def _cite_only_known(brief: Brief, known_ids: set[int]) -> Brief:
-    """Drop any sentence that cites no real fact; a citation is the sentence's license."""
-    sentences = []
-    for sentence in brief.sentences:
-        ids = [i for i in sentence.fact_ids if i in known_ids]
-        if ids:
-            sentences.append(BriefSentence(text=sentence.text, fact_ids=ids))
-    return brief.model_copy(
-        update={
-            "sentences": sentences,
-            "stage_fact_ids": [i for i in brief.stage_fact_ids if i in known_ids],
-        }
-    )
-
-
-def _brief_row(fact: Fact) -> dict[str, Any]:
-    value = {
-        k: v
-        for k, v in (fact.value_json or {}).items()
-        if k not in ("corroborating_source_ids", "alt_values")
-    }
-    return {
-        "fact_id": fact.id,
-        "kind": fact.kind.value,
-        "title": fact.title,
-        "date": fact.event_date.isoformat() if fact.event_date else None,
-        "significance": fact.significance,
-        "confidence": fact.confidence.value,
-        "value": value,
-        "quote": (fact.quote or "")[:200],
-    }
+    return scored, left_out
 
 
 def _facts(session: Session, matter_id: int) -> list[Fact]:

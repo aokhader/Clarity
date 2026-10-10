@@ -4,11 +4,11 @@ Fill every bracket from the running system before submitting. Do not invent numb
 
 ## 1. GitHub repository
 
-[repository URL]. Team size: [N].
+https://github.com/aokhader/Clarity (the trial's work is on branch `kit-trial`). Team size: 2.
 
 ## 2. 90-second clip
 
-[Google Drive link, public access]. Script: `docs/submission.md`.
+**[MANAGER: Google Drive link, public access. Not in the repository.]** Script: `docs/submission.md`.
 
 ## 3. Tech stack
 
@@ -16,11 +16,38 @@ FastAPI and SQLite backend, Vite and React frontend, running on localhost. Clio 
 
 ## 4. Models and cost
 
-Per-page and per-record extraction: [EXTRACT_MODEL]. Field and role mapping, significance, and the brief: [MERGE_MODEL]. One full digest of the matter: [N] pages, [N] model calls, about $[X]. Reopening the matter costs $0 because results are stored and cached by input hash; a re-sync digests only changed records.
+Per-page and per-record extraction: `claude-haiku-5-5`. Field and role mapping, significance, and the brief: `claude-sonnet-5-5`. These are the models since 2026-10-08 (D36).
+
+**A whole case on these models: about $1.40. This is an estimate, not a measurement:** no full digest has run on them. It prices the measured October 2 digest's tokens at their rates:
+- extraction, about $0.48 to $0.54. On the same records, Haiku used 1.1 times the input and 2.2 to 2.5 times the output tokens of the October 2 model. The ratio comes from records only, and most extraction calls read scanned pages.
+- the merge, about $0.89, assuming Sonnet uses as many tokens as the October 2 model did.
+
+**Measured: one full digest on October 2 cost $7.65,** on `claude-sonnet-5-5` for extraction and `claude-opus-5-5` for the merge:
+- 361 pages and 112 records;
+- 514 model calls: 473 extraction calls ($5.86) and 41 merge calls ($1.79);
+- 1,728,515 input and 329,989 output tokens.
+
+This was measured from `GET /api/ops/cost` and the `llm_calls` table. A further 184 calls were rejected by the API and cost nothing.
+
+**Measured: the five update runs on 2026-10-08 cost $0.40 together,** on the D36 models. They re-ran only the calls whose prompts or inputs had changed, so they price an update, not a whole case.
+- The re-digest made 6 calls (36,295 input and 7,905 output tokens), for $0.0979.
+- The re-read of 9 records made 10 paid calls, and answered 4 more from the cache (49,274 input and 15,266 output tokens), for $0.0760.
+- The re-read of 13 pleading pages for court events (D41) made 19 paid calls, and answered 3 more from the cache (87,026 input and 22,790 output tokens), for $0.0425.
+- The re-read of 14 notes and emails about court events, with the brief rewritten (D42), made 17 paid calls, and answered 3 more from the cache (74,729 input and 18,495 output tokens), for $0.1039.
+- The re-read of one complaint page, with the brief rewritten to cover the suit (D43), made 4 paid calls, and answered 3 more from the cache (35,432 input and 5,381 output tokens), for $0.0820.
+- No call failed. Each run was tried first on a copy of the database: 6 calls for $0.0148 before the first two, 19 calls for $0.043 before the third, 17 calls for $0.1031 before the fourth, and 5 calls for $0.0760 before the fifth.
+
+**Measured: one more update run on 2026-10-09 cost $0.078** (D53, a digest that left the stage undated and rewrote the brief). It made 2 paid `claude-sonnet-5-5` calls and answered 3 from the cache (25,824 input and 2,659 output tokens), read as the change in `GET /api/ops/cost` before and after.
+
+Gemini's free tier was tried first (D30, D31) and dropped: it answered 4 of 14 attempts in a 2026-10-08 trial (D36).
+
+Reopening the matter costs $0, because results are stored and cached by input hash. A second digest over unchanged inputs makes no model call (`backend/tests/test_pipeline_second_digest.py`).
+
+**Ask, the point-and-ask chatbot (D49), measured on 2026-10-09:** a question is one `claude-sonnet-5-5` call. The first cost $0.148; after D50 trimmed what a question sends, the second cost $0.030 and a follow-up $0.038 (3 calls, $0.216 in all on the real matter). The question behind the Ask screenshots, on the invented matter, cost $0.017. Closing a thread and downloading its transcript make no model call. `GET /api/ops/cost` reports chat apart from the digest (`chat_calls`, `chat_cost_micro_usd`), and a cap of $2 a day per matter stops it.
 
 ## 5. Anything the judges should know
 
-**Differentiator.** Every sentence, date, and amount on screen links to the note, email, or PDF page it came from. The provider view is the same sourced data behind a default-deny filter the attorney controls, with a preview that is exactly what the provider receives.
+**Differentiator.** Every sentence, date, and amount on screen links to the note, email, or PDF page it came from. The provider view is the same sourced data behind a default-deny filter the attorney controls, with a preview that is exactly what the provider receives. Before anything is sent to a provider, a draft checker tests each amount and date against the file. It locks a sentence that would disclose an internal figure, and says when a date is in the file but not on that provider's link.
 
 **Where to look first.**
 - `backend/app/digest/`: page-level extraction with verbatim quotes, verification (quote check, second read on scans), then a merge step that sees only extracted facts
@@ -28,7 +55,7 @@ Per-page and per-record extraction: [EXTRACT_MODEL]. Field and role mapping, sig
 - `backend/app/clio/client.py`: the GET-only Clio client
 
 **Half-done or hardcoded.**
-- No real authentication for firm users: seeded stub accounts and a header-based user switcher. Provider access is by unguessable, expiring link only; there is no provider login.
+- No real authentication for firm users: three seeded stub accounts, and the firm view acts as the first, with no switcher since D48. Provider access is by unguessable, expiring link only; there is no provider login.
 - `cli seed-dev` loads an invented matter for development and tests, including a handwritten brief (`backend/tests/fixtures/synthetic_matter.py`). The demo runs on a live Clio sync.
 - Clio's personal-injury endpoints (`/medical_records_details.json`, `/damages.json`) are not synced; bills come from documents, notes, and the expense ledger.
 - Calendar entries all become deadlines, including treatment appointments. Time entries produce no facts; firm spend counts non-time entries only.
@@ -36,7 +63,17 @@ Per-page and per-record extraction: [EXTRACT_MODEL]. Field and role mapping, sig
 - Deduplication deletes duplicate facts, so a source with a duplicate gets new fact ids on the next run.
 - The provider page does not show the firm's name; no synced record carries it.
 - A live provider link cannot be edited; the firm withdraws it and shares again.
-- [Add anything left in the Stubs and Known issues sections of `docs/progress.md` and `docs/tracks/` at submission.]
+- The draft checker checks figures only. A sentence that discloses an internal fact without an amount or a date is `unchecked`, and a figure merely near an internal amount is not flagged.
+- No full digest has run on the current models. The whole-case figure for them is an estimate.
+- Another party's liability policy (the defense driver's own auto policy) is labelled "Client's other policy" on the firm's Coverage tile. The policy field has no value for another party's liability. Providers never see it, since a link releases only the defendant's limits.
+- A share stores hidden items by fact id. A re-digest that re-reads a record gives its facts new ids, so an item hidden on a share would come back. No share exists on the real matter. This is a gap in the provider boundary, to fix after the freeze.
+- Since D43 the brief states the suit, the earlier dismissal and refiling, and the pleaded limitations defense. Whether it states the defense medical exam findings has not been re-checked; What matters, the ranked feed on For Attorney, shows them.
+- Ask has answered three questions on the real matter, all under the first version of its prompt. Closing a thread, and a closed thread's chips opening the sources frozen when it closed (D54), have not been seen in the browser on the real matter. A frozen source keeps the page's text, but its page image loads from the live file. Ask's search hits show no source chip until the question is asked, a drag does not scroll the page at its edges, and retrieval matches words, not meaning (no embeddings).
+- Call notes have not been made by a live model on the real matter. A stored call does not record which firm user confirmed consent.
+- A provider link's "shared on" and "expires" dates are UTC days.
+- Pages read before a provider was known never get that provider.
+- The screenshots show the invented `seed-dev` matter, not the real one (D33).
+- The full list, with the files where each item lives: README, "Half-done or stubbed".
 
 ## 6. Live link or install path
 

@@ -50,6 +50,8 @@ ORTHO_ID = 201  # first medical provider
 THERAPY_ID = 202  # second medical provider
 INSURER_ID = 301
 DOCUMENT_ID = "1001"
+# Both limits on file are the other driver's carrier's, and they disagree (D37).
+DEFENDANT = "defendant_liability"
 
 # Mirrors the visibility table in docs/architecture.md. Default-deny.
 _SHAREABLE_KINDS = {
@@ -68,6 +70,7 @@ _SHAREABLE_KINDS = {
 _PAGE_ONE = """NORTHSIDE ORTHOPEDICS (DEMO)
 Office visit note
 Patient: Jordan Avery
+History: rear-ended at a stoplight while stopped in traffic.
 Assessment: Cervical strain with radiating neck pain after a vehicle collision.
 Plan: Physical therapy twice weekly for six weeks.
 Records enclosed: 2 pages."""
@@ -80,12 +83,20 @@ Balance due                      $2,480.00
 MRI impression: disc herniation at L4-L5.
 This office asserts a lien on any recovery for the balance due."""
 
+# A call placed from Clarity to the first provider, and the span its note quotes.
+_CALL_TRANSCRIPT = (
+    "Thanks for calling. The office said the updated records will go out by Friday."
+)
+_CALL_QUOTE = "the updated records will go out by Friday"
+_CALL_QUOTE_START = _CALL_TRANSCRIPT.index(_CALL_QUOTE)
+
 _NOTE = (
     "Client was rear-ended at a stoplight. The other driver's carrier is Example "
     "Mutual Insurance, and the adjuster confirmed bodily injury coverage is in place. "
     "Adjuster mentioned a $50,000 per person limit. Police report places fault on the "
     "other driver. Client prefers text messages over calls. Client authorized "
-    "settlement at no less than $90,000."
+    "settlement at no less than $90,000. Economic damages come to $8,440 with lost "
+    "wages. Recovery is capped at the $100,000 limit."
 )
 
 
@@ -192,8 +203,24 @@ def _sources(today: date) -> dict[str, _SourceSpec]:
             SourceType.NOTE,
             501,
             {"id": 501, "subject": "Intake call"}
-            | {"detail": _NOTE, "date": on(-198), "author": {"name": "Firm Intake"}},
+            | {
+                "detail": f"{_NOTE} Date of loss: {on(-210)}.",
+                "date": on(-198),
+                "author": {"name": "Firm Intake"},
+            },
             198,
+        ),
+        (
+            "note_court",
+            SourceType.NOTE,
+            502,
+            {"id": 502, "subject": "Complaint filed"}
+            | {
+                "detail": "Complaint filed with the court and served on the defendant.",
+                "date": on(-100),
+                "author": {"name": "Sample Attorney"},
+            },
+            100,
         ),
         (
             "email_therapy",
@@ -318,6 +345,14 @@ def _sources(today: date) -> dict[str, _SourceSpec]:
             | {"name": "Orthopedic visit note and bill", "filename": "ortho-visit.pdf"},
             45,
         ),
+        (
+            "call",
+            SourceType.CALL,
+            "call-1",
+            {"call_id": 1, "name": "Northside Orthopedics (Demo)", "role": "provider"}
+            | {"transcript": _CALL_TRANSCRIPT},
+            2,
+        ),
     ]
     return {
         key: _SourceSpec(t, str(cid), raw, days) for key, t, cid, raw, days in specs
@@ -368,6 +403,58 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             on(-210),
             origin=code,
         ),
+        # The date-of-incident field as a Clio sync maps it: the field's label for a
+        # title and no description, so it can date the incident but not describe it.
+        "incident_field": f(
+            FactKind.INCIDENT,
+            "Loss date",
+            "matter",
+            {},
+            on(-210).isoformat(),
+            70,
+            on(-210),
+            origin=code,
+        ),
+        # Two records read on that day give one account of what happened, so the
+        # header's account cites both (services/incident.py).
+        "incident_note": f(
+            FactKind.INCIDENT,
+            "Rear-end collision at a stoplight",
+            "note",
+            {"description": "Client was rear-ended at a stoplight."},
+            "Client was rear-ended at a stoplight",
+            75,
+            on(-210),
+        ),
+        "incident_page": f(
+            FactKind.INCIDENT,
+            "Client in a rear-end collision at a stoplight",
+            "document",
+            {"description": "Rear-ended while stopped in traffic"},
+            "rear-ended at a stoplight while stopped in traffic",
+            65,
+            on(-210),
+            page_no=1,
+        ),
+        "filed": f(
+            FactKind.LITIGATION_EVENT,
+            "Complaint filed",
+            "note_court",
+            {"event": "filed", "detail": "Filed with the court"},
+            "Complaint filed with the court",
+            70,
+            on(-100),
+        ),
+        # A read that only restates the date, which the account leaves out.
+        "incident_date_only": f(
+            FactKind.INCIDENT,
+            f"Date of loss: {on(-210).isoformat()}",
+            "note",
+            {},
+            f"Date of loss: {on(-210).isoformat()}",
+            60,
+            on(-210),
+        ),
         "value": f(
             FactKind.CASE_VALUE,
             "Case valued at $75,000 to $150,000",
@@ -386,7 +473,7 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             FactKind.POLICY_LIMIT,
             "Policy limit $100,000 per person",
             "matter",
-            {"amount_cents": 10_000_000, "per": "person"},
+            {"amount_cents": 10_000_000, "per": "person", "policy": DEFENDANT},
             "100000",
             92,
             origin=code,
@@ -395,7 +482,7 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             FactKind.POLICY_LIMIT,
             "Adjuster cited a $50,000 limit",
             "note",
-            {"amount_cents": 5_000_000, "per": "person"},
+            {"amount_cents": 5_000_000, "per": "person", "policy": DEFENDANT},
             "Adjuster mentioned a $50,000 per person limit",
             90,
             on(-198),
@@ -408,6 +495,38 @@ def _facts(today: date) -> dict[str, _FactSpec]:
             "3440.00",
             75,
             origin=code,
+        ),
+        "damages": f(
+            FactKind.ECONOMIC_DAMAGES,
+            "Economic damages $8,440",
+            "note",
+            {"amount_cents": 844_000, "basis": "specials plus $5,000 in lost wages"},
+            "Economic damages come to $8,440 with lost wages",
+            70,
+            on(-198),
+        ),
+        "cap": f(
+            FactKind.RECOVERY_CAP,
+            "Recovery capped at the policy limit",
+            "note",
+            {"amount_cents": 10_000_000, "basis": "the other driver's limit"},
+            "Recovery is capped at the $100,000 limit",
+            80,
+            on(-198),
+        ),
+        "call_note": f(
+            FactKind.CALL_NOTE,
+            "The office will send updated records by Friday",
+            "call",
+            {
+                "note_kind": "commitment",
+                "quote_start": _CALL_QUOTE_START,
+                "quote_end": _CALL_QUOTE_START + len(_CALL_QUOTE),
+            },
+            _CALL_QUOTE,
+            80,
+            on(-2),
+            provider=ORTHO_ID,
         ),
         "coverage": f(
             FactKind.COVERAGE,

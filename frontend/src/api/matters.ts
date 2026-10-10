@@ -10,6 +10,22 @@ export function useMatterBrief(matterId: number) {
   })
 }
 
+/** About ten key events, oldest first, the incident pinned (B12). */
+export function useMatterKeyEvents(matterId: number, limit = 10) {
+  return useQuery({
+    queryKey: ['matters', matterId, 'key-events', limit],
+    queryFn: () => apiGet<FactOut[]>(`/matters/${matterId}/key-events?limit=${limit}`),
+  })
+}
+
+/** Court events no record dates, at most five, each with the records that restate it (D43). */
+export function useMatterUndatedCourtEvents(matterId: number) {
+  return useQuery({
+    queryKey: ['matters', matterId, 'key-events', 'undated'],
+    queryFn: () => apiGet<FactOut[]>(`/matters/${matterId}/key-events/undated`),
+  })
+}
+
 export function useMatterInjuries(matterId: number) {
   return useQuery({
     queryKey: ['matters', matterId, 'injuries'],

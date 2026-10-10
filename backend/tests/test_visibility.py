@@ -7,12 +7,29 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Fact, FactKind, Share, Visibility
-from app.schemas import ShareSetting, ShareSettings
+from app.models import (
+    Confidence,
+    Fact,
+    FactKind,
+    Origin,
+    Share,
+    Source,
+    SourceType,
+    Visibility,
+)
+from app.schemas import (
+    ProviderItemOut,
+    ProviderPayload,
+    ShareSetting,
+    ShareSettings,
+    validate_payload,
+)
+from app.services.provider_view import ITEM_KIND_BY_FACT_KIND, provider_payload
 from app.services.visibility import (
     KINDS_BY_SETTING,
     PROVIDER_SCOPED_SETTINGS,
     SETTING_BY_KIND,
+    fact_visibility,
     visible_facts_for_share,
 )
 from tests.fixtures.synthetic_matter import MATTER_ID, ORTHO_ID, THERAPY_ID
@@ -182,3 +199,235 @@ def test_a_share_inside_its_expiry_is_live(seeded: Session) -> None:
 
 def test_another_matters_facts_never_appear(seeded: Session) -> None:
     assert _visible(seeded, _share(matter_id=MATTER_ID + 1)) == []
+
+
+# --- D20, D21: economic damages, recovery caps, and whose policy a limit is ----------
+
+
+def _new_fact(
+    session: Session, kind: FactKind, value: dict[str, object], provider: int | None
+) -> Fact:
+    source = Source(
+        matter_id=MATTER_ID,
+        clio_type=SourceType.NOTE,
+        clio_id=f"visibility-note-{session.query(Source).count()}",
+        raw_json={},
+    )
+    session.add(source)
+    session.flush()
+    fact = Fact(
+        matter_id=MATTER_ID,
+        kind=kind,
+        title="A figure",
+        value_json=validate_payload(kind, value),
+        source_id=source.id,
+        quote="A figure",
+        provider_contact_id=provider,
+        # Tagged shareable on purpose: the kind alone must keep it in.
+        visibility=Visibility.SHAREABLE,
+        confidence=Confidence.HIGH,
+        origin=Origin.MODEL,
+    )
+    session.add(fact)
+    session.flush()
+    return fact
+
+
+@pytest.mark.parametrize("kind", [FactKind.ECONOMIC_DAMAGES, FactKind.RECOVERY_CAP])
+def test_damages_and_caps_are_internal_by_default_deny(
+    seeded: Session, kind: FactKind
+) -> None:
+    assert kind not in SETTING_BY_KIND
+    assert fact_visibility(kind, mentions_strategy=False) is Visibility.INTERNAL
+
+    fact = _new_fact(seeded, kind, {"amount_cents": 1_000_00, "basis": "x"}, ORTHO_ID)
+
+    assert fact not in _visible(seeded, _share())
+
+
+# D37: the client's own policies are the client's business, and a limit whose policy
+# the file does not name may be one of them.
+NOT_THE_DEFENDANTS = ["client_no_fault", "client_um_uim", "client_other", None]
+
+
+def _limit(session: Session, policy: str | None, per: str | None = "person") -> Fact:
+    value = {"amount_cents": 2_500_00, "per": per, "policy": policy}
+    return _new_fact(session, FactKind.POLICY_LIMIT, value, None)
+
+
+@pytest.mark.parametrize("policy", NOT_THE_DEFENDANTS)
+def test_only_the_defendants_liability_limits_are_released(
+    seeded: Session, policy: str | None
+) -> None:
+    theirs = _limit(seeded, policy)
+    defendants = _limit(seeded, "defendant_liability")
+    limits_off = ALL_ON.model_copy(update={"coverage_limits": False})
+
+    visible = _visible(seeded, _share())
+
+    assert defendants in visible
+    assert theirs not in visible
+    assert defendants not in _visible(seeded, _share(settings=limits_off))
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID])
+def test_a_providers_page_never_lists_a_client_policy_or_an_untagged_limit(
+    seeded: Session, provider: int
+) -> None:
+    others = [
+        _limit(seeded, policy, per)
+        for policy in NOT_THE_DEFENDANTS
+        for per in ("person", "occurrence", None)
+    ]
+
+    payload = provider_payload(seeded, _share(provider=provider), NOW)
+
+    assert payload.coverage is not None and payload.coverage.limits
+    listed = {item.fact_id for item in payload.coverage.limits}
+    assert listed.isdisjoint(fact.id for fact in others)
+    for fact_id in listed:
+        assert seeded.get_one(Fact, fact_id).value_json["policy"] == (
+            "defendant_liability"
+        )
+    assert 2_500_00 not in {item.amount_cents for item in payload.coverage.limits}
+
+
+# --- Calls: notes from a call's transcript are internal (default-deny) ----------------
+
+
+def test_call_notes_never_reach_a_provider(seeded: Session) -> None:
+    assert FactKind.CALL_NOTE not in SETTING_BY_KIND
+    assert fact_visibility(FactKind.CALL_NOTE, mentions_strategy=False) is (
+        Visibility.INTERNAL
+    )
+    note = _fact(seeded, FactKind.CALL_NOTE, ORTHO_ID)
+    # Even mis-tagged shareable, about the share's own provider, its kind keeps it in.
+    note.visibility = Visibility.SHAREABLE
+    seeded.flush()
+
+    assert note not in _visible(seeded, _share(provider=ORTHO_ID))
+
+
+# --- D41: litigation events are internal (default-deny) -----------------------------
+
+
+_EVERY_SETTING_COMBINATION = [
+    ShareSettings.model_validate(
+        {setting: bool(mask >> n & 1) for n, setting in enumerate(KINDS_BY_SETTING)}
+    )
+    for mask in range(2 ** len(KINDS_BY_SETTING))
+]
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID, None])
+def test_a_litigation_event_never_reaches_a_provider(
+    seeded: Session, provider: int | None
+) -> None:
+    kind = FactKind.LITIGATION_EVENT
+    assert kind not in SETTING_BY_KIND
+    assert all(kind not in kinds for kinds in KINDS_BY_SETTING.values())
+    assert fact_visibility(kind, mentions_strategy=False) is Visibility.INTERNAL
+    filed = _fact(seeded, kind, None)
+    # Even mis-tagged shareable and about a share's own provider, its kind keeps it in.
+    event = _new_fact(seeded, kind, {"event": "dismissed"}, provider)
+    for fact in (filed, event):
+        fact.visibility = Visibility.SHAREABLE
+    seeded.flush()
+
+    for share_provider in (ORTHO_ID, THERAPY_ID):
+        for settings in _EVERY_SETTING_COMBINATION:
+            visible = _visible(
+                seeded, _share(provider=share_provider, settings=settings)
+            )
+            assert filed not in visible and event not in visible
+
+
+# --- D41: a status change reaches a provider only as a move to a named stage ---------
+
+
+def test_a_status_change_without_a_stage_is_never_released(seeded: Session) -> None:
+    free = _new_fact(
+        seeded, FactKind.STATUS_CHANGE, {"to_stage": None, "label": "Free text"}, None
+    )
+    move = _new_fact(
+        seeded,
+        FactKind.STATUS_CHANGE,
+        {"to_stage": "litigation", "label": "Free text"},
+        None,
+    )
+    stage_off = ALL_ON.model_copy(update={"case_stage": False})
+
+    for settings in _EVERY_SETTING_COMBINATION:
+        assert free not in _visible(seeded, _share(settings=settings))
+    assert move in _visible(seeded, _share())
+    assert move not in _visible(seeded, _share(settings=stage_off))
+
+
+# --- D35: an item's kind names only a bill or lien the link already shows ------------
+
+
+def _items(payload: ProviderPayload) -> list[ProviderItemOut]:
+    limits = payload.coverage.limits if payload.coverage else None
+    sections = (payload.requests, payload.bills, payload.records, limits)
+    return [item for section in sections for item in section or []]
+
+
+def test_only_the_kinds_the_bills_setting_releases_are_named() -> None:
+    assert set(ITEM_KIND_BY_FACT_KIND) == KINDS_BY_SETTING["own_bills"]
+    assert NEVER_SHARED.isdisjoint(ITEM_KIND_BY_FACT_KIND)
+
+
+@pytest.mark.parametrize("provider", [ORTHO_ID, THERAPY_ID])
+def test_an_items_kind_is_set_only_on_a_released_bill_or_lien(
+    seeded: Session, provider: int
+) -> None:
+    share = _share(provider=provider)
+    released = {r.fact.id: r for r in visible_facts_for_share(seeded, share, NOW)}
+
+    payload = provider_payload(seeded, share, NOW)
+
+    labelled = [item for item in _items(payload) if item.kind is not None]
+    assert labelled
+    assert [item.fact_id for item in labelled] == [
+        b.fact_id for b in payload.bills or []
+    ]
+    for item in labelled:
+        assert item.fact_id in released
+        assert released[item.fact_id].setting == "own_bills"
+        assert item.kind == ITEM_KIND_BY_FACT_KIND[released[item.fact_id].fact.kind]
+
+
+@pytest.mark.parametrize("withheld", ["hidden", "internal", "strategy", "bills_off"])
+def test_a_withheld_lien_leaves_no_lien_kind(seeded: Session, withheld: str) -> None:
+    lien = _fact(seeded, FactKind.LIEN, ORTHO_ID)
+    share = _share()
+    if withheld == "hidden":
+        share = _share(hidden=[lien.id])
+    elif withheld == "internal":
+        lien.visibility = Visibility.INTERNAL
+    elif withheld == "strategy":
+        lien.mentions_strategy = True
+    else:
+        share = _share(settings=ALL_ON.model_copy(update={"own_bills": False}))
+    seeded.flush()
+
+    items = _items(provider_payload(seeded, share, NOW))
+
+    assert lien.id not in {item.fact_id for item in items}
+    assert "lien" not in {item.kind for item in items}
+
+
+def test_an_internal_fact_never_becomes_a_labelled_item(seeded: Session) -> None:
+    # Every never-shared fact, mis-tagged shareable and about the share's own provider.
+    internal = list(seeded.scalars(select(Fact).where(Fact.kind.in_(NEVER_SHARED))))
+    assert {fact.kind for fact in internal} == NEVER_SHARED
+    for fact in internal:
+        fact.visibility = Visibility.SHAREABLE
+        fact.mentions_strategy = False
+        fact.provider_contact_id = ORTHO_ID
+    seeded.flush()
+
+    items = _items(provider_payload(seeded, _share(), NOW))
+
+    assert items
+    assert {fact.id for fact in internal}.isdisjoint(item.fact_id for item in items)
